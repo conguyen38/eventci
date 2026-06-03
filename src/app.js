@@ -1978,3 +1978,24 @@ async function downloadAllQRsZip() {
   zipBtn.textContent = oldText;
   zipBtn.disabled = false;
 }
+// Expose all functions to window scope (required for Vite module bundling)
+window.R=R; window.doLogin=doLogin; window.doRefresh=doRefresh; window.doUrlCI=doUrlCI;
+window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch;
+window.setFil=setFil; window.openM=openM; window.openEdit=openEdit; window.openDel=openDel;
+window.openTickets=openTickets; window.closeM=closeM; window.openEditEv=openEditEv;
+window.openCpTicket=openCpTicket; window.openCpEdit=openCpEdit; window.openCpDel=openCpDel;
+window.openAddComp=openAddComp; window.openCancel=openCancel; window.doCancel=doCancel;
+window.undoCancel=undoCancel; window.goCI=goCI; window.backAdmin=backAdmin;
+window.lockOut=lockOut; window.cancelCI=cancelCI; window.nextCI=nextCI;
+window.addBR=addBR; window.rmBR=rmBR; window.addCR=addCR; window.rmCR=rmCR;
+window.saveEv=saveEv; window.delEv=delEv; window.saveG=saveG;
+window.chkEditPw=chkEditPw; window.doEdit=doEdit; window.doDel=doDel;
+window.doCpEdit=doCpEdit; window.doCpDel=doCpDel; window.doCpAdd=doCpAdd;
+window.mkQRs=mkQRs; window.mkCpQR=mkCpQR; window.dlTicket=dlTicket;
+window.dlCpTicket=dlCpTicket; window.printAll=printAll;
+window.tryUnlock=tryUnlock; window.startCI=startCI; window.confirmPhone=confirmPhone;
+window.doAdminCI=doAdminCI; window.doEvUnlock=doEvUnlock;
+window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=setRptEv;
+window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
+window.downloadExcelTemplate=downloadExcelTemplate; window.commitExcelImport=commitExcelImport;
+window.downloadAllQRsZip=downloadAllQRsZip;
