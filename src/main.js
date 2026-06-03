@@ -1,8 +1,5 @@
-import * as XLSX from 'xlsx';
-import JSZip from 'jszip';
+// 1. Import stylesheet gốc để đảm bảo UI/UX hiển thị đúng 100%
 import './style.css';
 
-window.XLSX  = XLSX;
-window.JSZip = JSZip;
-
+// 2. Import toàn bộ logic ứng dụng từ file app.js
 import './app.js';
