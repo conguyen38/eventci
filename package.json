@@ -1,0 +1,19 @@
+{
+  "name": "eventoh-checkin",
+  "version": "1.0.0",
+  "description": "OneHousing — Hệ thống Check-in sự kiện",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev":     "vite",
+    "build":   "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "xlsx":  "^0.18.5"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}
