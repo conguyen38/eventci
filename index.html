@@ -7,11 +7,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
-  <!-- QRCode.js: dùng %BASE_URL% để Vite resolve đúng path khi deploy -->
-  <script src="%BASE_URL%qrcode.min.js"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root" class="wrap"></div>
+  
+  <input type="file" id="excel_file_input" accept=".xlsx, .xls" style="display:none" onchange="handleExcelImport(event)">
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
