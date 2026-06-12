@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OneHousing — Dashboard Báo cáo Sự kiện</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --blue:#185FA5; --blue-light:#E6F1FB; --blue-dark:#0C447C;
+    --green:#3B6D11; --green-light:#EAF3DE;
+    --red:#B91C1C; --red-light:#FEF2F2;
+    --amber:#BA7517; --amber-light:#FAEEDA;
+    --gray:#888780; --gray-light:#F1EFE8;
+    --ink:#1a1a1a; --sub:#888; --border:#eaecf0; --bg:#F7F8FA;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+  .topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:24px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand .logo{width:40px;height:40px;border-radius:10px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px}
+  .brand h1{font-size:18px;font-weight:800;margin:0}
+  .brand .tag{font-size:12px;color:var(--sub);margin-top:2px}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select,.btn{font-family:inherit;font-size:13px;border:1px solid var(--border);border-radius:10px;padding:9px 14px;background:#fff;color:var(--ink);cursor:pointer}
+  select{min-width:260px;font-weight:600}
+  .btn{display:flex;align-items:center;gap:6px;font-weight:600}
+  .btn:hover{background:#f5f6f8}
+  .updated{font-size:11px;color:#bbb;margin-top:6px}
+
+  .state{text-align:center;padding:80px 20px;color:#aaa}
+  .state .ico{font-size:40px;margin-bottom:10px}
+
+  .grid-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+  .card .lbl{font-size:12px;color:var(--sub);margin-bottom:6px}
+  .card .val{font-size:28px;font-weight:800;line-height:1.1}
+  .card .sub{font-size:11px;color:#aaa;margin-top:4px}
+  .card.accent-blue{border-left:4px solid var(--blue)}
+  .card.accent-green{border-left:4px solid var(--green)}
+  .card.accent-gray{border-left:4px solid var(--gray)}
+  .card.accent-red{border-left:4px solid var(--red)}
+
+  .section{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:18px}
+  .section h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#999;margin:0 0 14px}
+  .row2{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
+  .row2 .section{margin-bottom:0}
+  @media(max-width:880px){
+    .grid-stats{grid-template-columns:repeat(2,1fr)}
+    .row2{grid-template-columns:1fr}
+  }
+  .chart-box{position:relative;width:100%}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--sub)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  .donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+  .donut-center .pct{font-size:28px;font-weight:800;color:var(--green)}
+  .donut-center .lbl{font-size:11px;color:#aaa;margin-top:2px}
+
+  .footer-note{font-size:11px;color:#bbb;text-align:center;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">OH</div>
+      <div>
+        <h1>Dashboard Báo cáo Sự kiện</h1>
+        <div class="tag">OneHousing — Chỉ xem (Read-only)</div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div class="controls">
+        <select id="evSelect"></select>
+        <button class="btn" id="refreshBtn" onclick="loadData()">↻ Làm mới</button>
+      </div>
+      <div class="updated" id="updatedAt"></div>
+    </div>
+  </div>
+
+  <div id="loadingState" class="state">
+    <div class="ico">⏳</div>
+    <div>Đang tải dữ liệu...</div>
+  </div>
+
+  <div id="errorState" class="state" style="display:none">
+    <div class="ico">⚠️</div>
+    <div id="errorMsg">Không thể tải dữ liệu</div>
+  </div>
+
+  <div id="emptyState" class="state" style="display:none">
+    <div class="ico">📭</div>
+    <div>Sự kiện này chưa có khách mời nào</div>
+  </div>
+
+  <div id="content" style="display:none">
+
+    <div class="grid-stats">
+      <div class="card accent-blue">
+        <div class="lbl">Tổng KH đăng ký (Main)</div>
+        <div class="val" id="kpiMainTotal">—</div>
+        <div class="sub" id="kpiMainSub"></div>
+      </div>
+      <div class="card accent-blue">
+        <div class="lbl">Tổng người đăng ký (Main + Companion)</div>
+        <div class="val" id="kpiAllTotal">—</div>
+        <div class="sub" id="kpiAllSub"></div>
+      </div>
+      <div class="card accent-green">
+        <div class="lbl">Showup rate — KH (Main)</div>
+        <div class="val" id="kpiMainShowup">—</div>
+        <div class="sub" id="kpiMainShowupSub"></div>
+      </div>
+      <div class="card accent-green">
+        <div class="lbl">Showup rate — Tổng người</div>
+        <div class="val" id="kpiAllShowup">—</div>
+        <div class="sub" id="kpiAllShowupSub"></div>
+      </div>
+    </div>
+
+    <div class="row2" style="margin-bottom:18px">
+      <div class="section">
+        <h2>Cơ cấu Khách hàng (Main)</h2>
+        <div class="legend" id="donutLegend"></div>
+        <div class="chart-box" style="height:260px">
+          <canvas id="donutChart" role="img" aria-label="Donut chart cơ cấu khách hàng Main: Đã vào, Chưa vào, Cancel"></canvas>
+          <div class="donut-center"><div class="pct" id="donutPct">—</div><div class="lbl">showup</div></div>
+        </div>
+      </div>
+      <div class="section">
+        <h2>Tỷ lệ không hoàn thành &amp; Cancel</h2>
+        <div id="rateBars"></div>
+      </div>
+    </div>
+
+    <div class="section" id="sectionRegion" style="margin-bottom:18px">
+      <h2>Showup rate theo Vùng TCB</h2>
+      <div class="chart-box" id="regionChartWrap" style="height:260px">
+        <canvas id="regionChart" role="img" aria-label="Bar chart so sánh showup rate theo vùng TCB"></canvas>
+      </div>
+    </div>
+
+    <div class="section" id="sectionBranch" style="margin-bottom:18px">
+      <h2>Showup rate theo Chi nhánh (nhóm theo Vùng)</h2>
+      <div class="chart-box" id="branchChartWrap" style="height:300px">
+        <canvas id="branchChart" role="img" aria-label="Bar chart so sánh showup rate theo chi nhánh, nhóm theo vùng TCB"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Showup rate theo SIH</h2>
+      <div class="chart-box" id="sihChartWrap" style="height:260px">
+        <canvas id="sihChart" role="img" aria-label="Bar chart so sánh showup rate theo SIH"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">Dữ liệu đồng bộ trực tiếp từ hệ thống Check-in OneHousing · Chỉ phục vụ mục đích xem báo cáo</div>
+</div>
+
+<script>
+const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendtYW5jaWVlbWVmY3ZndGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODQyMTksImV4cCI6MjA5NTk2MDIxOX0.WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
+const SB_HDR = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
+
+const COLORS = {
+  ok:'#3B6D11', okBg:'#EAF3DE',
+  pending:'#888780', pendingBg:'#F1EFE8',
+  cancel:'#B91C1C', cancelBg:'#FEF2F2',
+  blue:'#185FA5', blueBg:'#E6F1FB',
+  series:['#185FA5','#3B6D11','#BA7517','#993556','#534AB7','#0F6E56','#D85A30']
+};
+
+let events = [];
+let guests = [];
+let charts = {};
+
+function fmtPct(n){ return (Math.round(n*10)/10).toLocaleString('vi-VN') + '%'; }
+function fmtNum(n){ return n.toLocaleString('vi-VN'); }
+
+async function loadData(){
+  document.getElementById('loadingState').style.display='block';
+  document.getElementById('errorState').style.display='none';
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('content').style.display='none';
+  try{
+    const [evRes, gRes] = await Promise.all([
+      fetch(`${SB_URL}/rest/v1/oh_events?select=*&order=created_at.desc`, {headers:SB_HDR}),
+      fetch(`${SB_URL}/rest/v1/oh_guests?select=*`, {headers:SB_HDR})
+    ]);
+    if(!evRes.ok || !gRes.ok) throw new Error('Lỗi kết nối Supabase');
+    events = await evRes.json();
+    guests = await gRes.json();
+
+    const sel = document.getElementById('evSelect');
+    const prevVal = sel.value;
+    sel.innerHTML = events.map(e=>`<option value="${e.id}">${e.name}${e.date_str?' — '+formatDate(e.date_str):''}</option>`).join('');
+    if(prevVal && events.some(e=>e.id===prevVal)) sel.value = prevVal;
+
+    document.getElementById('updatedAt').textContent = 'Cập nhật lần cuối: ' + new Date().toLocaleString('vi-VN');
+    document.getElementById('loadingState').style.display='none';
+
+    if(!events.length){
+      document.getElementById('errorMsg').textContent = 'Chưa có sự kiện nào trong hệ thống';
+      document.getElementById('errorState').style.display='block';
+      return;
+    }
+    render();
+  }catch(e){
+    document.getElementById('loadingState').style.display='none';
+    document.getElementById('errorMsg').textContent = 'Không thể tải dữ liệu — vui lòng thử Làm mới. (' + e.message + ')';
+    document.getElementById('errorState').style.display='block';
+  }
+}
+
+function formatDate(d){
+  if(!d) return '';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('vi-VN');
+}
+
+function render(){
+  const evId = document.getElementById('evSelect').value;
+  const gs = guests.filter(g=>g.event_id===evId);
+
+  if(!gs.length){
+    document.getElementById('content').style.display='none';
+    document.getElementById('emptyState').style.display='block';
+    return;
+  }
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('content').style.display='block';
+
+  // ---- Main-level stats ----
+  const totalMain = gs.length;
+  const ciMain = gs.filter(g=>g.checked_in).length;
+  const cnMain = gs.filter(g=>g.cancelled).length;
+  const pdMain = totalMain - ciMain - cnMain;
+  const showupMain = totalMain>0 ? (ciMain/totalMain*100) : 0;
+  const noShowMain = totalMain>0 ? (pdMain/totalMain*100) : 0;
+  const cancelMain = totalMain>0 ? (cnMain/totalMain*100) : 0;
+
+  // ---- Main + Companion stats ----
+  let totalAll=0, ciAll=0;
+  gs.forEach(g=>{
+    totalAll++; if(g.checked_in) ciAll++;
+    (g.companions||[]).forEach(c=>{ totalAll++; if(c.checked_in) ciAll++; });
+  });
+  const totalComp = totalAll - totalMain;
+  const ciComp = ciAll - ciMain;
+  const showupAll = totalAll>0 ? (ciAll/totalAll*100) : 0;
+
+  // ---- KPI cards ----
+  document.getElementById('kpiMainTotal').textContent = fmtNum(totalMain);
+  document.getElementById('kpiMainSub').textContent = `${fmtNum(ciMain)} đã vào · ${fmtNum(pdMain)} chưa · ${fmtNum(cnMain)} cancel`;
+
+  document.getElementById('kpiAllTotal').textContent = fmtNum(totalAll);
+  document.getElementById('kpiAllSub').textContent = `${fmtNum(totalMain)} Main + ${fmtNum(totalComp)} Companion`;
+
+  document.getElementById('kpiMainShowup').textContent = fmtPct(showupMain);
+  document.getElementById('kpiMainShowupSub').textContent = `${fmtNum(ciMain)} / ${fmtNum(totalMain)} KH đã check-in`;
+
+  document.getElementById('kpiAllShowup').textContent = fmtPct(showupAll);
+  document.getElementById('kpiAllShowupSub').textContent = `${fmtNum(ciAll)} / ${fmtNum(totalAll)} người đã vào (${fmtNum(ciMain)} Main + ${fmtNum(ciComp)} Companion)`;
+
+  // ---- Donut chart ----
+  document.getElementById('donutPct').textContent = fmtPct(showupMain);
+  document.getElementById('donutLegend').innerHTML = `
+    <span><i style="background:${COLORS.ok}"></i>Đã vào — ${fmtNum(ciMain)} (${fmtPct(showupMain)})</span>
+    <span><i style="background:${COLORS.pending}"></i>Chưa vào — ${fmtNum(pdMain)} (${fmtPct(noShowMain)})</span>
+    <span><i style="background:${COLORS.cancel}"></i>Cancel — ${fmtNum(cnMain)} (${fmtPct(cancelMain)})</span>
+  `;
+  drawDonut(ciMain, pdMain, cnMain);
+
+  // ---- Rate bars ----
+  document.getElementById('rateBars').innerHTML = `
+    ${rateBarHTML('Tỷ lệ không hoàn thành (chưa check-in)', pdMain, totalMain, noShowMain, COLORS.pending, COLORS.pendingBg)}
+    ${rateBarHTML('Tỷ lệ cancel', cnMain, totalMain, cancelMain, COLORS.cancel, COLORS.cancelBg)}
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:8px">Đối chiếu Main vs Tổng người</div>
+      ${miniCompareHTML('Main', totalMain, ciMain, showupMain)}
+      ${miniCompareHTML('Main + Companion', totalAll, ciAll, showupAll)}
+    </div>
+  `;
+
+  // ---- Region breakdown ----
+  const regionGroups = groupBy(gs, g=>g.tcb_region || 'Không xác định');
+  renderRegionChart(regionGroups);
+
+  // ---- Branch breakdown grouped by region ----
+  renderBranchChart(gs);
+
+  // ---- SIH breakdown ----
+  const sihGroups = groupBy(gs, g=>g.sih_name || 'Không xác định');
+  renderSihChart(sihGroups);
+}
+
+function groupBy(arr, keyFn){
+  const m = {};
+  arr.forEach(item=>{
+    const k = keyFn(item);
+    if(!m[k]) m[k]=[];
+    m[k].push(item);
+  });
+  return m;
+}
+
+function showupRate(arr){
+  const total = arr.length;
+  const ci = arr.filter(g=>g.checked_in).length;
+  return { total, ci, rate: total>0 ? (ci/total*100) : 0 };
+}
+
+function rateBarHTML(label, count, total, pct, color, bg){
+  return `
+    <div style="margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
+        <span>${label}</span>
+        <span style="font-weight:700;color:${color}">${fmtNum(count)} / ${fmtNum(total)} · ${fmtPct(pct)}</span>
+      </div>
+      <div style="background:${bg};border-radius:99px;height:10px;overflow:hidden">
+        <div style="width:${Math.min(pct,100)}%;background:${color};height:100%;border-radius:99px"></div>
+      </div>
+    </div>`;
+}
+
+function miniCompareHTML(label, total, ci, rate){
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0">
+      <span>${label}</span>
+      <span style="color:var(--sub)">${fmtNum(ci)}/${fmtNum(total)}</span>
+      <span style="font-weight:800;color:${COLORS.ok};min-width:60px;text-align:right">${fmtPct(rate)}</span>
+    </div>`;
+}
+
+function destroyChart(id){
+  if(charts[id]){ charts[id].destroy(); charts[id]=null; }
+}
+
+function drawDonut(ci, pending, cancel){
+  destroyChart('donut');
+  const ctx = document.getElementById('donutChart');
+  charts.donut = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:['Đã vào','Chưa vào','Cancel'],
+      datasets:[{ data:[ci,pending,cancel], backgroundColor:[COLORS.ok,COLORS.pending,COLORS.cancel], borderWidth:0 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'72%',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(c)=>`${c.label}: ${c.parsed}`}} }
+    }
+  });
+}
+
+function renderRegionChart(groups){
+  const entries = Object.entries(groups).map(([region, arr])=>({region, ...showupRate(arr)}));
+  entries.sort((a,b)=>b.total-a.total);
+
+  const wrap = document.getElementById('regionChartWrap');
+  const section = document.getElementById('sectionRegion');
+  if(entries.length<=1){
+    section.querySelector('h2').textContent = 'Showup rate — Vùng TCB';
+  } else {
+    section.querySelector('h2').textContent = `Showup rate theo Vùng TCB (so sánh ${entries.length} vùng)`;
+  }
+  wrap.style.height = Math.max(180, entries.length*48 + 80) + 'px';
+
+  destroyChart('region');
+  charts.region = new Chart(document.getElementById('regionChart'), {
+    type:'bar',
+    data:{
+      labels: entries.map(e=>e.region),
+      datasets:[{
+        label:'Showup rate (%)',
+        data: entries.map(e=>Math.round(e.rate*10)/10),
+        backgroundColor: entries.map((_,i)=>COLORS.series[i%COLORS.series.length]),
+        borderRadius:6
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ min:0, max:100, ticks:{ callback:(v)=>v+'%' } } },
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>{
+          const e = entries[c.dataIndex];
+          return `${fmtNum(e.ci)} / ${fmtNum(e.total)} đã vào — ${fmtPct(e.rate)}`;
+        }}}
+      }
+    }
+  });
+}
+
+function renderBranchChart(gs){
+  // group by region first, then by branch (unit) within region
+  const regionGroups = groupBy(gs, g=>g.tcb_region || 'Không xác định');
+  const regions = Object.keys(regionGroups);
+  const multiRegion = regions.length > 1;
+
+  // collect all branch labels across regions, preserving region order
+  const datasetMap = {}; // region -> {branch: rate data}
+  const allBranches = new Set();
+  regions.forEach(region=>{
+    const byBranch = groupBy(regionGroups[region], g=>g.unit || 'Không xác định');
+    datasetMap[region] = {};
+    Object.entries(byBranch).forEach(([branch, arr])=>{
+      datasetMap[region][branch] = showupRate(arr);
+      allBranches.add(branch);
+    });
+  });
+  const branchLabels = Array.from(allBranches).sort();
+
+  const section = document.getElementById('sectionBranch');
+  const wrap = document.getElementById('branchChartWrap');
+  if(multiRegion){
+    section.querySelector('h2').textContent = `Showup rate theo Chi nhánh — so sánh giữa ${regions.length} vùng`;
+  } else {
+    section.querySelector('h2').textContent = `Showup rate theo Chi nhánh (${regions[0]})`;
+  }
+  wrap.style.height = Math.max(220, branchLabels.length*(multiRegion?48:40) + 100) + 'px';
+
+  const datasets = regions.map((region,i)=>({
+    label: region,
+    data: branchLabels.map(b=>{
+      const d = datasetMap[region][b];
+      return d ? Math.round(d.rate*10)/10 : null;
+    }),
+    backgroundColor: COLORS.series[i%COLORS.series.length],
+    borderRadius:6
+  }));
+
+  destroyChart('branch');
+  charts.branch = new Chart(document.getElementById('branchChart'), {
+    type:'bar',
+    data:{ labels: branchLabels, datasets },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ min:0, max:100, ticks:{ callback:(v)=>v+'%' } } },
+      plugins:{
+        legend:{ display:multiRegion },
+        tooltip:{ callbacks:{ label:(c)=>{
+          const region = c.dataset.label;
+          const branch = c.label;
+          const d = datasetMap[region][branch];
+          if(!d) return '';
+          return `${region} · ${branch}: ${fmtNum(d.ci)}/${fmtNum(d.total)} — ${fmtPct(d.rate)}`;
+        }}}
+      }
+    }
+  });
+
+  if(multiRegion){
+    document.getElementById('branchChart').setAttribute('aria-label','Bar chart so sánh showup rate theo chi nhánh, nhóm và so sánh theo từng vùng TCB');
+  }
+}
+
+function renderSihChart(groups){
+  const entries = Object.entries(groups).map(([sih, arr])=>({sih, ...showupRate(arr)}));
+  entries.sort((a,b)=>b.total-a.total);
+
+  const wrap = document.getElementById('sihChartWrap');
+  wrap.style.height = Math.max(180, entries.length*44 + 80) + 'px';
+
+  destroyChart('sih');
+  charts.sih = new Chart(document.getElementById('sihChart'), {
+    type:'bar',
+    data:{
+      labels: entries.map(e=>e.sih),
+      datasets:[{
+        label:'Showup rate (%)',
+        data: entries.map(e=>Math.round(e.rate*10)/10),
+        backgroundColor: entries.map((_,i)=>COLORS.series[(i+2)%COLORS.series.length]),
+        borderRadius:6
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      scales:{ x:{ min:0, max:100, ticks:{ callback:(v)=>v+'%' } } },
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>{
+          const e = entries[c.dataIndex];
+          return `${fmtNum(e.ci)} / ${fmtNum(e.total)} đã vào — ${fmtPct(e.rate)}`;
+        }}}
+      }
+    }
+  });
+}
+
+document.getElementById('evSelect').addEventListener('change', render);
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
