@@ -560,17 +560,13 @@ function rRTab(){
         const pend=gs.length-ci-cn;
         const pct=gs.length>0?Math.round(ci/gs.length*100):0;
         const kPre=`${groupFn}_${grp}`;
-        const expReg=!!S.rptExp[kPre+'_reg'];
         const expCi=!!S.rptExp[kPre+'_ci'];
         const expAb=!!S.rptExp[kPre+'_ab'];
         const expCn=!!S.rptExp[kPre+'_cn'];
         return`<div style="background:#fff;border-radius:12px;border:1px solid #eaecf0;padding:14px 16px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-            <div style="font-weight:700;font-size:13px">${grp}</div>
+            <div style="font-weight:700;font-size:13px">${grp} <span style="font-weight:400;color:#aaa;font-size:11px">(${gs.length} Main)</span></div>
             <div style="display:flex;gap:6px;font-size:12px;flex-wrap:wrap">
-              <span onclick="togRpt('${kPre}_reg')" style="background:#e8f0fb;color:#185FA5;border-radius:20px;padding:2px 10px;font-weight:600;cursor:pointer;user-select:none">
-                Main: ${gs.length}${expReg?' ▲':' ▼'}
-              </span>
               <span onclick="togRpt('${kPre}_ci')" style="background:${ci>0?'#eaf3de':'#f5f5f5'};color:${ci>0?'#3B6D11':'#aaa'};border-radius:20px;padding:2px 10px;font-weight:600;cursor:${ci>0?'pointer':'default'};user-select:none">
                 Đã vào: ${ci}${ci>0?(expCi?' ▲':' ▼'):''}
               </span>
@@ -586,19 +582,6 @@ function rRTab(){
             <div style="width:${pct}%;background:${pct===100?'#3B6D11':'linear-gradient(90deg,#185FA5,#3B6D11)'};height:100%;border-radius:99px"></div>
           </div>
           <div style="font-size:10px;color:#aaa;margin-top:4px;text-align:right">${pct}% Main đã check-in</div>
-          ${expReg?`<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:6px">Danh sách Main (${gs.length} người)</div>
-            ${gs.map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #BFDBFE;display:flex;justify-content:space-between;align-items:center">
-              <div>
-                <div style="font-weight:600;font-size:13px">${g.name}</div>
-                <div style="font-size:11px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
-              </div>
-              <div style="display:flex;align-items:center">
-                <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;${g.cancelled?'background:#FEF2F2;color:#B91C1C':g.checkedIn?'background:#EAF3DE;color:#3B6D11':'background:#f5f5f5;color:#aaa'}">${g.cancelled?'Cancel':g.checkedIn?'✅ Đã vào':'⏳ Chưa'}</span>
-                ${companionBadge(g)}
-              </div>
-            </div>`).join('')}
-          </div>`:''}
           ${expCi&&ci>0?`<div style="background:#f0faf0;border:1px solid #97C459;border-radius:8px;padding:10px 12px;margin-top:8px">
             <div style="font-size:11px;font-weight:700;color:#3B6D11;margin-bottom:6px">Đã check-in (${ci} Main)</div>
             ${gs.filter(g=>g.checkedIn).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #c8e6c9;display:flex;justify-content:space-between;align-items:center">
