@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
     --blue:#185FA5; --blue-light:#E6F1FB; --blue-dark:#0C447C;
@@ -47,11 +48,8 @@
 
   .section{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:18px}
   .section h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#999;margin:0 0 14px}
-  .row2{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}
-  .row2 .section{margin-bottom:0}
   @media(max-width:880px){
     .grid-stats{grid-template-columns:repeat(2,1fr)}
-    .row2{grid-template-columns:1fr}
   }
   .chart-box{position:relative;width:100%}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--sub)}
@@ -62,7 +60,19 @@
   .donut-center .pct{font-size:28px;font-weight:800;color:var(--green)}
   .donut-center .lbl{font-size:11px;color:#aaa;margin-top:2px}
 
+  .donut-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .donut-item{display:flex;flex-direction:column}
+  .donut-title{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:8px;text-align:center}
+  .donut-item .legend{justify-content:center;font-size:11px;gap:8px 12px}
+  @media(max-width:880px){
+    .donut-grid{grid-template-columns:1fr}
+  }
+
   .footer-note{font-size:11px;color:#bbb;text-align:center;margin-top:24px}
+
+  .toggle-btn{font-family:inherit;font-size:12px;font-weight:600;border:none;border-radius:7px;padding:6px 12px;background:transparent;color:var(--sub);cursor:pointer}
+  .toggle-btn.active{background:var(--bg);color:var(--ink)}
+  .view-toggle{display:inline-flex;background:#fff;border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
 </style>
 </head>
 <body>
@@ -100,6 +110,19 @@
     <div>Sự kiện này chưa có khách mời nào</div>
   </div>
 
+  <div id="lockState" style="display:none;max-width:360px;margin:60px auto">
+    <div class="card" style="text-align:center;padding:28px 24px">
+      <div style="font-size:32px;margin-bottom:10px">🔒</div>
+      <div style="font-weight:800;font-size:15px;margin-bottom:4px" id="lockEvName"></div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:18px">Báo cáo sự kiện này được bảo vệ. Vui lòng nhập mật khẩu để xem.</div>
+      <input type="password" id="lockPwInput" placeholder="Nhập mật khẩu..."
+        style="width:100%;font-size:15px;padding:11px 14px;text-align:center;letter-spacing:2px;border:1px solid var(--border);border-radius:10px;font-family:inherit;margin-bottom:10px"
+        onkeydown="if(event.key==='Enter')checkEventPassword()"/>
+      <div id="lockErr" style="color:var(--red);font-size:12px;margin-bottom:10px;min-height:16px"></div>
+      <button class="btn" style="width:100%;justify-content:center;font-weight:700" onclick="checkEventPassword()">Xem báo cáo →</button>
+    </div>
+  </div>
+
   <div id="content" style="display:none">
 
     <div class="grid-stats">
@@ -125,37 +148,68 @@
       </div>
     </div>
 
-    <div class="row2" style="margin-bottom:18px">
-      <div class="section">
-        <h2>Cơ cấu Khách hàng (Main)</h2>
-        <div class="legend" id="donutLegend"></div>
-        <div class="chart-box" style="height:260px">
-          <canvas id="donutChart" role="img" aria-label="Donut chart cơ cấu khách hàng Main: Đã vào, Chưa vào, Cancel"></canvas>
-          <div class="donut-center"><div class="pct" id="donutPct">—</div><div class="lbl">showup</div></div>
+    <div class="section" style="margin-bottom:18px">
+      <h2>Cơ cấu Khách hàng (Main)</h2>
+      <div class="donut-grid">
+        <div class="donut-item">
+          <div class="donut-title">Theo trạng thái</div>
+          <div class="legend" id="donutLegend"></div>
+          <div class="chart-box" style="height:220px">
+            <canvas id="donutChart" role="img" aria-label="Donut chart cơ cấu khách hàng Main: Show up, No show, Cancel"></canvas>
+            <div class="donut-center"><div class="pct" id="donutPct">—</div><div class="lbl">show up</div></div>
+          </div>
         </div>
-      </div>
-      <div class="section">
-        <h2>Tỷ lệ không hoàn thành &amp; Cancel</h2>
-        <div id="rateBars"></div>
+        <div class="donut-item">
+          <div class="donut-title">Theo Chi nhánh — % tổng KH</div>
+          <div class="legend" id="donutBranchAllLegend"></div>
+          <div class="chart-box" style="height:220px">
+            <canvas id="donutBranchAllChart" role="img" aria-label="Donut chart cơ cấu tổng khách hàng Main theo chi nhánh"></canvas>
+          </div>
+        </div>
+        <div class="donut-item">
+          <div class="donut-title">Theo Chi nhánh — % trong nhóm Show up</div>
+          <div class="legend" id="donutBranchShowupLegend"></div>
+          <div class="chart-box" style="height:220px">
+            <canvas id="donutBranchShowupChart" role="img" aria-label="Donut chart cơ cấu khách hàng Main đã show up theo chi nhánh"></canvas>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="section" id="sectionRegion" style="margin-bottom:18px">
-      <h2>Showup rate theo Vùng TCB</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <h2 style="margin:0">Showup rate theo Vùng TCB</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="legend" id="regionStatusLegend"></div>
+          <div id="regionViewToggle" class="view-toggle"></div>
+        </div>
+      </div>
       <div class="chart-box" id="regionChartWrap" style="height:260px">
         <canvas id="regionChart" role="img" aria-label="Bar chart so sánh showup rate theo vùng TCB"></canvas>
       </div>
     </div>
 
     <div class="section" id="sectionBranch" style="margin-bottom:18px">
-      <h2>Showup rate theo Chi nhánh (nhóm theo Vùng)</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <h2 style="margin:0">Showup rate theo Chi nhánh (nhóm theo Vùng)</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="legend" id="branchStatusLegend"></div>
+          <div id="branchViewToggle" class="view-toggle"></div>
+        </div>
+      </div>
       <div class="chart-box" id="branchChartWrap" style="height:300px">
         <canvas id="branchChart" role="img" aria-label="Bar chart so sánh showup rate theo chi nhánh, nhóm theo vùng TCB"></canvas>
       </div>
     </div>
 
     <div class="section">
-      <h2>Showup rate theo SIH</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <h2 style="margin:0">Showup rate theo SIH</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="legend" id="sihStatusLegend"></div>
+          <div id="sihViewToggle" class="view-toggle"></div>
+        </div>
+      </div>
       <div class="chart-box" id="sihChartWrap" style="height:260px">
         <canvas id="sihChart" role="img" aria-label="Bar chart so sánh showup rate theo SIH"></canvas>
       </div>
@@ -173,15 +227,29 @@ const SB_HDR = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
 
 const COLORS = {
   ok:'#3B6D11', okBg:'#EAF3DE',
-  pending:'#888780', pendingBg:'#F1EFE8',
+  pending:'#EF9F27', pendingBg:'#FAEEDA',
   cancel:'#B91C1C', cancelBg:'#FEF2F2',
   blue:'#185FA5', blueBg:'#E6F1FB',
   series:['#185FA5','#3B6D11','#BA7517','#993556','#534AB7','#0F6E56','#D85A30']
 };
 
+const BRANCH_COLORS = ['#4C9AFF','#36C5A0','#FFAB4C','#FF7A8A','#9E7BFF','#5ED3D3','#FFD166','#7BCB6A','#F4789E','#6FA8DC'];
+
+const STATUS = {
+  showup:{ key:'showup', pctKey:'showupPct', label:'Show up', color:'#3B6D11' },
+  noshow:{ key:'noshow', pctKey:'noshowPct', label:'No show', color:'#EF9F27' },
+  cancel:{ key:'cancel', pctKey:'cancelPct', label:'Cancel', color:'#B91C1C' }
+};
+
+let viewModes = { region:'all', branch:'all', sih:'all' };
+if(window.ChartDataLabels) Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', { display:false });
+let currentGuests = [];
+
 let events = [];
 let guests = [];
 let charts = {};
+let unlockedEvs = {};
 
 function fmtPct(n){ return (Math.round(n*10)/10).toLocaleString('vi-VN') + '%'; }
 function fmtNum(n){ return n.toLocaleString('vi-VN'); }
@@ -202,7 +270,7 @@ async function loadData(){
 
     const sel = document.getElementById('evSelect');
     const prevVal = sel.value;
-    sel.innerHTML = events.map(e=>`<option value="${e.id}">${e.name}${e.date_str?' — '+formatDate(e.date_str):''}</option>`).join('');
+    sel.innerHTML = events.map(e=>`<option value="${e.id}">${e.name}${e.date_str?' — '+formatDate(e.date_str):''}${e.event_pw&&!unlockedEvs[e.id]?' 🔒':''}</option>`).join('');
     if(prevVal && events.some(e=>e.id===prevVal)) sel.value = prevVal;
 
     document.getElementById('updatedAt').textContent = 'Cập nhật lần cuối: ' + new Date().toLocaleString('vi-VN');
@@ -227,16 +295,45 @@ function formatDate(d){
   return dt.toLocaleDateString('vi-VN');
 }
 
+function checkEventPassword(){
+  const evId = document.getElementById('evSelect').value;
+  const ev = events.find(e=>e.id===evId);
+  if(!ev) return;
+  const pw = document.getElementById('lockPwInput').value || '';
+  if(pw !== ev.event_pw){
+    document.getElementById('lockErr').textContent = 'Mật khẩu không đúng.';
+    const inp = document.getElementById('lockPwInput');
+    inp.value=''; inp.focus();
+    return;
+  }
+  unlockedEvs[evId] = true;
+  render();
+}
+
 function render(){
   const evId = document.getElementById('evSelect').value;
+  const ev = events.find(e=>e.id===evId);
+
+  document.getElementById('lockState').style.display='none';
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('content').style.display='none';
+
+  if(ev?.event_pw && !unlockedEvs[evId]){
+    document.getElementById('lockEvName').textContent = ev.name;
+    const pwInput = document.getElementById('lockPwInput');
+    pwInput.value='';
+    document.getElementById('lockErr').textContent='';
+    document.getElementById('lockState').style.display='block';
+    pwInput.focus();
+    return;
+  }
+
   const gs = guests.filter(g=>g.event_id===evId);
 
   if(!gs.length){
-    document.getElementById('content').style.display='none';
     document.getElementById('emptyState').style.display='block';
     return;
   }
-  document.getElementById('emptyState').style.display='none';
   document.getElementById('content').style.display='block';
 
   // ---- Main-level stats ----
@@ -260,36 +357,39 @@ function render(){
 
   // ---- KPI cards ----
   document.getElementById('kpiMainTotal').textContent = fmtNum(totalMain);
-  document.getElementById('kpiMainSub').textContent = `${fmtNum(ciMain)} đã vào · ${fmtNum(pdMain)} chưa · ${fmtNum(cnMain)} cancel`;
+  document.getElementById('kpiMainSub').textContent = `${fmtNum(ciMain)} show up · ${fmtNum(pdMain)} no show · ${fmtNum(cnMain)} cancel`;
 
   document.getElementById('kpiAllTotal').textContent = fmtNum(totalAll);
   document.getElementById('kpiAllSub').textContent = `${fmtNum(totalMain)} Main + ${fmtNum(totalComp)} Companion`;
 
   document.getElementById('kpiMainShowup').textContent = fmtPct(showupMain);
-  document.getElementById('kpiMainShowupSub').textContent = `${fmtNum(ciMain)} / ${fmtNum(totalMain)} KH đã check-in`;
+  document.getElementById('kpiMainShowupSub').textContent = `${fmtNum(ciMain)} / ${fmtNum(totalMain)} KH show up`;
 
   document.getElementById('kpiAllShowup').textContent = fmtPct(showupAll);
-  document.getElementById('kpiAllShowupSub').textContent = `${fmtNum(ciAll)} / ${fmtNum(totalAll)} người đã vào (${fmtNum(ciMain)} Main + ${fmtNum(ciComp)} Companion)`;
+  document.getElementById('kpiAllShowupSub').textContent = `${fmtNum(ciAll)} / ${fmtNum(totalAll)} người show up (${fmtNum(ciMain)} Main + ${fmtNum(ciComp)} Companion)`;
 
   // ---- Donut chart ----
   document.getElementById('donutPct').textContent = fmtPct(showupMain);
   document.getElementById('donutLegend').innerHTML = `
-    <span><i style="background:${COLORS.ok}"></i>Đã vào — ${fmtNum(ciMain)} (${fmtPct(showupMain)})</span>
-    <span><i style="background:${COLORS.pending}"></i>Chưa vào — ${fmtNum(pdMain)} (${fmtPct(noShowMain)})</span>
+    <span><i style="background:${COLORS.ok}"></i>Show up — ${fmtNum(ciMain)} (${fmtPct(showupMain)})</span>
+    <span><i style="background:${COLORS.pending}"></i>No show — ${fmtNum(pdMain)} (${fmtPct(noShowMain)})</span>
     <span><i style="background:${COLORS.cancel}"></i>Cancel — ${fmtNum(cnMain)} (${fmtPct(cancelMain)})</span>
   `;
   drawDonut(ciMain, pdMain, cnMain);
 
-  // ---- Rate bars ----
-  document.getElementById('rateBars').innerHTML = `
-    ${rateBarHTML('Tỷ lệ không hoàn thành (chưa check-in)', pdMain, totalMain, noShowMain, COLORS.pending, COLORS.pendingBg)}
-    ${rateBarHTML('Tỷ lệ cancel', cnMain, totalMain, cancelMain, COLORS.cancel, COLORS.cancelBg)}
-    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;color:var(--sub);margin-bottom:8px">Đối chiếu Main vs Tổng người</div>
-      ${miniCompareHTML('Main', totalMain, ciMain, showupMain)}
-      ${miniCompareHTML('Main + Companion', totalAll, ciAll, showupAll)}
-    </div>
-  `;
+  // ---- Donut: cơ cấu theo Chi nhánh (tổng Main / showup only) ----
+  const branchGroups = groupBy(gs, g=>g.unit || 'Không xác định');
+  drawBranchDonut('donutBranchAllChart', 'donutBranchAllLegend', branchGroups, totalMain);
+
+  const branchGroupsShowup = {};
+  Object.entries(branchGroups).forEach(([k,arr])=>{
+    const su = arr.filter(g=>g.checked_in && !g.cancelled);
+    if(su.length) branchGroupsShowup[k]=su;
+  });
+  drawBranchDonut('donutBranchShowupChart', 'donutBranchShowupLegend', branchGroupsShowup, ciMain);
+
+  currentGuests = gs;
+  ['region','branch','sih'].forEach(k=>{ renderToggle(k); renderLegend(k); });
 
   // ---- Region breakdown ----
   const regionGroups = groupBy(gs, g=>g.tcb_region || 'Không xác định');
@@ -313,32 +413,16 @@ function groupBy(arr, keyFn){
   return m;
 }
 
-function showupRate(arr){
+function breakdown3(arr){
   const total = arr.length;
-  const ci = arr.filter(g=>g.checked_in).length;
-  return { total, ci, rate: total>0 ? (ci/total*100) : 0 };
-}
-
-function rateBarHTML(label, count, total, pct, color, bg){
-  return `
-    <div style="margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">
-        <span>${label}</span>
-        <span style="font-weight:700;color:${color}">${fmtNum(count)} / ${fmtNum(total)} · ${fmtPct(pct)}</span>
-      </div>
-      <div style="background:${bg};border-radius:99px;height:10px;overflow:hidden">
-        <div style="width:${Math.min(pct,100)}%;background:${color};height:100%;border-radius:99px"></div>
-      </div>
-    </div>`;
-}
-
-function miniCompareHTML(label, total, ci, rate){
-  return `
-    <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:6px 0">
-      <span>${label}</span>
-      <span style="color:var(--sub)">${fmtNum(ci)}/${fmtNum(total)}</span>
-      <span style="font-weight:800;color:${COLORS.ok};min-width:60px;text-align:right">${fmtPct(rate)}</span>
-    </div>`;
+  const cancel = arr.filter(g=>g.cancelled).length;
+  const showup = arr.filter(g=>g.checked_in && !g.cancelled).length;
+  const noshow = total - showup - cancel;
+  const pct = (n)=> total>0 ? (n/total*100) : 0;
+  return {
+    total, showup, noshow, cancel,
+    showupPct: pct(showup), noshowPct: pct(noshow), cancelPct: pct(cancel)
+  };
 }
 
 function destroyChart(id){
@@ -351,7 +435,7 @@ function drawDonut(ci, pending, cancel){
   charts.donut = new Chart(ctx, {
     type:'doughnut',
     data:{
-      labels:['Đã vào','Chưa vào','Cancel'],
+      labels:['Show up','No show','Cancel'],
       datasets:[{ data:[ci,pending,cancel], backgroundColor:[COLORS.ok,COLORS.pending,COLORS.cancel], borderWidth:0 }]
     },
     options:{
@@ -362,40 +446,158 @@ function drawDonut(ci, pending, cancel){
   });
 }
 
+function drawBranchDonut(canvasId, legendId, groups, total){
+  const chartKey = canvasId;
+  const entries = Object.entries(groups).map(([branch, arr])=>({branch, count: arr.length}));
+  entries.sort((a,b)=>b.count-a.count);
+
+  destroyChart(chartKey);
+  if(!entries.length || total===0){
+    document.getElementById(legendId).innerHTML = `<span style="color:var(--sub)">Không có dữ liệu</span>`;
+    return;
+  }
+  const ctx = document.getElementById(canvasId);
+  charts[chartKey] = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels: entries.map(e=>e.branch),
+      datasets:[{
+        data: entries.map(e=>e.count),
+        backgroundColor: entries.map((_,i)=>BRANCH_COLORS[i%BRANCH_COLORS.length]),
+        borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'60%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:(c)=>{
+          const pct = total>0 ? (c.parsed/total*100) : 0;
+          return `${c.label}: ${fmtNum(c.parsed)} (${fmtPct(pct)})`;
+        }}}
+      }
+    }
+  });
+
+  document.getElementById(legendId).innerHTML = entries.map((e,i)=>{
+    const pct = total>0 ? (e.count/total*100) : 0;
+    return `<span><i style="background:${BRANCH_COLORS[i%BRANCH_COLORS.length]}"></i>${e.branch} — ${fmtNum(e.count)} (${fmtPct(pct)})</span>`;
+  }).join('');
+}
+
+const CHART_RENDERERS = {
+  region:()=>{
+    const regionGroups = groupBy(currentGuests, g=>g.tcb_region || 'Không xác định');
+    renderRegionChart(regionGroups);
+  },
+  branch:()=>{ renderBranchChart(currentGuests); },
+  sih:()=>{
+    const sihGroups = groupBy(currentGuests, g=>g.sih_name || 'Không xác định');
+    renderSihChart(sihGroups);
+  }
+};
+
+function renderToggle(chartKey){
+  const modes = [
+    {key:'all', label:'Tất cả'},
+    {key:'showup', label:'Show up'},
+    {key:'noshow', label:'No show'},
+    {key:'cancel', label:'Cancel'}
+  ];
+  const current = viewModes[chartKey];
+  document.getElementById(chartKey+'ViewToggle').innerHTML = modes.map(m=>
+    `<button class="toggle-btn ${current===m.key?'active':''}" onclick="setViewMode('${chartKey}','${m.key}')">${m.label}</button>`
+  ).join('');
+}
+
+function renderLegend(chartKey){
+  const el = document.getElementById(chartKey+'StatusLegend');
+  if(viewModes[chartKey]!=='all'){ el.innerHTML=''; return; }
+  el.innerHTML = `
+    <span><i style="background:${STATUS.showup.color}"></i>Show up</span>
+    <span><i style="background:${STATUS.noshow.color}"></i>No show</span>
+    <span><i style="background:${STATUS.cancel.color}"></i>Cancel</span>
+  `;
+}
+
+function setViewMode(chartKey, mode){
+  viewModes[chartKey] = mode;
+  renderToggle(chartKey);
+  renderLegend(chartKey);
+  CHART_RENDERERS[chartKey]();
+}
+
+function statusLine(d, statusKey){
+  const s = STATUS[statusKey];
+  return `${s.label}: ${fmtNum(d[s.key])}/${fmtNum(d.total)} — ${fmtPct(d[s.pctKey])}`;
+}
+
+const DATALABEL_CFG = {
+  display:(ctx)=>{
+    const v = ctx.dataset.data[ctx.dataIndex];
+    return v >= 8;
+  },
+  color:(ctx)=> ctx.dataset.backgroundColor===STATUS.noshow.color ? '#412402' : '#fff',
+  font:{ size:11, weight:600 },
+  formatter:(value, ctx)=>{
+    const counts = ctx.dataset._counts;
+    return counts ? fmtNum(counts[ctx.dataIndex]) : '';
+  }
+};
+
+function statusTooltip(d, datasetLabel, chartKey){
+  const mode = viewModes[chartKey];
+  if(mode==='all'){
+    const map = {'Show up':'showup','No show':'noshow','Cancel':'cancel'};
+    return statusLine(d, map[datasetLabel] || 'showup');
+  }
+  return statusLine(d, mode);
+}
+
+function singleDatasets(entries, colorOffset, chartKey){
+  const mode = viewModes[chartKey];
+  if(mode==='all'){
+    return [
+      { label:'Show up', data: entries.map(e=>Math.round(e.showupPct*10)/10), backgroundColor: STATUS.showup.color, stack:'s', _counts: entries.map(e=>e.showup) },
+      { label:'No show', data: entries.map(e=>Math.round(e.noshowPct*10)/10), backgroundColor: STATUS.noshow.color, stack:'s', _counts: entries.map(e=>e.noshow) },
+      { label:'Cancel', data: entries.map(e=>Math.round(e.cancelPct*10)/10), backgroundColor: STATUS.cancel.color, stack:'s', _counts: entries.map(e=>e.cancel) }
+    ];
+  }
+  const s = STATUS[mode];
+  return [{
+    label:s.label,
+    data: entries.map(e=>Math.round(e[s.pctKey]*10)/10),
+    backgroundColor: s.color,
+    stack:'s', borderRadius:6,
+    _counts: entries.map(e=>e[s.key])
+  }];
+}
+
 function renderRegionChart(groups){
-  const entries = Object.entries(groups).map(([region, arr])=>({region, ...showupRate(arr)}));
+  const entries = Object.entries(groups).map(([region, arr])=>({region, ...breakdown3(arr)}));
   entries.sort((a,b)=>b.total-a.total);
 
   const wrap = document.getElementById('regionChartWrap');
   const section = document.getElementById('sectionRegion');
-  if(entries.length<=1){
-    section.querySelector('h2').textContent = 'Showup rate — Vùng TCB';
-  } else {
-    section.querySelector('h2').textContent = `Showup rate theo Vùng TCB (so sánh ${entries.length} vùng)`;
-  }
+  const baseTitle = entries.length<=1 ? 'Showup rate — Vùng TCB' : `Showup rate theo Vùng TCB (so sánh ${entries.length} vùng)`;
+  section.querySelector('h2').textContent = baseTitle;
   wrap.style.height = Math.max(180, entries.length*48 + 80) + 'px';
 
   destroyChart('region');
   charts.region = new Chart(document.getElementById('regionChart'), {
     type:'bar',
-    data:{
-      labels: entries.map(e=>e.region),
-      datasets:[{
-        label:'Showup rate (%)',
-        data: entries.map(e=>Math.round(e.rate*10)/10),
-        backgroundColor: entries.map((_,i)=>COLORS.series[i%COLORS.series.length]),
-        borderRadius:6
-      }]
-    },
+    data:{ labels: entries.map(e=>e.region), datasets: singleDatasets(entries, 0, 'region') },
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
-      scales:{ x:{ min:0, max:100, ticks:{ callback:(v)=>v+'%' } } },
+      scales:{ x:{ min:0, max:100, stacked:true, ticks:{ callback:(v)=>v+'%' } }, y:{ stacked:true } },
       plugins:{
         legend:{display:false},
+        datalabels: DATALABEL_CFG,
         tooltip:{ callbacks:{ label:(c)=>{
           const e = entries[c.dataIndex];
-          return `${fmtNum(e.ci)} / ${fmtNum(e.total)} đã vào — ${fmtPct(e.rate)}`;
+          return statusTooltip(e, c.dataset.label, 'region');
         }}}
       }
     }
@@ -403,26 +605,63 @@ function renderRegionChart(groups){
 }
 
 function renderBranchChart(gs){
-  // group by region first, then by branch (unit) within region
   const regionGroups = groupBy(gs, g=>g.tcb_region || 'Không xác định');
   const regions = Object.keys(regionGroups);
   const multiRegion = regions.length > 1;
 
-  // collect all branch labels across regions, preserving region order
-  const datasetMap = {}; // region -> {branch: rate data}
+  const section = document.getElementById('sectionBranch');
+  const wrap = document.getElementById('branchChartWrap');
+
+  if(viewModes.branch==='all'){
+    // stacked 3-status cho từng chi nhánh; nếu nhiều vùng, gộp nhãn "Vùng · Chi nhánh"
+    const rows = [];
+    regions.forEach(region=>{
+      const byBranch = groupBy(regionGroups[region], g=>g.unit || 'Không xác định');
+      Object.entries(byBranch).forEach(([branch, arr])=>{
+        rows.push({ label: multiRegion ? `${region} · ${branch}` : branch, ...breakdown3(arr) });
+      });
+    });
+    rows.sort((a,b)=>b.total-a.total);
+
+    section.querySelector('h2').textContent = multiRegion
+      ? `Showup rate theo Chi nhánh — so sánh giữa ${regions.length} vùng`
+      : `Showup rate theo Chi nhánh (${regions[0]})`;
+    wrap.style.height = Math.max(220, rows.length*40 + 100) + 'px';
+
+    destroyChart('branch');
+    charts.branch = new Chart(document.getElementById('branchChart'), {
+      type:'bar',
+      data:{ labels: rows.map(r=>r.label), datasets: singleDatasets(rows, 0, 'branch') },
+      options:{
+        indexAxis:'y',
+        responsive:true, maintainAspectRatio:false,
+        scales:{ x:{ min:0, max:100, stacked:true, ticks:{ callback:(v)=>v+'%' } }, y:{ stacked:true } },
+        plugins:{
+          legend:{display:false},
+          datalabels: DATALABEL_CFG,
+          tooltip:{ callbacks:{ label:(c)=> statusTooltip(rows[c.dataIndex], c.dataset.label, 'branch') } }
+        }
+      }
+    });
+    document.getElementById('branchChart').setAttribute('aria-label', multiRegion
+      ? 'Bar chart so sánh showup rate theo chi nhánh, nhóm và so sánh theo từng vùng TCB'
+      : 'Bar chart showup rate theo chi nhánh');
+    return;
+  }
+
+  // grouped-by-region: mỗi vùng 1 series màu, so sánh chi nhánh giữa các vùng
+  const datasetMap = {};
   const allBranches = new Set();
   regions.forEach(region=>{
     const byBranch = groupBy(regionGroups[region], g=>g.unit || 'Không xác định');
     datasetMap[region] = {};
     Object.entries(byBranch).forEach(([branch, arr])=>{
-      datasetMap[region][branch] = showupRate(arr);
+      datasetMap[region][branch] = breakdown3(arr);
       allBranches.add(branch);
     });
   });
   const branchLabels = Array.from(allBranches).sort();
 
-  const section = document.getElementById('sectionBranch');
-  const wrap = document.getElementById('branchChartWrap');
   if(multiRegion){
     section.querySelector('h2').textContent = `Showup rate theo Chi nhánh — so sánh giữa ${regions.length} vùng`;
   } else {
@@ -430,14 +669,20 @@ function renderBranchChart(gs){
   }
   wrap.style.height = Math.max(220, branchLabels.length*(multiRegion?48:40) + 100) + 'px';
 
+  const branchMode = viewModes.branch;
+  const s = branchMode==='all' ? STATUS.showup : STATUS[branchMode];
   const datasets = regions.map((region,i)=>({
     label: region,
     data: branchLabels.map(b=>{
       const d = datasetMap[region][b];
-      return d ? Math.round(d.rate*10)/10 : null;
+      return d ? Math.round(d[s.pctKey]*10)/10 : null;
     }),
     backgroundColor: COLORS.series[i%COLORS.series.length],
-    borderRadius:6
+    borderRadius:6,
+    _counts: branchLabels.map(b=>{
+      const d = datasetMap[region][b];
+      return d ? d[s.key] : null;
+    })
   }));
 
   destroyChart('branch');
@@ -450,24 +695,25 @@ function renderBranchChart(gs){
       scales:{ x:{ min:0, max:100, ticks:{ callback:(v)=>v+'%' } } },
       plugins:{
         legend:{ display:multiRegion },
+        datalabels: DATALABEL_CFG,
         tooltip:{ callbacks:{ label:(c)=>{
           const region = c.dataset.label;
           const branch = c.label;
           const d = datasetMap[region][branch];
           if(!d) return '';
-          return `${region} · ${branch}: ${fmtNum(d.ci)}/${fmtNum(d.total)} — ${fmtPct(d.rate)}`;
+          return `${region} · ${branch} · ${s.label}: ${fmtNum(d[s.key])}/${fmtNum(d.total)} — ${fmtPct(d[s.pctKey])}`;
         }}}
       }
     }
   });
 
   if(multiRegion){
-    document.getElementById('branchChart').setAttribute('aria-label','Bar chart so sánh showup rate theo chi nhánh, nhóm và so sánh theo từng vùng TCB');
+    document.getElementById('branchChart').setAttribute('aria-label','Bar chart so sánh showup rate theo chi nhánh, nhóm theo vùng TCB');
   }
 }
 
 function renderSihChart(groups){
-  const entries = Object.entries(groups).map(([sih, arr])=>({sih, ...showupRate(arr)}));
+  const entries = Object.entries(groups).map(([sih, arr])=>({sih, ...breakdown3(arr)}));
   entries.sort((a,b)=>b.total-a.total);
 
   const wrap = document.getElementById('sihChartWrap');
@@ -476,24 +722,17 @@ function renderSihChart(groups){
   destroyChart('sih');
   charts.sih = new Chart(document.getElementById('sihChart'), {
     type:'bar',
-    data:{
-      labels: entries.map(e=>e.sih),
-      datasets:[{
-        label:'Showup rate (%)',
-        data: entries.map(e=>Math.round(e.rate*10)/10),
-        backgroundColor: entries.map((_,i)=>COLORS.series[(i+2)%COLORS.series.length]),
-        borderRadius:6
-      }]
-    },
+    data:{ labels: entries.map(e=>e.sih), datasets: singleDatasets(entries, 2, 'sih') },
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
-      scales:{ x:{ min:0, max:100, ticks:{ callback:(v)=>v+'%' } } },
+      scales:{ x:{ min:0, max:100, stacked:true, ticks:{ callback:(v)=>v+'%' } }, y:{ stacked:true } },
       plugins:{
         legend:{display:false},
+        datalabels: DATALABEL_CFG,
         tooltip:{ callbacks:{ label:(c)=>{
           const e = entries[c.dataIndex];
-          return `${fmtNum(e.ci)} / ${fmtNum(e.total)} đã vào — ${fmtPct(e.rate)}`;
+          return statusTooltip(e, c.dataset.label, 'sih');
         }}}
       }
     }
