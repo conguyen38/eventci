@@ -486,44 +486,79 @@ function rRTab(){
       <button class="btn blue" onclick="S.evUnlockTarget='${S.rptEv}';S.modal='ev_unlock';R()">🔓 Nhập mật khẩu</button>
     </div>`;}
 
-  const allPpl=[];
-  egs(S.rptEv).forEach(g=>{
-    allPpl.push({name:g.name,code:g.guestCode,phone:g.phone,prmName:g.prmName,tcbRegion:g.tcbRegion,unit:g.unit,sihName:g.sihName,note:g.note,checkedIn:g.checkedIn,cancelled:g.cancelled,checkinTime:g.checkinTime,type:'KH'});
-    (g.companions||[]).forEach(c=>allPpl.push({name:c.name,code:c.code,phone:c.phone,prmName:g.prmName,tcbRegion:g.tcbRegion,unit:g.unit,sihName:g.sihName,note:c.cancelNote||g.note,checkedIn:c.checkedIn,cancelled:c.cancelled,checkinTime:c.checkinTime,type:'ĐK',parentName:g.name}));
-  });
-  const totalP=allPpl.length;
-  const ciP=allPpl.filter(p=>p.checkedIn).length;
-  const cnP=allPpl.filter(p=>p.cancelled).length;
-  const pdP=totalP-ciP-cnP;
-  const pctP=totalP>0?Math.round(ciP/totalP*100):0;
+  // Danh sách Khách hàng (Main) — đối tượng dùng cho mọi breakdown & đánh giá tỷ lệ
+  const mainGuests=egs(S.rptEv).map(g=>({
+    name:g.name,code:g.guestCode,phone:g.phone,prmName:g.prmName,tcbRegion:g.tcbRegion,unit:g.unit,sihName:g.sihName,note:g.note,
+    checkedIn:g.checkedIn,cancelled:g.cancelled,checkinTime:g.checkinTime,companions:g.companions||[]
+  }));
 
-  const statsHtml=`<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-    ${statCard('Tổng','#185FA5',totalP,'')}
-    ${statCard('✅ Đã vào','#3B6D11',ciP,pctP+'%')}
-    ${statCard('⏳ Chưa','#888',pdP,'')}
-    ${statCard('🚫 Cancel','#B91C1C',cnP,'')}
+  // Danh sách đầy đủ Main + Companion — chỉ dùng cho thống kê "tổng lượt tham dự thực tế"
+  const allPpl=[];
+  mainGuests.forEach(g=>{
+    allPpl.push({checkedIn:g.checkedIn,cancelled:g.cancelled,isMain:true});
+    g.companions.forEach(c=>allPpl.push({checkedIn:c.checkedIn,cancelled:c.cancelled,isMain:false}));
+  });
+
+  // --- Khối 1: Tổng quan Khách hàng (Main only) ---
+  const totalM=mainGuests.length;
+  const ciM=mainGuests.filter(g=>g.checkedIn).length;
+  const cnM=mainGuests.filter(g=>g.cancelled).length;
+  const pdM=totalM-ciM-cnM;
+  const pctM=totalM>0?Math.round(ciM/totalM*100):0;
+
+  // --- Khối 2: Tổng lượt tham dự thực tế (Main + Companion) ---
+  const totalAll=allPpl.length;
+  const totalAllMain=mainGuests.length;
+  const totalAllComp=totalAll-totalAllMain;
+  const ciAll=allPpl.filter(p=>p.checkedIn).length;
+  const ciAllMain=ciM;
+  const ciAllComp=ciAll-ciAllMain;
+  const avgCompPerMain=ciAllMain>0?Math.round((ciAllComp/ciAllMain)*100)/100:0;
+
+  const statsHtml=`<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng quan (Khách hàng - Main)</div>
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    ${statCard('Tổng KH mời (Main)','#185FA5',totalM,'')}
+    ${statCard('✅ KH đã tới','#3B6D11',ciM,pctM+'% turnout')}
+    ${statCard('⏳ KH chưa tới','#888',pdM,'')}
+    ${statCard('🚫 KH cancel','#B91C1C',cnM,'')}
   </div>
   <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;border:1px solid #eaecf0">
     <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
       <span style="font-weight:700">${selEv.name}</span>
-      <span style="color:#3B6D11;font-weight:700">${pctP}%</span>
+      <span style="color:#3B6D11;font-weight:700">${pctM}%</span>
     </div>
     <div style="background:#f0f0f0;border-radius:99px;height:12px;overflow:hidden">
-      <div style="width:${pctP}%;background:linear-gradient(90deg,#185FA5,#3B6D11);height:100%;border-radius:99px;transition:width .4s"></div>
+      <div style="width:${pctM}%;background:linear-gradient(90deg,#185FA5,#3B6D11);height:100%;border-radius:99px;transition:width .4s"></div>
     </div>
+  </div>
+  <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng lượt tham dự thực tế (Main + Companion)</div>
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    ${statCard('Tổng lượt đăng ký','#185FA5',totalAll,totalAllMain+' Main + '+totalAllComp+' Companion')}
+    ${statCard('✅ Tổng đã vào sảnh','#3B6D11',ciAll,ciAllMain+' Main + '+ciAllComp+' Companion')}
+    ${statCard('Avg companion / Main đã vào','#888',avgCompPerMain,'')}
   </div>`;
+
+  // Badge +1/-1 thể hiện chênh lệch companion theo trạng thái check-in,
+  // áp dụng đồng nhất cho mọi danh sách expand (Đăng ký / Đã vào / Chưa / Cancel)
+  function companionBadge(g){
+    const comps=g.companions||[];
+    if(!comps.length)return'';
+    const parts=comps.map(c=>c.checkedIn?'-1':'+1');
+    const color=parts.every(x=>x==='-1')?'#e24b4a':parts.every(x=>x==='+1')?'#3B6D11':'#aaa';
+    return `<span style="font-size:12px;font-weight:600;color:${color};white-space:nowrap;margin-left:8px">${parts.join(' ')}</span>`;
+  }
 
   function mkBreakdown(label,icon,groupFn,keyFn){
     const groups={};
-    allPpl.forEach(p=>{const k=keyFn(p)||'Không xác định';if(!groups[k])groups[k]=[];groups[k].push(p)});
+    mainGuests.forEach(g=>{const k=keyFn(g)||'Không xác định';if(!groups[k])groups[k]=[];groups[k].push(g)});
     const entries=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
     if(!entries.length)return'';
-    return`<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin:16px 0 8px;text-transform:uppercase">${icon} Theo ${label}</div>
-      ${entries.map(([grp,ppl])=>{
-        const ci=ppl.filter(p=>p.checkedIn).length;
-        const cn=ppl.filter(p=>p.cancelled).length;
-        const pend=ppl.length-ci-cn;
-        const pct=ppl.length>0?Math.round(ci/ppl.length*100):0;
+    return`<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin:16px 0 8px;text-transform:uppercase">${icon} Theo ${label} (Main)</div>
+      ${entries.map(([grp,gs])=>{
+        const ci=gs.filter(g=>g.checkedIn).length;
+        const cn=gs.filter(g=>g.cancelled).length;
+        const pend=gs.length-ci-cn;
+        const pct=gs.length>0?Math.round(ci/gs.length*100):0;
         const kPre=`${groupFn}_${grp}`;
         const expReg=!!S.rptExp[kPre+'_reg'];
         const expCi=!!S.rptExp[kPre+'_ci'];
@@ -534,7 +569,7 @@ function rRTab(){
             <div style="font-weight:700;font-size:13px">${grp}</div>
             <div style="display:flex;gap:6px;font-size:12px;flex-wrap:wrap">
               <span onclick="togRpt('${kPre}_reg')" style="background:#e8f0fb;color:#185FA5;border-radius:20px;padding:2px 10px;font-weight:600;cursor:pointer;user-select:none">
-                Đăng ký: ${ppl.length}${expReg?' ▲':' ▼'}
+                Main: ${gs.length}${expReg?' ▲':' ▼'}
               </span>
               <span onclick="togRpt('${kPre}_ci')" style="background:${ci>0?'#eaf3de':'#f5f5f5'};color:${ci>0?'#3B6D11':'#aaa'};border-radius:20px;padding:2px 10px;font-weight:600;cursor:${ci>0?'pointer':'default'};user-select:none">
                 Đã vào: ${ci}${ci>0?(expCi?' ▲':' ▼'):''}
@@ -550,49 +585,62 @@ function rRTab(){
           <div style="background:#f0f0f0;border-radius:99px;height:8px;overflow:hidden">
             <div style="width:${pct}%;background:${pct===100?'#3B6D11':'linear-gradient(90deg,#185FA5,#3B6D11)'};height:100%;border-radius:99px"></div>
           </div>
-          <div style="font-size:10px;color:#aaa;margin-top:4px;text-align:right">${pct}% đã check-in</div>
+          <div style="font-size:10px;color:#aaa;margin-top:4px;text-align:right">${pct}% Main đã check-in</div>
           ${expReg?`<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:6px">Danh sách đăng ký (${ppl.length} người)</div>
-            ${ppl.map(p=>`<div style="padding:5px 0;border-bottom:.5px solid #BFDBFE;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:11px;font-weight:700;color:#185FA5;margin-bottom:6px">Danh sách Main (${gs.length} người)</div>
+            ${gs.map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #BFDBFE;display:flex;justify-content:space-between;align-items:center">
               <div>
-                <div style="font-weight:600;font-size:13px">${p.name}${p.type==='ĐK'?` <span style="font-size:10px;color:#6D28D9">(đi kèm: ${p.parentName})</span>`:''}</div>
-                <div style="font-size:11px;color:#888">${p.code}${p.phone?' · '+p.phone:''}</div>
+                <div style="font-weight:600;font-size:13px">${g.name}</div>
+                <div style="font-size:11px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
               </div>
-              <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;${p.cancelled?'background:#FEF2F2;color:#B91C1C':p.checkedIn?'background:#EAF3DE;color:#3B6D11':'background:#f5f5f5;color:#aaa'}">${p.cancelled?'Cancel':p.checkedIn?'✅ Đã vào':'⏳ Chưa'}</span>
+              <div style="display:flex;align-items:center">
+                <span style="font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;${g.cancelled?'background:#FEF2F2;color:#B91C1C':g.checkedIn?'background:#EAF3DE;color:#3B6D11':'background:#f5f5f5;color:#aaa'}">${g.cancelled?'Cancel':g.checkedIn?'✅ Đã vào':'⏳ Chưa'}</span>
+                ${companionBadge(g)}
+              </div>
             </div>`).join('')}
           </div>`:''}
           ${expCi&&ci>0?`<div style="background:#f0faf0;border:1px solid #97C459;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#3B6D11;margin-bottom:6px">Đã check-in (${ci} người)</div>
-            ${ppl.filter(p=>p.checkedIn).map(p=>`<div style="padding:5px 0;border-bottom:.5px solid #c8e6c9">
-              <div style="font-weight:600;font-size:13px">${p.name}${p.type==='ĐK'?` <span style="font-size:10px;color:#6D28D9">(đi kèm: ${p.parentName})</span>`:''}</div>
-              <div style="font-size:11px;color:#888">${p.code}${p.phone?' · '+p.phone:''}</div>
-              <div style="font-size:10px;color:#3B6D11">✅ ${fmtTm(p.checkinTime)}</div>
+            <div style="font-size:11px;font-weight:700;color:#3B6D11;margin-bottom:6px">Đã check-in (${ci} Main)</div>
+            ${gs.filter(g=>g.checkedIn).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #c8e6c9;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-weight:600;font-size:13px">${g.name}</div>
+                <div style="font-size:11px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
+                <div style="font-size:10px;color:#3B6D11">✅ ${fmtTm(g.checkinTime)}</div>
+              </div>
+              ${companionBadge(g)}
             </div>`).join('')}
           </div>`:''}
           ${expAb&&pend>0?`<div style="background:#fff8f8;border:1px solid #fdd;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#e24b4a;margin-bottom:6px">Chưa check-in (${pend} người)</div>
-            ${ppl.filter(p=>!p.checkedIn&&!p.cancelled).map(p=>`<div style="padding:5px 0;border-bottom:.5px solid #fdd">
-              <div style="font-weight:600;font-size:13px">${p.name}${p.type==='ĐK'?` <span style="font-size:10px;color:#6D28D9">(đi kèm: ${p.parentName})</span>`:''}</div>
-              <div style="font-size:11px;color:#888">${p.code}${p.phone?' · '+p.phone:''}</div>
+            <div style="font-size:11px;font-weight:700;color:#e24b4a;margin-bottom:6px">Chưa check-in (${pend} Main)</div>
+            ${gs.filter(g=>!g.checkedIn&&!g.cancelled).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #fdd;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-weight:600;font-size:13px">${g.name}</div>
+                <div style="font-size:11px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
+              </div>
+              ${companionBadge(g)}
             </div>`).join('')}
           </div>`:''}
           ${expCn&&cn>0?`<div style="background:#FFF8F8;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#B91C1C;margin-bottom:6px">Đã cancel (${cn} người)</div>
-            ${ppl.filter(p=>p.cancelled).map(p=>`<div style="padding:5px 0;border-bottom:.5px solid #FECACA">
-              <div style="font-weight:600;font-size:13px;text-decoration:line-through;color:#bbb">${p.name}${p.type==='ĐK'?` <span style="font-size:10px;color:#d8b4fe">(đi kèm: ${p.parentName})</span>`:''}</div>
-              <div style="font-size:11px;color:#aaa">${p.code}${p.phone?' · '+p.phone:''}</div>
-              ${p.note?`<div style="font-size:10px;color:#B91C1C;font-style:italic">${p.note}</div>`:''}
+            <div style="font-size:11px;font-weight:700;color:#B91C1C;margin-bottom:6px">Đã cancel (${cn} Main)</div>
+            ${gs.filter(g=>g.cancelled).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #FECACA;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-weight:600;font-size:13px;text-decoration:line-through;color:#bbb">${g.name}</div>
+                <div style="font-size:11px;color:#aaa">${g.code}${g.phone?' · '+g.phone:''}</div>
+                ${g.note?`<div style="font-size:10px;color:#B91C1C;font-style:italic">${g.note}</div>`:''}
+              </div>
+              ${companionBadge(g)}
             </div>`).join('')}
           </div>`:''}
         </div>`;
       }).join('')}`;
   }
 
-  const byVung=mkBreakdown('Vùng TCB','🏦','vung',p=>p.tcbRegion);
-  const bySih=mkBreakdown('SIH','👤','sih',p=>p.sihName);
-  const byPrm=mkBreakdown('PRM','🤝','prm',p=>p.prmName);
+  const byVung=mkBreakdown('Vùng TCB','🏦','vung',g=>g.tcbRegion);
+  const byUnit=mkBreakdown('Chi nhánh','🏢','unit',g=>g.unit);
+  const bySih=mkBreakdown('SIH','👤','sih',g=>g.sihName);
+  const byPrm=mkBreakdown('PRM','🤝','prm',g=>g.prmName);
 
-  return overviewHtml+statsHtml+byVung+bySih+byPrm;
+  return overviewHtml+statsHtml+byVung+byUnit+bySih+byPrm;
 }
 
 function statCard(lbl,color,val,sub){
