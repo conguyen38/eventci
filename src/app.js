@@ -82,6 +82,27 @@ async function sbDel(table,id){
   catch(e){console.warn('Supabase delete lỗi:',e)}
 }
 
+/* PATCH 1 record duy nhất lên Supabase theo id — dùng cho check-in tại sự kiện.
+   Tránh việc POST nguyên mảng db.guests (sbSync) có thể bị nhiều máy ghi đè
+   chéo lên nhau khi check-in đồng thời (race condition).
+   Có retry với backoff; trả về true/false để UI biết đã ghi nhận thành công hay chưa. */
+async function sbPatchGuest(guestId, fields, retries=3){
+  if(!SB_ON)return true; // không dùng Supabase (chạy local) -> coi như OK
+  for(let attempt=1;attempt<=retries;attempt++){
+    try{
+      const res=await fetch(`${SB_URL}/rest/v1/oh_guests?id=eq.${guestId}`,{
+        method:'PATCH',
+        headers:{...SB_HDR,'Prefer':'return=minimal'},
+        body:JSON.stringify(fields)
+      });
+      if(res.ok)return true;
+      console.warn('sbPatchGuest lỗi HTTP',res.status);
+    }catch(e){console.warn('sbPatchGuest lỗi mạng:',e)}
+    if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
+  }
+  return false;
+}
+
 let db={events:[],guests:[]};
 
 function qrUrl(code){return BASE_URL+'/?code='+encodeURIComponent(code)}
@@ -102,8 +123,22 @@ let _autoRefresh=null;
 function startAutoRefresh(){
   if(_autoRefresh)clearInterval(_autoRefresh);
   _autoRefresh=setInterval(async()=>{
+    if(shouldSkipAutoRefresh())return; // người dùng đang nhập liệu / có form mở -> bỏ qua lượt này
     await loadData();R();
   },15000);
+}
+
+/* Tránh việc auto-refresh ghi đè dữ liệu đang nhập hoặc làm mất focus/con trỏ:
+   - Có modal (form thêm/sửa/import...) đang mở -> chắc chắn có dữ liệu chưa lưu, bỏ qua.
+   - Đang gõ vào 1 input/textarea/select bất kỳ (kể cả ngoài modal, ví dụ ô search) -> bỏ qua. */
+function shouldSkipAutoRefresh(){
+  if(S.modal)return true;
+  if(S.ciState?.step==='verify')return true; // BTC đang chờ nhập 4 số cuối SĐT, không re-render giữa chừng
+  if(S.urlCIBusy)return true; // đang chờ xác nhận check-in từ server
+  const el=document.activeElement;
+  if(!el)return false;
+  const tag=el.tagName;
+  return tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
 }
 async function doRefresh(){
   const btn=document.getElementById('refresh_btn');
@@ -131,6 +166,8 @@ let S={
   view:'admin', 
   urlCode:null,     
   urlCIStep:null,   
+  urlCIBusy:false,
+  urlCISyncWarn:false,
   tab:'events', 
   selEv:null,
   modal:null,   // add_ev | add_g | edit_g | del_g | tickets | btc_members | import_preview
@@ -154,6 +191,7 @@ let S={
   ciEv:null,
   ciOp:null,   
   ciState:null,
+  ciSyncWarn:false,
   pwVal:'',
   pwErr:'',
   newEvBtcRows:1,
@@ -1080,6 +1118,10 @@ function rUrlCI(){
       <div style="font-size:13px;color:#aaa">${ev?.name||''}</div>
       ${g.note?`<div style="display:inline-block;margin-top:8px;background:#FFFBEB;color:#92400E;font-size:12px;padding:4px 12px;border-radius:20px">${g.note}</div>`:''}
       <div style="font-size:12px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)}</div>
+      ${S.urlCISyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:12px;padding:10px 14px;border-radius:10px;text-align:left">
+        ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng).
+        Vui lòng báo BTC kỹ thuật kiểm tra lại để đảm bảo dữ liệu được cập nhật đầy đủ.
+      </div>`:''}
       <div style="margin-top:24px"><button onclick="window.close()" style="padding:10px 24px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif">Đóng</button></div>
     </div>`;
   }
@@ -1130,7 +1172,7 @@ function rUrlCI(){
         oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doUrlCI()"/>
     </div>
     <div id="uci_err" style="color:#a32d2d;font-size:12px;text-align:center;margin-bottom:10px"></div>
-    <button onclick="doUrlCI()" style="width:100%;padding:14px;background:#3B6D11;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif">✅ Xác nhận Check-in</button>
+    <button onclick="doUrlCI()" ${S.urlCIBusy?'disabled':''} style="width:100%;padding:14px;background:${S.urlCIBusy?'#aaa':'#3B6D11'};color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:${S.urlCIBusy?'default':'pointer'};font-family:'Be Vietnam Pro',sans-serif">${S.urlCIBusy?'⏳ Đang xác nhận...':'✅ Xác nhận Check-in'}</button>
   </div>`;
 }
 
@@ -1176,10 +1218,22 @@ async function doUrlCI(){
     }
   }
 
+  if(S.urlCIBusy)return; // tránh double-submit khi đang chờ xác nhận từ server
+  S.urlCIBusy=true;R();
+
   const now=new Date().toISOString();
   if(found.type==='guest'){g.checkedIn=true;g.checkinTime=now;g.checkinBy=btcInput}
   else{p.checkedIn=true;p.checkinTime=now;p.checkinBy=btcInput}
-  save();
+  save(); // ghi local ngay (localStorage) — không mất dữ liệu nếu mất mạng/đóng tab
+
+  // Ghi atomic 1 record lên Supabase, có retry — đây là nguồn xác nhận "thật"
+  const patchFields = found.type==='guest'
+    ? {checked_in:true,checkin_time:now,checkin_by:btcInput}
+    : {companions:(g.companions||[])}; // companion nằm trong cột JSON companions của Main guest
+  const ok = await sbPatchGuest(g.id, patchFields);
+
+  S.urlCIBusy=false;
+  S.urlCISyncWarn = !ok;
   S.urlCIStep='done';R();
 }
 
@@ -1293,6 +1347,10 @@ function rCIDone(){
     ${st.type==='guest'&&(g.companions||[]).length?`<div style="font-size:12px;color:#BA7517;margin-top:10px;padding:8px 16px;background:#FFFBEB;border-radius:8px;display:inline-block">⚠️ ${g.companions.length} người đi kèm cần check-in riêng</div>`:''}
     ${g.note?`<div style="margin-top:10px;display:inline-block"><span class="badge b-amber">${g.note}</span></div>`:''}
     <div style="font-size:12px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)} · BTC: ${p.checkinBy||'—'}</div>
+    ${S.ciSyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:12px;padding:10px 14px;border-radius:10px;text-align:left;max-width:360px;margin-left:auto;margin-right:auto">
+      ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng).
+      Vui lòng kiểm tra lại kết nối và báo kỹ thuật nếu tình trạng tiếp diễn.
+    </div>`:''}
     <div style="margin-top:24px">
       <button class="btn blue" onclick="nextCI()" style="padding:12px 32px;font-size:15px">📷 Scan vé tiếp theo</button>
     </div>
@@ -1368,8 +1426,8 @@ function undoCancel(gid,type,cpId){
 function goCI(){S.view='checkin';S.ciOk=false;S.ciEv=null;S.ciOp=null;S.ciState=null;R()}
 function backAdmin(){S.view='admin';S.ciOk=false;S.ciState=null;R()}
 function lockOut(){S.ciOk=false;S.ciOp=null;S.ciState=null;R()}
-function cancelCI(){S.ciState=null;R()}
-function nextCI(){S.ciState=null;R()}
+function cancelCI(){S.ciState=null;S.ciSyncWarn=false;R()}
+function nextCI(){S.ciState=null;S.ciSyncWarn=false;R()}
 
 function addBR(){const w=document.getElementById('btc_w');if(!w)return;const i=w.querySelectorAll('.btc-r').length;
   const d=document.createElement('div');d.className='btc-r';d.id='br_'+i;
@@ -1710,7 +1768,7 @@ function tryUnlock(){
   if(!member){document.getElementById('lock_err').textContent='⚠️ Mã không nằm trong danh sách BTC của sự kiện này';return}
   S.ciOk=true;S.ciOp=member;S.ciState=null;R()}
 
-function startCI(){
+async function startCI(){
   const code=(document.getElementById('ci_in')?.value||'').toUpperCase().trim();
   if(!code){document.getElementById('ci_err').textContent='⚠️ Vui lòng nhập mã';return}
   const found=findCode(S.ciEv,code);
@@ -1718,7 +1776,13 @@ function startCI(){
   const person=found.person;
   if(person.checkedIn){document.getElementById('ci_err').textContent='⚠️ Đã check-in lúc '+fmtDT(person.checkinTime);return}
   if(!person.phone){
-    person.checkedIn=true;person.checkinTime=new Date().toISOString();person.checkinBy=S.ciOp?.code||'btc';save();
+    const now=new Date().toISOString();
+    person.checkedIn=true;person.checkinTime=now;person.checkinBy=S.ciOp?.code||'btc';save();
+    const patchFields = found.type==='guest'
+      ? {checked_in:true,checkin_time:now,checkin_by:person.checkinBy}
+      : {companions:(found.guest.companions||[])};
+    const ok=await sbPatchGuest(found.guest.id, patchFields);
+    S.ciSyncWarn=!ok;
     S.ciState={step:'done',type:found.type,guest:found.guest,person,code};R();return}
   S.ciState={step:'verify',type:found.type,guest:found.guest,person,code};R()}
 
@@ -1731,12 +1795,20 @@ function confirmPhone(){
   else{const el=document.getElementById('ph_err');if(el)el.textContent='⚠️ 4 số cuối không khớp. Vui lòng thử lại.';
     const inp=document.getElementById('ci_ph');if(inp){inp.value='';inp.focus()}}}
 
-function finishCI(){
+async function finishCI(){
   const st=S.ciState;
   const g=db.guests.find(x=>x.id===st.guest.id);if(!g){S.ciState={step:'err',msg:'Lỗi hệ thống'};R();return}
-  if(st.type==='guest'){g.checkedIn=true;g.checkinTime=new Date().toISOString();g.checkinBy=S.ciOp?.code||'btc'}
-  else{const c=(g.companions||[]).find(x=>x.id===st.person.id);if(c){c.checkedIn=true;c.checkinTime=new Date().toISOString();c.checkinBy=S.ciOp?.code||'btc'}}
-  save();S.ciState={step:'done',type:st.type,guest:g,person:st.type==='guest'?g:(g.companions||[]).find(x=>x.id===st.person.id),code:st.code};R()}
+  const now=new Date().toISOString();
+  const checkinBy=S.ciOp?.code||'btc';
+  if(st.type==='guest'){g.checkedIn=true;g.checkinTime=now;g.checkinBy=checkinBy}
+  else{const c=(g.companions||[]).find(x=>x.id===st.person.id);if(c){c.checkedIn=true;c.checkinTime=now;c.checkinBy=checkinBy}}
+  save();
+  const patchFields = st.type==='guest'
+    ? {checked_in:true,checkin_time:now,checkin_by:checkinBy}
+    : {companions:(g.companions||[])};
+  const ok=await sbPatchGuest(g.id, patchFields);
+  S.ciSyncWarn=!ok;
+  S.ciState={step:'done',type:st.type,guest:g,person:st.type==='guest'?g:(g.companions||[]).find(x=>x.id===st.person.id),code:st.code};R()}
 
 function expCSV(){
   const ev=db.events.find(e=>e.id===S.selEv);
