@@ -26,9 +26,9 @@ const BASE_URL = "https://lemaitranmedia.github.io/eventoh-checkin";
    DATA LAYER
    ============================================================ */
 function dbToEv(r){return{id:r.id,name:r.name,date:r.date_str,team:r.team,venue:r.venue,eventPw:r.event_pw,btcMembers:r.btc_members||[],createdAt:r.created_at}}
-function dbToG(r){return{id:r.id,eventId:r.event_id,guestCode:r.guest_code,name:r.name,phone:r.phone,prmName:r.prm_name,tcbRegion:r.tcb_region,unit:r.unit,sihName:r.sih_name,note:r.note,companions:r.companions||[],checkedIn:!!r.checked_in,checkinTime:r.checkin_time,checkinBy:r.checkin_by,cancelled:!!r.cancelled,cancelNote:r.cancel_note,createdAt:r.created_at}}
+function dbToG(r){return{id:r.id,eventId:r.event_id,guestCode:r.guest_code,systemCode:r.system_code,name:r.name,phone:r.phone,prmName:r.prm_name,tcbRegion:r.tcb_region,unit:r.unit,sihName:r.sih_name,note:r.note,companions:r.companions||[],checkedIn:!!r.checked_in,checkinTime:r.checkin_time,checkinBy:r.checkin_by,cancelled:!!r.cancelled,cancelNote:r.cancel_note,createdAt:r.created_at}}
 function evToDb(e){return{id:e.id,name:e.name,date_str:e.date||null,team:e.team||null,venue:e.venue||null,event_pw:e.eventPw||null,btc_members:e.btcMembers||[],created_at:e.createdAt||Date.now()}}
-function gToDb(g){return{id:g.id,event_id:g.eventId,guest_code:g.guestCode,name:g.name,phone:g.phone||null,prm_name:g.prmName||null,tcb_region:g.tcbRegion||null,unit:g.unit||null,sih_name:g.sihName||null,note:g.note||null,companions:g.companions||[],checked_in:!!g.checkedIn,checkin_time:g.checkinTime||null,checkin_by:g.checkinBy||null,cancelled:!!g.cancelled,cancel_note:g.cancelNote||null,created_at:g.createdAt||Date.now()}}
+function gToDb(g){return{id:g.id,event_id:g.eventId,guest_code:g.guestCode,system_code:g.systemCode||null,name:g.name,phone:g.phone||null,prm_name:g.prmName||null,tcb_region:g.tcbRegion||null,unit:g.unit||null,sih_name:g.sihName||null,note:g.note||null,companions:g.companions||[],checked_in:!!g.checkedIn,checkin_time:g.checkinTime||null,checkin_by:g.checkinBy||null,cancelled:!!g.cancelled,cancel_note:g.cancelNote||null,created_at:g.createdAt||Date.now()}}
 
 function loadLocal(){try{const r=localStorage.getItem(SK);return r?JSON.parse(r):{events:[],guests:[]}}catch(e){return{events:[],guests:[]}}}
 
@@ -352,7 +352,7 @@ function rGTab(){
   let gs = egs(S.selEv);
   const p = allPeople(S.selEv);
 
-  if(S.search){const q=S.search.toLowerCase();gs=gs.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.prmName?.toLowerCase().includes(q)||g.sihName?.toLowerCase().includes(q)||g.unit?.toLowerCase().includes(q)||g.guestCode?.toLowerCase().includes(q)||(g.companions||[]).some(x=>x.name?.toLowerCase().includes(q)||x.code?.toLowerCase().includes(q)))}
+  if(S.search){const q=S.search.toLowerCase();gs=gs.filter(g=>g.name?.toLowerCase().includes(q)||g.phone?.includes(q)||g.prmName?.toLowerCase().includes(q)||g.sihName?.toLowerCase().includes(q)||g.unit?.toLowerCase().includes(q)||g.guestCode?.toLowerCase().includes(q)||g.systemCode?.toLowerCase().includes(q)||(g.companions||[]).some(x=>x.name?.toLowerCase().includes(q)||x.code?.toLowerCase().includes(q)))}
   if(S.filter==='checked')gs=gs.filter(g=>g.checkedIn);
   if(S.filter==='pending')gs=gs.filter(g=>!g.checkedIn&&!g.cancelled);
   if(S.filter==='cancelled')gs=gs.filter(g=>g.cancelled);
@@ -418,7 +418,7 @@ function rGTab(){
                    ${g.note?`<div class="sub" style="font-style:italic">${g.note}</div>`:''}
                    ${evLocked?'':`<button class="btn xs" onclick="openAddComp('${g.id}')" style="margin-top:5px;font-size:10px;color:#185FA5;border-color:#b3d4f5">+ thêm đi kèm</button>`}`}
               </td>
-              <td><span class="mono">${g.guestCode}</span></td>
+              <td><span class="mono">${g.guestCode}</span>${g.systemCode?`<div style="font-size:10px;color:#aaa;margin-top:2px">Mã HT: ${g.systemCode}</div>`:''}</td>
               <td style="color:#888;font-size:12px">${g.phone||'—'}</td>
               <td><div style="font-size:12px">${g.prmName||'—'}</div><div class="sub">${g.tcbRegion||''}</div></td>
               <td style="font-size:12px;color:#888">${g.unit||'—'}</td>
@@ -750,9 +750,10 @@ function rAddGM(){
     <div class="fg"><label>Sự kiện *</label><select id="g_ev">${db.events.map(e=>`<option value="${e.id}" ${(S.selEv===e.id||g?.eventId===e.id)?'selected':''}>${e.name}</option>`).join('')}</select></div>
     ${S.modal==='edit_g'?`<div style="margin-bottom:10px"><span style="font-size:12px;color:#aaa">Mã KH:</span> <span class="mono">${g?.guestCode||''}</span> <span style="font-size:11px;color:#ccc">(cố định, không thay đổi)</span></div>`:''}
     <div class="sec">Thông tin khách hàng chính</div>
-    <div class="g2">
+    <div class="g3">
       <div class="fg"><label>Họ và tên KH *</label><input id="g_n" placeholder="Nguyễn Văn A" value="${g?.name||''}"/></div>
       <div class="fg"><label>Số điện thoại *</label><input id="g_ph" type="tel" placeholder="09xxxxxxxx" value="${g?.phone||''}"/></div>
+      <div class="fg"><label>Mã Hệ thống <span style="font-weight:400;color:#aaa">(OneHousing)</span></label><input id="g_syscode" placeholder="VD: OH-00123" value="${g?.systemCode||''}"/></div>
     </div>
     <div class="sec">👥 Người đi kèm <span style="text-transform:none;letter-spacing:0;font-weight:400">(mỗi người có QR & check-in riêng)</span></div>
     <div id="cp_w">
@@ -840,9 +841,10 @@ function rEditFormM(){
   return`<div class="mh">✏️ Chỉnh sửa — ${g.name}</div>
     <div style="margin-bottom:12px"><span class="mono">${g.guestCode}</span> <span style="font-size:11px;color:#ccc">(mã cố định)</span></div>
     <div class="sec">Thông tin khách hàng chính</div>
-    <div class="g2">
+    <div class="g3">
       <div class="fg"><label>Họ và tên KH</label><input id="eg_n" value="${g.name||''}"/></div>
       <div class="fg"><label>Số điện thoại</label><input id="eg_ph" type="tel" value="${g.phone||''}"/></div>
+      <div class="fg"><label>Mã Hệ thống <span style="font-weight:400;color:#aaa">(OneHousing)</span></label><input id="eg_syscode" value="${g.systemCode||''}"/></div>
     </div>
     <div class="sec">Người đi kèm</div>
     <div id="ecp_w">
@@ -1058,7 +1060,7 @@ function rImportPreviewM(){
       <table class="tbl">
         <thead>
           <tr>
-            <th>Loại</th><th>Họ và tên</th><th>Số điện thoại</th><th>Tên PRM</th><th>Vùng TCB</th><th>Đơn vị</th><th>Tên SIH</th><th>Ghi chú</th>
+            <th>Loại</th><th>Họ và tên</th><th>Số điện thoại</th><th>Mã Hệ thống</th><th>Tên PRM</th><th>Vùng TCB</th><th>Đơn vị</th><th>Tên SIH</th><th>Ghi chú</th>
           </tr>
         </thead>
         <tbody>
@@ -1067,6 +1069,7 @@ function rImportPreviewM(){
               <td><span class="badge ${r.type==='Main'?'b-blue':'b-purple'}">${r.type==='Main'?'KH Chính':'Đi kèm'}</span></td>
               <td style="font-weight:600">${r.name||'—'}</td>
               <td>${r.phone||'—'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.type==='Main'?(r.systemCode||'—'):'—'}</td>
               <td>${r.prmName||'—'}</td>
               <td>${r.tcbRegion||'—'}</td>
               <td>${r.unit||'—'}</td>
@@ -1502,6 +1505,7 @@ function saveG(){
   const eventId=document.getElementById('g_ev')?.value;
   const name=document.getElementById('g_n')?.value?.trim();
   const phone=document.getElementById('g_ph')?.value?.trim();
+  const systemCode=document.getElementById('g_syscode')?.value?.trim();
   const prmName=document.getElementById('g_prm')?.value?.trim();
   const tcbRegion=document.getElementById('g_reg')?.value?.trim();
   const unit=document.getElementById('g_unit')?.value?.trim();
@@ -1520,13 +1524,13 @@ function saveG(){
       const newComps=rawComps.map(rc=>{const match=oldComps.find(oc=>oc.name===rc.name&&oc.code);
         if(match)return{...match,phone:rc.phone};
         return{id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}});
-      db.guests[idx]={...ex,eventId,name,phone,prmName,tcbRegion,unit,sihName,note,companions:newComps};
+      db.guests[idx]={...ex,eventId,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,companions:newComps};
       S.ticketGid=S.editGid;
     }
   } else {
     const guestCode=genCode(eventId);
     const companions=rawComps.map(rc=>({id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}));
-    const ng={id:uid(),eventId,guestCode,name,phone,prmName,tcbRegion,unit,sihName,note,companions,checkedIn:false,checkinTime:null,checkinBy:null,createdAt:Date.now()};
+    const ng={id:uid(),eventId,guestCode,systemCode,name,phone,prmName,tcbRegion,unit,sihName,note,companions,checkedIn:false,checkinTime:null,checkinBy:null,createdAt:Date.now()};
     db.guests.push(ng);
     S.ticketGid=ng.id;
   }
@@ -1543,6 +1547,7 @@ function doEdit(){
   const idx=db.guests.indexOf(g);
   const name=document.getElementById('eg_n')?.value?.trim()||g.name;
   const phone=document.getElementById('eg_ph')?.value?.trim()||g.phone;
+  const systemCode=document.getElementById('eg_syscode')?.value?.trim();
   const prmName=document.getElementById('eg_prm')?.value?.trim();
   const tcbRegion=document.getElementById('eg_reg')?.value?.trim();
   const unit=document.getElementById('eg_unit')?.value?.trim();
@@ -1553,7 +1558,7 @@ function doEdit(){
     name:document.getElementById('ecn_'+i)?.value?.trim()||c.name,
     phone:document.getElementById('ecp_'+i)?.value?.trim()||c.phone
   }));
-  db.guests[idx]={...g,name,phone,prmName,tcbRegion,unit,sihName,note,companions:updComps};
+  db.guests[idx]={...g,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,companions:updComps};
   save();S.modal=null;S.editGid=null;R()}
 
 function doDel(){
@@ -1812,14 +1817,14 @@ async function finishCI(){
 
 function expCSV(){
   const ev=db.events.find(e=>e.id===S.selEv);
-  const rows=[['STT','Loại','Mã','Họ tên','SĐT','KH gốc (nếu đi kèm)','PRM','Vùng TCB','Đơn vị','SIH','Note','Trạng thái','Giờ check-in','BTC','Lý do cancel']];
+  const rows=[['STT','Loại','Mã','Mã Hệ thống','Họ tên','SĐT','KH gốc (nếu đi kèm)','PRM','Vùng TCB','Đơn vị','SIH','Note','Trạng thái','Giờ check-in','BTC','Lý do cancel']];
   let n=0;
   egs(S.selEv).forEach(g=>{n++;
     const gStatus=g.cancelled?'Cancel':g.checkedIn?'Đã vào':'Chưa';
-    rows.push([n,'KH chính',g.guestCode,g.name,g.phone||'','',g.prmName||'',g.tcbRegion||'',g.unit||'',g.sihName||'',g.note||'',gStatus,g.checkinTime?fmtDT(g.checkinTime):'',g.checkinBy||'',g.cancelNote||'']);
+    rows.push([n,'KH chính',g.guestCode,g.systemCode||'',g.name,g.phone||'','',g.prmName||'',g.tcbRegion||'',g.unit||'',g.sihName||'',g.note||'',gStatus,g.checkinTime?fmtDT(g.checkinTime):'',g.checkinBy||'',g.cancelNote||'']);
     (g.companions||[]).forEach(c=>{n++;
       const cStatus=c.cancelled?'Cancel':c.checkedIn?'Đã vào':'Chưa';
-      rows.push([n,'Đi kèm',c.code,c.name,c.phone||'',g.name,g.prmName||'',g.tcbRegion||'','','','',cStatus,c.checkinTime?fmtDT(c.checkinTime):'',c.checkinBy||'',c.cancelNote||''])})});
+      rows.push([n,'Đi kèm',c.code,'',c.name,c.phone||'',g.name,g.prmName||'',g.tcbRegion||'','','','',cStatus,c.checkinTime?fmtDT(c.checkinTime):'',c.checkinBy||'',c.cancelNote||''])})});
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
   a.download=`checkin_${(ev?.name||'').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;a.click()}
@@ -1883,7 +1888,8 @@ function handleExcelImport(event) {
           tcbRegion: row[4] ? String(row[4]).trim() : '',
           unit: row[5] ? String(row[5]).trim() : '',
           sihName: row[6] ? String(row[6]).trim() : '',
-          note: row[7] ? String(row[7]).trim() : ''
+          note: row[7] ? String(row[7]).trim() : '',
+          systemCode: row[8] ? String(row[8]).trim() : ''
         });
       }
 
@@ -1918,6 +1924,7 @@ function commitExcelImport() {
         id: uid(),
         eventId: eventId,
         guestCode: guestCode,
+        systemCode: item.systemCode,
         name: item.name,
         phone: item.phone,
         prmName: item.prmName,
@@ -1953,6 +1960,7 @@ function commitExcelImport() {
           id: uid(),
           eventId: eventId,
           guestCode: guestCode,
+          systemCode: item.systemCode,
           name: item.name + " (Chính)",
           phone: item.phone,
           prmName: item.prmName,
