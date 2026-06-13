@@ -1060,7 +1060,7 @@ function rImportPreviewM(){
       <table class="tbl">
         <thead>
           <tr>
-            <th>Loại</th><th>Họ và tên</th><th>Số điện thoại</th><th>Mã Hệ thống</th><th>Tên PRM</th><th>Vùng TCB</th><th>Đơn vị</th><th>Tên SIH</th><th>Ghi chú</th>
+            <th>Loại</th><th>Họ và tên</th><th>Số điện thoại</th><th>Tên PRM</th><th>Vùng TCB</th><th>Đơn vị</th><th>Tên SIH</th><th>Ghi chú</th><th>Mã Hệ thống</th>
           </tr>
         </thead>
         <tbody>
@@ -1069,12 +1069,12 @@ function rImportPreviewM(){
               <td><span class="badge ${r.type==='Main'?'b-blue':'b-purple'}">${r.type==='Main'?'KH Chính':'Đi kèm'}</span></td>
               <td style="font-weight:600">${r.name||'—'}</td>
               <td>${r.phone||'—'}</td>
-              <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.type==='Main'?(r.systemCode||'—'):'—'}</td>
               <td>${r.prmName||'—'}</td>
               <td>${r.tcbRegion||'—'}</td>
               <td>${r.unit||'—'}</td>
               <td>${r.sihName||'—'}</td>
               <td style="color:#aaa;font-style:italic">${r.note||'—'}</td>
+              <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.type==='Main'?(r.systemCode||'—'):'—'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -1837,12 +1837,12 @@ function expCSV(){
 /* 1. Tải file Mẫu Excel đúng cấu trúc quy định */
 function downloadExcelTemplate() {
   const headers = [
-    ["Loại Khách (Gõ 'Main' hoặc 'Companion')", "Họ và Tên (*)", "Số Điện Thoại", "Tên PRM (Sales TCB)", "Vùng TCB", "Đơn vị (CN/PGD)", "Tên SIH (Sales OH)", "Note / Lưu ý"]
+    ["Loại Khách (Gõ 'Main' hoặc 'Companion')", "Họ và Tên (*)", "Số Điện Thoại", "Tên PRM (Sales TCB)", "Vùng TCB", "Đơn vị (CN/PGD)", "Tên SIH (Sales OH)", "Note / Lưu ý", "Mã Hệ thống (OneHousing - chỉ áp dụng cho Main)"]
   ];
   const sampleData = [
-    ["Main", "Nguyễn Văn A", "0901234567", "Lê PRM", "Vùng 1", "CN Sài Gòn", "Trần SIH", "Khách VIP bàn đầu"],
-    ["Companion", "Nguyễn Văn B (Đi kèm A)", "0907654321", "", "", "", "", "Đi cùng xe ông A"],
-    ["Main", "Phạm Thị C", "0911223344", "Nguyễn PRM", "Vùng 2", "CN Hà Nội", "Vũ SIH", ""]
+    ["Main", "Nguyễn Văn A", "0901234567", "Lê PRM", "Vùng 1", "CN Sài Gòn", "Trần SIH", "Khách VIP bàn đầu", "OH-00123"],
+    ["Companion", "Nguyễn Văn B (Đi kèm A)", "0907654321", "", "", "", "", "Đi cùng xe ông A", ""],
+    ["Main", "Phạm Thị C", "0911223344", "Nguyễn PRM", "Vùng 2", "CN Hà Nội", "Vũ SIH", "", "OH-00456"]
   ];
   const ws = XLSX.utils.aoa_to_sheet(headers.concat(sampleData));
   const wb = XLSX.utils.book_new();
