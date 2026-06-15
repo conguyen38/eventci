@@ -461,12 +461,12 @@ async function loadAll() {
   document.getElementById("perfTableWrap").innerHTML = '<div class="loader"><div class="spinner"></div>...</div>';
 
   try {
-    // Filter oh_guests theo event nếu có chọn
+    // oh_guests: load tất cả records của event (bao gồm cancelled để hiển thị đúng)
     const guestParams = selectedEventId
-      ? `select=*&cancelled=eq.false&event_id=eq.${selectedEventId}&order=created_at.asc`
-      : `select=*&cancelled=eq.false&order=created_at.asc`;
+      ? `select=*&event_id=eq.${selectedEventId}&order=created_at.asc`
+      : `select=*&order=created_at.asc`;
 
-    // Filter oh_tracking theo event nếu có chọn
+    // oh_tracking: filter theo event_id
     const trackParams = selectedEventId
       ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`
       : `select=*&order=synced_at.desc`;
@@ -591,11 +591,24 @@ function renderTable() {
 function rowHtml(g) {
   const t = g._trk;
 
+  // Convert checkin_time UTC → GMT+7
+  function fmtCheckinTime(utcStr) {
+    if (!utcStr) return "Đã vào";
+    const d = new Date(utcStr);
+    // +7 hours
+    const local = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+    const hh = String(local.getUTCHours()).padStart(2,"0");
+    const mm = String(local.getUTCMinutes()).padStart(2,"0");
+    return `${hh}:${mm}`;
+  }
+
   // Check-in status
   const ciClass = g.cancelled ? "cancel" : g.checked_in ? "in" : "pending";
-  const ciLabel = g.cancelled ? "Cancel" : g.checked_in
-    ? (g.checkin_time ? g.checkin_time.slice(11,16) : "Đã vào")
-    : "Chưa đến";
+  const ciLabel = g.cancelled
+    ? "Cancel"
+    : g.checked_in
+      ? fmtCheckinTime(g.checkin_time)
+      : "Không đến";
 
   // Journey steps: Đăng ký → Check-in → Follow-up → Opp
   const sEv  = (t?.status_event  || "").toLowerCase();
