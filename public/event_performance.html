@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>OneHousing · Customer Journey Dashboard</title>
+<style>
+  /* ── TOKENS ─────────────────────────────── */
+  :root {
+    --bg:        #0d0f14;
+    --surface:   #161923;
+    --card:      #1e2330;
+    --border:    #2a3045;
+    --accent:    #c9a96e;       /* gold — OneHousing luxury tone */
+    --accent2:   #4f9cf9;       /* blue — TCB brand */
+    --text:      #e8eaf0;
+    --muted:     #6b7590;
+    --green:     #3ecf8e;
+    --orange:    #f5a623;
+    --red:       #e05252;
+    --purple:    #9b7fe8;
+    --font-head: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --r:         8px;
+    --r-lg:      14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-head);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ─────────────────────────────── */
+  header {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), #8a6a3e);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: #0d0f14;
+  }
+  .logo-text { font-weight: 700; font-size: 15px; letter-spacing: -.3px; }
+  .logo-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .sync-badge {
+    font-size: 11px; color: var(--muted);
+    background: var(--card); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 20px;
+  }
+  .sync-badge span { color: var(--green); }
+  #btnRefresh {
+    background: var(--accent); color: #0d0f14;
+    border: none; border-radius: var(--r); padding: 7px 16px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: opacity .15s;
+  }
+  #btnRefresh:hover { opacity: .85; }
+
+  /* ── LAYOUT ─────────────────────────────── */
+  .main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── STAT STRIP ─────────────────────────── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 16px 18px;
+  }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  .stat-val   { font-size: 28px; font-weight: 800; line-height: 1; }
+  .stat-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat.accent .stat-val { color: var(--accent); }
+  .stat.green  .stat-val { color: var(--green); }
+  .stat.blue   .stat-val { color: var(--accent2); }
+  .stat.orange .stat-val { color: var(--orange); }
+  .stat.red    .stat-val { color: var(--red); }
+
+  /* ── SECTION HEADER ─────────────────────── */
+  .sec-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; margin-top: 28px;
+  }
+  .sec-title {
+    font-size: 13px; font-weight: 700; letter-spacing: .4px;
+    color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sec-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px; height: 14px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  .sec-ctrl { display: flex; gap: 8px; }
+  .filter-btn {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 20px;
+    padding: 4px 12px; font-size: 11px; cursor: pointer;
+    transition: all .15s;
+  }
+  .filter-btn.active, .filter-btn:hover {
+    border-color: var(--accent); color: var(--accent); background: rgba(201,169,110,.08);
+  }
+
+  /* ── SEARCH ─────────────────────────────── */
+  .search-wrap {
+    position: relative; margin-bottom: 16px;
+  }
+  .search-wrap input {
+    width: 100%; background: var(--card); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--r);
+    padding: 10px 14px 10px 38px;
+    font-size: 13px; outline: none;
+    transition: border-color .15s;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-wrap::before {
+    content: '⌕';
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: 16px;
+  }
+
+  /* ── TABLE ──────────────────────────────── */
+  .tbl-wrap { overflow-x: auto; border-radius: var(--r-lg); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--surface);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { color: var(--accent); }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .1s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,.03); }
+  tbody td {
+    padding: 11px 14px;
+    font-size: 12.5px;
+    vertical-align: middle;
+  }
+  .td-name { font-weight: 600; color: var(--text); }
+  .td-name small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .td-mono { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+  /* ── BADGES ─────────────────────────────── */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 700;
+    white-space: nowrap;
+    text-transform: uppercase; letter-spacing: .4px;
+  }
+  .badge-green  { background: rgba(62,207,142,.15); color: var(--green); }
+  .badge-orange { background: rgba(245,166,35,.15);  color: var(--orange); }
+  .badge-red    { background: rgba(224,82,82,.15);   color: var(--red); }
+  .badge-blue   { background: rgba(79,156,249,.15);  color: var(--accent2); }
+  .badge-gold   { background: rgba(201,169,110,.15); color: var(--accent); }
+  .badge-muted  { background: rgba(107,117,144,.12); color: var(--muted); }
+  .badge-purple { background: rgba(155,127,232,.15); color: var(--purple); }
+
+  /* ── CHECKIN STATUS ─────────────────────── */
+  .ci-dot {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+  }
+  .ci-dot::before {
+    content: ''; display: inline-block;
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .ci-dot.in::before    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .ci-dot.cancel::before{ background: var(--red); }
+  .ci-dot.pending::before{ background: var(--muted); }
+
+  /* ── JOURNEY TRACK ──────────────────────── */
+  .journey {
+    display: flex; align-items: center; gap: 0;
+    font-size: 10px;
+  }
+  .j-step {
+    display: flex; flex-direction: column; align-items: center;
+    min-width: 52px;
+  }
+  .j-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border);
+    margin-bottom: 3px; position: relative;
+  }
+  .j-dot.done   { background: var(--green); }
+  .j-dot.active { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  .j-label { color: var(--muted); text-align: center; line-height: 1.2; }
+  .j-line {
+    flex: 1; height: 1px; background: var(--border);
+    margin-bottom: 14px; min-width: 8px;
+  }
+  .j-line.done { background: var(--green); }
+
+  /* ── PERFORMANCE FLAGS ──────────────────── */
+  .perf-flags { display: flex; gap: 4px; }
+  .pflag {
+    width: 22px; height: 22px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; letter-spacing: 0;
+  }
+  .pflag.yes { background: rgba(62,207,142,.2); color: var(--green); }
+  .pflag.no  { background: rgba(107,117,144,.1); color: #3a3f52; }
+
+  /* ── STATUS HISTORY TOOLTIP ─────────────── */
+  .history-wrap { position: relative; display: inline-block; }
+  .history-trigger {
+    cursor: pointer; text-decoration: underline dotted;
+    color: var(--accent2); font-size: 11px;
+  }
+  .history-popup {
+    display: none;
+    position: absolute; bottom: calc(100% + 6px); left: 0;
+    background: #242938; border: 1px solid var(--border);
+    border-radius: var(--r); padding: 10px 12px;
+    min-width: 220px; z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .history-wrap:hover .history-popup { display: block; }
+  .history-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0; border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .history-row:last-child { border-bottom: none; }
+  .history-date { font-size: 10px; color: var(--muted); white-space: nowrap; }
+
+  /* ── EMPTY / LOADING ─────────────────────── */
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+  }
+  .empty svg { opacity: .2; margin-bottom: 12px; }
+  .loader {
+    display: flex; align-items: center; justify-content: center;
+    padding: 60px; gap: 10px; color: var(--muted); font-size: 13px;
+  }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── BREAKDOWN GRID ─────────────────────── */
+  .breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .bk-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--r-lg); padding: 14px 16px;
+  }
+  .bk-label { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+  .bk-bar-wrap { display: flex; flex-direction: column; gap: 7px; }
+  .bk-row { display: flex; align-items: center; gap: 8px; }
+  .bk-name { font-size: 11px; color: var(--muted); min-width: 60px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
+  .bk-bar-bg { flex: 1; background: var(--border); border-radius: 3px; height: 5px; }
+  .bk-bar-fill { height: 5px; border-radius: 3px; background: var(--accent); }
+  .bk-count { font-size: 11px; font-weight: 700; color: var(--text); min-width: 18px; text-align: right; }
+
+  /* ── TABS ────────────────────────────────── */
+  .tabs { display: flex; gap: 2px; margin-bottom: 20px; }
+  .tab {
+    padding: 8px 18px; border-radius: var(--r);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    color: var(--muted); background: transparent; border: none;
+    transition: all .15s;
+  }
+  .tab.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* ── RESPONSIVE ─────────────────────────── */
+  @media (max-width: 768px) {
+    .main { padding: 16px; }
+    header { padding: 14px 16px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">OH</div>
+    <div>
+      <div class="logo-text">Customer Journey</div>
+      <div class="logo-sub">OneHousing · Event Performance Tracker</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="sync-badge">Sync: <span id="syncTime">—</span></div>
+    <button id="btnRefresh" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- ── TABS ── -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('journey',this)">Customer Journey</button>
+    <button class="tab" onclick="switchTab('breakdown',this)">Breakdown</button>
+    <button class="tab" onclick="switchTab('performance',this)">Performance</button>
+  </div>
+
+  <!-- ── STAT STRIP ── -->
+  <div class="stats" id="statStrip">
+    <div class="stat accent"><div class="stat-label">Tổng đăng ký</div><div class="stat-val" id="st-reg">—</div><div class="stat-sub">Main guests</div></div>
+    <div class="stat green"><div class="stat-label">Đã check-in</div><div class="stat-val" id="st-ci">—</div><div class="stat-sub">Có mặt tại event</div></div>
+    <div class="stat red"><div class="stat-label">Vắng mặt</div><div class="stat-val" id="st-abs">—</div><div class="stat-sub">Đăng ký không đến</div></div>
+    <div class="stat blue"><div class="stat-label">Có tracking</div><div class="stat-val" id="st-trk">—</div><div class="stat-sub">Đã match Sheet</div></div>
+    <div class="stat orange"><div class="stat-label">Opp</div><div class="stat-val" id="st-opp">—</div><div class="stat-sub">Lead status hiện tại</div></div>
+    <div class="stat"><div class="stat-label">SBK</div><div class="stat-val" id="st-sbk" style="color:var(--purple)">—</div><div class="stat-sub">Sổ booking</div></div>
+  </div>
+
+  <!-- ── TAB: JOURNEY ── -->
+  <div id="tab-journey">
+    <div class="sec-head">
+      <div class="sec-title">Hành trình khách hàng</div>
+      <div class="sec-ctrl">
+        <button class="filter-btn active" onclick="setFilter('all',this)">Tất cả</button>
+        <button class="filter-btn" onclick="setFilter('checkedin',this)">Đã vào</button>
+        <button class="filter-btn" onclick="setFilter('absent',this)">Vắng</button>
+        <button class="filter-btn" onclick="setFilter('opp',this)">Opp</button>
+        <button class="filter-btn" onclick="setFilter('notrack',this)">Chưa track</button>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Tìm tên, SĐT, PRM, mã KH..." oninput="renderTable()"/>
+    </div>
+    <div class="tbl-wrap" id="tableWrap">
+      <div class="loader"><div class="spinner"></div> Đang tải dữ liệu...</div>
+    </div>
+  </div>
+
+  <!-- ── TAB: BREAKDOWN ── -->
+  <div id="tab-breakdown" style="display:none">
+    <div class="sec-head"><div class="sec-title">Theo Vùng TCB</div></div>
+    <div class="breakdown-grid" id="bkVung"></div>
+
+    <div class="sec-head"><div class="sec-title">Theo Chi nhánh / PGD</div></div>
+    <div class="breakdown-grid" id="bkUnit"></div>
+
+    <div class="sec-head"><div class="sec-title">Theo SIH (Sales OneHousing)</div></div>
+    <div class="breakdown-grid" id="bkSih"></div>
+  </div>
+
+  <!-- ── TAB: PERFORMANCE ── -->
+  <div id="tab-performance" style="display:none">
+    <div class="sec-head"><div class="sec-title">Lead Status phân phối</div></div>
+    <div class="breakdown-grid" id="bkStatus"></div>
+
+    <div class="sec-head"><div class="sec-title">Timeline follow-up</div></div>
+    <div class="tbl-wrap" id="perfTableWrap">
+      <div class="loader"><div class="spinner"></div>...</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────
+const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendjYW5jaWVlbWVmY3Zna20iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0NjUxMzQ2NCwiZXhwIjoyMDYyMDg5NDY0fQ.nDqpbpzCqLPAB4hCF6XWJFBjH3WtxmFtKKmG8WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
+const HDR = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
+
+// ── STATE ───────────────────────────────────────────────────────
+let allGuests   = [];   // từ oh_guests (check-in data)
+let allTracking = [];   // từ oh_tracking (performance data)
+let merged      = [];   // joined theo name + phone_last4
+let activeFilter = "all";
+
+// ── FETCH ───────────────────────────────────────────────────────
+async function sbFetch(table, params = "") {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}&limit=1000`, { headers: HDR });
+  if (!r.ok) throw new Error(`Supabase ${table}: HTTP ${r.status}`);
+  return r.json();
+}
+
+async function loadAll() {
+  document.getElementById("tableWrap").innerHTML    = '<div class="loader"><div class="spinner"></div> Đang tải dữ liệu...</div>';
+  document.getElementById("perfTableWrap").innerHTML = '<div class="loader"><div class="spinner"></div>...</div>';
+
+  try {
+    // Pull song song 2 tables
+    const [guests, tracking] = await Promise.all([
+      sbFetch("oh_guests", "select=*&cancelled=eq.false&order=created_at.asc"),
+      sbFetch("oh_tracking", "select=*&order=synced_at.desc"),
+    ]);
+
+    // Chỉ lấy Main guests (không phải companion)
+    allGuests   = guests.filter(g => !g.companions || !g.name.includes("Đi kèm"));
+    allTracking = tracking;
+
+    // Build tracking lookup: key = name_normalize
+    const trkMap = {};
+    tracking.forEach(t => {
+      const key = normName(t.name) + "|" + (t.phone_last4 || "");
+      trkMap[key] = t;
+      // fallback: chỉ tên
+      if (!trkMap[normName(t.name)]) trkMap[normName(t.name)] = t;
+    });
+
+    // Merge
+    merged = allGuests.map(g => {
+      const key1 = normName(g.name) + "|" + (g.phone || "").slice(-4);
+      const key2 = normName(g.name);
+      const trk  = trkMap[key1] || trkMap[key2] || null;
+      return { ...g, _trk: trk };
+    });
+
+    updateStats();
+    renderTable();
+    renderBreakdowns();
+    renderPerformance();
+
+    document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
+  } catch(e) {
+    document.getElementById("tableWrap").innerHTML =
+      `<div class="empty">❌ Lỗi tải dữ liệu: ${e.message}<br><small>Kiểm tra Supabase key hoặc table name.</small></div>`;
+    console.error(e);
+  }
+}
+
+// ── NORMALIZE ──────────────────────────────────────────────────
+function normName(s) {
+  return (s || "").trim().toUpperCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/Đ/g,"D").replace(/đ/g,"d");
+}
+
+// ── STATS ──────────────────────────────────────────────────────
+function updateStats() {
+  const total   = merged.length;
+  const ci      = merged.filter(g => g.checked_in).length;
+  const abs     = total - ci;
+  const hasTrack= merged.filter(g => g._trk).length;
+  const opp     = merged.filter(g => {
+    const s = (g._trk?.status_latest || g._trk?.status_event || "").toLowerCase();
+    return s.includes("opp");
+  }).length;
+  const sbk = merged.filter(g => g._trk?.sbk === "YES" || g._trk?.sbk === "2026" || (g._trk?.sbk && g._trk.sbk !== "NO")).length;
+
+  document.getElementById("st-reg").textContent  = total;
+  document.getElementById("st-ci").textContent   = ci;
+  document.getElementById("st-abs").textContent  = abs;
+  document.getElementById("st-trk").textContent  = hasTrack;
+  document.getElementById("st-opp").textContent  = opp;
+  document.getElementById("st-sbk").textContent  = sbk;
+}
+
+// ── FILTER ─────────────────────────────────────────────────────
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  el.classList.add("active");
+  renderTable();
+}
+
+function filterData() {
+  const q = document.getElementById("searchInput").value.toLowerCase();
+  return merged.filter(g => {
+    // text search
+    const searchable = [g.name, g.phone, g._trk?.prm_name, g._trk?.lead_id, g._trk?.sih_name, g.tcb_region, g.unit]
+      .filter(Boolean).join(" ").toLowerCase();
+    if (q && !searchable.includes(q)) return false;
+
+    // status filter
+    const s = (g._trk?.status_latest || g._trk?.status_event || "").toLowerCase();
+    if (activeFilter === "checkedin") return g.checked_in;
+    if (activeFilter === "absent")    return !g.checked_in;
+    if (activeFilter === "opp")       return s.includes("opp");
+    if (activeFilter === "notrack")   return !g._trk;
+    return true;
+  });
+}
+
+// ── TABLE ──────────────────────────────────────────────────────
+function renderTable() {
+  const rows = filterData();
+  if (!rows.length) {
+    document.getElementById("tableWrap").innerHTML =
+      '<div class="empty">Không có dữ liệu khớp với bộ lọc.</div>';
+    return;
+  }
+
+  const html = `<table>
+    <thead><tr>
+      <th>Khách hàng</th>
+      <th>PRM / Vùng</th>
+      <th>SIH</th>
+      <th>Check-in</th>
+      <th>Hành trình</th>
+      <th>Status hiện tại</th>
+      <th>Performance</th>
+    </tr></thead>
+    <tbody>${rows.map(rowHtml).join("")}</tbody>
+  </table>`;
+  document.getElementById("tableWrap").innerHTML = html;
+}
+
+function rowHtml(g) {
+  const t = g._trk;
+
+  // Check-in status
+  const ciClass = g.cancelled ? "cancel" : g.checked_in ? "in" : "pending";
+  const ciLabel = g.cancelled ? "Cancel" : g.checked_in
+    ? (g.checkin_time ? g.checkin_time.slice(11,16) : "Đã vào")
+    : "Chưa đến";
+
+  // Journey steps: Đăng ký → Check-in → Follow-up → Opp
+  const sEv  = (t?.status_event  || "").toLowerCase();
+  const sT1  = (t?.status_t1     || "").toLowerCase();
+  const sNow = (t?.status_latest || "").toLowerCase();
+  const isOpp = sNow.includes("opp") || sEv.includes("opp");
+  const journey = `
+    <div class="journey">
+      <div class="j-step">
+        <div class="j-dot done"></div>
+        <div class="j-label">Đăng ký</div>
+      </div>
+      <div class="j-line ${g.checked_in ? 'done' : ''}"></div>
+      <div class="j-step">
+        <div class="j-dot ${g.checked_in ? 'done' : ''}"></div>
+        <div class="j-label">Check-in</div>
+      </div>
+      <div class="j-line ${sT1 ? 'done' : ''}"></div>
+      <div class="j-step">
+        <div class="j-dot ${sT1 ? (sT1.includes('meet') ? 'active' : 'done') : ''}"></div>
+        <div class="j-label">Follow-up</div>
+      </div>
+      <div class="j-line ${isOpp ? 'done' : ''}"></div>
+      <div class="j-step">
+        <div class="j-dot ${isOpp ? 'active' : ''}"></div>
+        <div class="j-label">Opp</div>
+      </div>
+    </div>`;
+
+  // Status badge
+  const statusBadge = t ? statusToBadge(t.status_latest || t.status_event) : '<span class="badge badge-muted">Chưa sync</span>';
+
+  // History tooltip
+  const historyEl = t && t.status_history && t.status_history.length > 0
+    ? `<div class="history-wrap">
+        <span class="history-trigger">${t.status_latest_date || "Lịch sử"}</span>
+        <div class="history-popup">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:700">STATUS HISTORY</div>
+          ${(t.status_history || []).map(h => `
+            <div class="history-row">
+              <span class="history-date">${h.date}</span>
+              ${statusToBadge(h.status)}
+            </div>`).join("")}
+        </div>
+      </div>`
+    : "";
+
+  // Performance flags
+  const perf = t ? `
+    <div class="perf-flags">
+      <div class="pflag ${t.sbk && t.sbk !== 'NO' ? 'yes' : 'no'}" title="SBK">S</div>
+      <div class="pflag ${t.hbk && t.hbk !== 'NO' ? 'yes' : 'no'}" title="HBK">H</div>
+      <div class="pflag ${t.gmv && t.gmv !== 'NO' ? 'yes' : 'no'}" title="GMV">G</div>
+    </div>` : '<span style="color:var(--border)">—</span>';
+
+  return `<tr>
+    <td>
+      <div class="td-name">${g.name}<small>${t?.lead_id || g.guest_code || "—"}</small></div>
+    </td>
+    <td>
+      <div style="font-size:12px">${t?.prm_name || g.prm_name || "—"}</div>
+      <div class="td-mono">${t?.tcb_region || g.tcb_region || ""}${t?.unit ? " · " + t.unit : ""}</div>
+    </td>
+    <td style="font-size:12px">${t?.sih_name || g.sih_name || "—"}</td>
+    <td><div class="ci-dot ${ciClass}">${ciLabel}</div></td>
+    <td>${journey}</td>
+    <td>${statusBadge} ${historyEl}</td>
+    <td>${perf}</td>
+  </tr>`;
+}
+
+function statusToBadge(s) {
+  if (!s) return '<span class="badge badge-muted">—</span>';
+  const sl = s.toLowerCase();
+  if (sl.includes("opp"))    return `<span class="badge badge-gold">${shortStatus(s)}</span>`;
+  if (sl.includes("meet"))   return `<span class="badge badge-blue">${shortStatus(s)}</span>`;
+  if (sl.includes("lead"))   return `<span class="badge badge-muted">${shortStatus(s)}</span>`;
+  if (sl.includes("cancel")) return `<span class="badge badge-red">Cancel</span>`;
+  if (sl.includes("win"))    return `<span class="badge badge-green">Win</span>`;
+  return `<span class="badge badge-muted">${shortStatus(s)}</span>`;
+}
+
+function shortStatus(s) {
+  if (!s) return "—";
+  // Lấy phần chính trước dấu " -" nếu có
+  const m = s.match(/^(\d+\.\d+\s+\w+)/);
+  return m ? m[1] : s.slice(0, 12);
+}
+
+// ── BREAKDOWN ──────────────────────────────────────────────────
+function renderBreakdowns() {
+  renderBkGroup("bkVung",  g => g._trk?.tcb_region || g.tcb_region || "Không xác định");
+  renderBkGroup("bkUnit",  g => g._trk?.unit || g.unit || "Không xác định");
+  renderBkGroup("bkSih",   g => g._trk?.sih_name || g.sih_name || "Không xác định");
+}
+
+function renderBkGroup(elId, keyFn) {
+  const map = {};
+  merged.forEach(g => {
+    const k = keyFn(g);
+    if (!map[k]) map[k] = { total: 0, ci: 0 };
+    map[k].total++;
+    if (g.checked_in) map[k].ci++;
+  });
+
+  const sorted = Object.entries(map).sort((a,b) => b[1].total - a[1].total);
+  const max = sorted[0]?.[1].total || 1;
+
+  const cards = sorted.map(([name, d]) => {
+    const pct = Math.round(d.ci / d.total * 100);
+    return `<div class="bk-card">
+      <div class="bk-label">${name}</div>
+      <div class="bk-bar-wrap">
+        <div class="bk-row">
+          <div class="bk-name" title="Tổng đăng ký">Đăng ký</div>
+          <div class="bk-bar-bg"><div class="bk-bar-fill" style="width:${d.total/max*100}%;background:var(--accent2)"></div></div>
+          <div class="bk-count">${d.total}</div>
+        </div>
+        <div class="bk-row">
+          <div class="bk-name" title="Đã check-in">Check-in</div>
+          <div class="bk-bar-bg"><div class="bk-bar-fill" style="width:${pct}%;background:var(--green)"></div></div>
+          <div class="bk-count">${d.ci}</div>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  document.getElementById(elId).innerHTML = cards.join("") || '<div class="empty">Chưa có dữ liệu.</div>';
+}
+
+// ── PERFORMANCE TAB ────────────────────────────────────────────
+function renderPerformance() {
+  // Status distribution
+  const statusMap = {};
+  merged.forEach(g => {
+    const s = g._trk?.status_latest || g._trk?.status_event || "Chưa có tracking";
+    if (!statusMap[s]) statusMap[s] = 0;
+    statusMap[s]++;
+  });
+  const sorted = Object.entries(statusMap).sort((a,b) => b[1]-a[1]);
+  const max = sorted[0]?.[1] || 1;
+
+  document.getElementById("bkStatus").innerHTML = sorted.map(([s, n]) => `
+    <div class="bk-card">
+      <div class="bk-label">${statusToBadge(s)}</div>
+      <div class="bk-bar-wrap">
+        <div class="bk-row">
+          <div class="bk-name">${s.length > 20 ? s.slice(0,20)+"…" : s}</div>
+          <div class="bk-bar-bg"><div class="bk-bar-fill" style="width:${n/max*100}%"></div></div>
+          <div class="bk-count">${n}</div>
+        </div>
+      </div>
+    </div>`).join("");
+
+  // Performance table (chỉ rows có tracking)
+  const tracked = merged.filter(g => g._trk);
+  if (!tracked.length) {
+    document.getElementById("perfTableWrap").innerHTML = '<div class="empty">Chưa có dữ liệu tracking. Chạy sync từ Google Sheet trước.</div>';
+    return;
+  }
+
+  document.getElementById("perfTableWrap").innerHTML = `<table>
+    <thead><tr>
+      <th>Khách hàng</th>
+      <th>Status Event</th>
+      <th>T+1</th>
+      <th>${allTracking[0]?.status_latest_date || "Mới nhất"}</th>
+      <th>SBK</th><th>HBK</th><th>GMV</th>
+      <th>Sync lúc</th>
+    </tr></thead>
+    <tbody>${tracked.map(g => {
+      const t = g._trk;
+      const syncTime = t.synced_at ? new Date(t.synced_at).toLocaleString("vi-VN") : "—";
+      return `<tr>
+        <td><div class="td-name">${g.name}<small>${t.lead_id}</small></div></td>
+        <td>${statusToBadge(t.status_event)}</td>
+        <td>${statusToBadge(t.status_t1)}</td>
+        <td>${statusToBadge(t.status_latest)}</td>
+        <td><span class="badge ${t.sbk && t.sbk!=='NO'?'badge-green':'badge-muted'}">${t.sbk||'—'}</span></td>
+        <td><span class="badge ${t.hbk && t.hbk!=='NO'?'badge-green':'badge-muted'}">${t.hbk||'—'}</span></td>
+        <td><span class="badge ${t.gmv && t.gmv!=='NO'?'badge-green':'badge-muted'}">${t.gmv||'—'}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${syncTime}</td>
+      </tr>`;
+    }).join("")}</tbody>
+  </table>`;
+}
+
+// ── TABS ───────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  el.classList.add("active");
+  ["journey","breakdown","performance"].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t === name ? "" : "none";
+  });
+}
+
+// ── AUTO REFRESH mỗi 5 phút ────────────────────────────────────
+loadAll();
+setInterval(loadAll, 5 * 60 * 1000);
+</script>
+</body>
+</html>
