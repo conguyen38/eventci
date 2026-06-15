@@ -52,6 +52,7 @@
     .grid-stats{grid-template-columns:repeat(2,1fr)}
   }
   .chart-box{position:relative;width:100%}
+  .chart-box canvas{max-width:100%!important;max-height:100%!important}
   .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--sub)}
   .legend span{display:flex;align-items:center;gap:6px}
   .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -60,11 +61,14 @@
   .donut-center .pct{font-size:28px;font-weight:800;color:var(--green)}
   .donut-center .lbl{font-size:11px;color:#aaa;margin-top:2px}
 
-  .donut-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .donut-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
   .donut-item{display:flex;flex-direction:column}
-  .donut-title{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:8px;text-align:center}
-  .donut-item .legend{justify-content:center;font-size:11px;gap:8px 12px}
-  @media(max-width:880px){
+  .donut-title{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:8px;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center}
+  .donut-item .legend{justify-content:center;font-size:11px;gap:6px 12px;min-height:54px;align-content:flex-start}
+  @media(max-width:1100px){
+    .donut-grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media(max-width:560px){
     .donut-grid{grid-template-columns:1fr}
   }
 
@@ -152,7 +156,14 @@
       <h2>Cơ cấu Khách hàng (Main)</h2>
       <div class="donut-grid">
         <div class="donut-item">
-          <div class="donut-title">Theo trạng thái</div>
+          <div class="donut-title">Theo Chi nhánh — % tổng KH</div>
+          <div class="legend" id="donutBranchAllLegend"></div>
+          <div class="chart-box" style="height:220px">
+            <canvas id="donutBranchAllChart" role="img" aria-label="Donut chart cơ cấu tổng khách hàng Main theo chi nhánh"></canvas>
+          </div>
+        </div>
+        <div class="donut-item">
+          <div class="donut-title">Theo trạng thái — Main</div>
           <div class="legend" id="donutLegend"></div>
           <div class="chart-box" style="height:220px">
             <canvas id="donutChart" role="img" aria-label="Donut chart cơ cấu khách hàng Main: Show up, No show, Cancel"></canvas>
@@ -160,10 +171,11 @@
           </div>
         </div>
         <div class="donut-item">
-          <div class="donut-title">Theo Chi nhánh — % tổng KH</div>
-          <div class="legend" id="donutBranchAllLegend"></div>
+          <div class="donut-title">Theo trạng thái — Main + Companion</div>
+          <div class="legend" id="donutAllLegend"></div>
           <div class="chart-box" style="height:220px">
-            <canvas id="donutBranchAllChart" role="img" aria-label="Donut chart cơ cấu tổng khách hàng Main theo chi nhánh"></canvas>
+            <canvas id="donutAllChart" role="img" aria-label="Donut chart cơ cấu Main và Companion: Show up, No show, Cancel"></canvas>
+            <div class="donut-center"><div class="pct" id="donutAllPct">—</div><div class="lbl">show up</div></div>
           </div>
         </div>
         <div class="donut-item">
@@ -346,14 +358,19 @@ function render(){
   const cancelMain = totalMain>0 ? (cnMain/totalMain*100) : 0;
 
   // ---- Main + Companion stats ----
-  let totalAll=0, ciAll=0;
+  // Lưu ý: companions là 1 JSON column lưu nguyên object JS (camelCase) từ hệ thống check-in,
+  // khác với các cột cấp cao nhất của Main (snake_case từ Supabase REST).
+  let totalAll=0, ciAll=0, cnAll=0;
   gs.forEach(g=>{
-    totalAll++; if(g.checked_in) ciAll++;
-    (g.companions||[]).forEach(c=>{ totalAll++; if(c.checked_in) ciAll++; });
+    totalAll++; if(g.checked_in) ciAll++; if(g.cancelled) cnAll++;
+    (g.companions||[]).forEach(c=>{ totalAll++; if(c.checkedIn) ciAll++; if(c.cancelled) cnAll++; });
   });
   const totalComp = totalAll - totalMain;
   const ciComp = ciAll - ciMain;
+  const pdAll = totalAll - ciAll - cnAll;
   const showupAll = totalAll>0 ? (ciAll/totalAll*100) : 0;
+  const noShowAll = totalAll>0 ? (pdAll/totalAll*100) : 0;
+  const cancelAll = totalAll>0 ? (cnAll/totalAll*100) : 0;
 
   // ---- KPI cards ----
   document.getElementById('kpiMainTotal').textContent = fmtNum(totalMain);
@@ -376,6 +393,15 @@ function render(){
     <span><i style="background:${COLORS.cancel}"></i>Cancel — ${fmtNum(cnMain)} (${fmtPct(cancelMain)})</span>
   `;
   drawDonut(ciMain, pdMain, cnMain);
+
+  // ---- Donut: cơ cấu theo trạng thái — Main + Companion ----
+  document.getElementById('donutAllPct').textContent = fmtPct(showupAll);
+  document.getElementById('donutAllLegend').innerHTML = `
+    <span><i style="background:${COLORS.ok}"></i>Show up — ${fmtNum(ciAll)} (${fmtPct(showupAll)})</span>
+    <span><i style="background:${COLORS.pending}"></i>No show — ${fmtNum(pdAll)} (${fmtPct(noShowAll)})</span>
+    <span><i style="background:${COLORS.cancel}"></i>Cancel — ${fmtNum(cnAll)} (${fmtPct(cancelAll)})</span>
+  `;
+  drawDonut2('donutAllChart', ciAll, pdAll, cnAll);
 
   // ---- Donut: cơ cấu theo Chi nhánh (tổng Main / showup only) ----
   const branchGroups = groupBy(gs, g=>g.unit || 'Không xác định');
@@ -430,9 +456,14 @@ function destroyChart(id){
 }
 
 function drawDonut(ci, pending, cancel){
-  destroyChart('donut');
-  const ctx = document.getElementById('donutChart');
-  charts.donut = new Chart(ctx, {
+  drawDonut2('donutChart', ci, pending, cancel);
+}
+
+function drawDonut2(canvasId, ci, pending, cancel){
+  const chartKey = canvasId;
+  destroyChart(chartKey);
+  const ctx = document.getElementById(canvasId);
+  charts[chartKey] = new Chart(ctx, {
     type:'doughnut',
     data:{
       labels:['Show up','No show','Cancel'],
