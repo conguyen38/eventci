@@ -307,6 +307,21 @@
   .tab.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
   .tab:hover:not(.active) { color: var(--text); }
 
+  /* ── EVENT SELECTOR ─────────────────────── */
+  .event-select {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    border-radius: var(--r);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    max-width: 260px;
+  }
+  .event-select option { background: var(--card); }
+
   /* ── RESPONSIVE ─────────────────────────── */
   @media (max-width: 768px) {
     .main { padding: 16px; }
@@ -327,6 +342,9 @@
     </div>
   </div>
   <div class="header-right">
+    <select class="event-select" id="eventSelect" onchange="loadAll()">
+      <option value="">⏳ Đang tải events...</option>
+    </select>
     <div class="sync-badge">Sync: <span id="syncTime">—</span></div>
     <button id="btnRefresh" onclick="loadAll()">↻ Refresh</button>
   </div>
@@ -399,14 +417,16 @@
 <script>
 // ── CONFIG ─────────────────────────────────────────────────────
 const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendtYW5jaWVlbWVmY3ZndGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODQyMTksImV4cCI6MjA5NTk2MDIxOX0.WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendjYW5jaWVlbWVmY3Zna20iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0NjUxMzQ2NCwiZXhwIjoyMDYyMDg5NDY0fQ.nDqpbpzCqLPAB4hCF6XWJFBjH3WtxmFtKKmG8WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
 const HDR = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
 
 // ── STATE ───────────────────────────────────────────────────────
 let allGuests   = [];   // từ oh_guests (check-in data)
 let allTracking = [];   // từ oh_tracking (performance data)
+let allEvents   = [];   // từ oh_events
 let merged      = [];   // joined theo name + phone_last4
 let activeFilter = "all";
+let selectedEventId = "";
 
 // ── FETCH ───────────────────────────────────────────────────────
 async function sbFetch(table, params = "") {
@@ -415,15 +435,46 @@ async function sbFetch(table, params = "") {
   return r.json();
 }
 
+// ── LOAD EVENTS DROPDOWN ────────────────────────────────────────
+async function loadEvents() {
+  try {
+    allEvents = await sbFetch("oh_events", "select=id,name,date_str&order=date_str.desc");
+    const sel = document.getElementById("eventSelect");
+    sel.innerHTML = '<option value="">— Tất cả events —</option>' +
+      allEvents.map(e =>
+        `<option value="${e.id}">${e.date_str} · ${e.name}</option>`
+      ).join("");
+    // Auto-chọn event mới nhất
+    if (allEvents.length > 0) {
+      sel.value = allEvents[0].id;
+      selectedEventId = allEvents[0].id;
+    }
+  } catch(e) {
+    console.error("Load events failed:", e);
+  }
+}
+
 async function loadAll() {
+  selectedEventId = document.getElementById("eventSelect")?.value || "";
+
   document.getElementById("tableWrap").innerHTML    = '<div class="loader"><div class="spinner"></div> Đang tải dữ liệu...</div>';
   document.getElementById("perfTableWrap").innerHTML = '<div class="loader"><div class="spinner"></div>...</div>';
 
   try {
+    // Filter oh_guests theo event nếu có chọn
+    const guestParams = selectedEventId
+      ? `select=*&cancelled=eq.false&event_id=eq.${selectedEventId}&order=created_at.asc`
+      : `select=*&cancelled=eq.false&order=created_at.asc`;
+
+    // Filter oh_tracking theo event nếu có chọn
+    const trackParams = selectedEventId
+      ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`
+      : `select=*&order=synced_at.desc`;
+
     // Pull song song 2 tables
     const [guests, tracking] = await Promise.all([
-      sbFetch("oh_guests", "select=*&cancelled=eq.false&order=created_at.asc"),
-      sbFetch("oh_tracking", "select=*&order=synced_at.desc"),
+      sbFetch("oh_guests", guestParams),
+      sbFetch("oh_tracking", trackParams),
     ]);
 
     // Chỉ lấy Main guests (không phải companion)
@@ -741,8 +792,8 @@ function switchTab(name, el) {
   });
 }
 
-// ── AUTO REFRESH mỗi 5 phút ────────────────────────────────────
-loadAll();
+// ── INIT ───────────────────────────────────────────────────────
+loadEvents().then(() => loadAll());
 setInterval(loadAll, 5 * 60 * 1000);
 </script>
 </body>
