@@ -318,19 +318,24 @@ async function loadAll(){
   eventT0 = ev ? parseVNDate(ev.date_str) || parseISODate(ev.date_str) : null;
 
   try{
-    // Filter type=Main tại server — không pull companion về
+    // Pull toàn bộ guests của event → filter Main client-side
+    // (không filter type tại server vì "type" là reserved word trong PostgREST → HTTP 400)
     const gP = selectedEventId
-      ? `select=*&event_id=eq.${selectedEventId}&type=eq.Main`
-      : `select=*&type=eq.Main`;
+      ? `select=*&event_id=eq.${selectedEventId}&order=created_at.asc`
+      : `select=*&order=created_at.asc`;
     const tP = selectedEventId
       ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`
       : `select=*&order=synced_at.desc`;
 
     const [guests, tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
 
-    // Double-check client side phòng data dirty
+    // Double-check client side — filter Main, loại Companion
+    const typeValues = [...new Set(guests.map(g=>g.type))]; // log xem type thực tế lưu gì
     allGuests   = guests.filter(isMainGuest);
     allTracking = tracking;
+
+    console.log("🔍 type values trong oh_guests:", typeValues);
+    console.log("Tổng guests pull về:", guests.length, "→ sau filter Main:", allGuests.length);
 
     // ── BUILD TRACKING LOOKUP ──────────────────────────────
     // oh_tracking.phone_last4 có thể là 4 số cuối HOẶC số đầy đủ → chuẩn hóa hết về 4 số cuối
