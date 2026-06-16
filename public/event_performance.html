@@ -189,7 +189,7 @@ let charts={};
 
 // ══════════════ FETCH ══════════════
 async function sbFetch(table, params=""){
-  const r = await fetch(SB_URL+"/rest/v1/"+table+"?"+params+"&limit=2000",{headers:HDR});
+  const r = await fetch(SB_URL+"/rest/v1/"+table+"?"+params+"&limit=5000",{headers:HDR});
   if(!r.ok) throw new Error(table+": HTTP "+r.status);
   return r.json();
 }
@@ -376,9 +376,25 @@ async function loadAll(){
     allTracking = tracking;
 
     // ── BUILD TRACKING LOOKUP ──────────────────────────────
-    // Dùng allTracking để build lookup join
-    const trk = {};
+    // Dedup: mỗi KH (name+phone) chỉ giữ record mới nhất (synced_at lớn nhất)
+    // Lý do: UPSERT conflict key lệch → Supabase có thể có 2 records cho cùng 1 KH
+    // Record mới nhất = data đúng sau khi fix swap cột
+    const trkDedup = {};
     allTracking.forEach(t => {
+      const nm  = normName(t.name);
+      const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
+      const key = nm + "|" + ph4;
+      const existing = trkDedup[key];
+      // So sánh synced_at — giữ record mới hơn
+      // synced_at là timestamp ms (number)
+      if(!existing || (t.synced_at||0) > (existing.synced_at||0)){
+        trkDedup[key] = t;
+      }
+    });
+
+    // Build lookup từ deduped records
+    const trk = {};
+    Object.values(trkDedup).forEach(t => {
       const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
       const nm  = normName(t.name);
       if(ph4) trk[nm+"|"+ph4] = t;
@@ -392,6 +408,12 @@ async function loadAll(){
       const t   = (ph4 && trk[k1]) ? trk[k1] : trk[nm] || null;
       return { ...g, _trk: t };
     });
+
+    // ONE-TIME CHECK: xem raw lead_created_date Supabase đang trả về
+    console.table(merged.slice(0,5).map(g=>({
+      name: g.name,
+      lead_created_date: g._trk?.lead_created_date ?? "NO_TRK"
+    })));
 
     renderOverview();
     document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
