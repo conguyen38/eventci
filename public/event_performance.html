@@ -517,57 +517,56 @@ function renderPies(){
   const ci    = merged.filter(isCheckedIn).length;
 
   // ── ĐẾM TỪNG BUCKET ──────────────────────────────────────
-  // Lead/Meet/Drop: classifyStage (1 KH đếm 1 lần, bucket cao nhất)
-  const stageAll = {}, stageCI = {};
-  ["Lead","Meet","Drop","na"].forEach(b=>{stageAll[b]=0;stageCI[b]=0;});
+  const stageAll={Lead:0,Meet:0,Drop:0}, stageCI={Lead:0,Meet:0,Drop:0};
   merged.forEach(g=>{
-    const b = classifyStage(g._trk);
-    const key = ["Lead","Meet","Drop"].includes(b) ? b : "na";
-    stageAll[key]++;
-    if(isCheckedIn(g)) stageCI[key]++;
+    const b=classifyStage(g._trk);
+    if(!["Lead","Meet","Drop"].includes(b)) return;
+    stageAll[b]++; if(isCheckedIn(g)) stageCI[b]++;
   });
 
-  // Opp/SBK/HBK: cờ độc lập theo cột L/M/N
-  const oppAll  = merged.filter(g=>flagOpp(g._trk)).length;
-  const oppCI   = merged.filter(g=>flagOpp(g._trk)&&isCheckedIn(g)).length;
-  const sbkAll  = merged.filter(g=>flagSBK(g._trk)).length;
-  const sbkCI   = merged.filter(g=>flagSBK(g._trk)&&isCheckedIn(g)).length;
-  const hbkAll  = merged.filter(g=>flagHBK(g._trk)).length;
-  const hbkCI   = merged.filter(g=>flagHBK(g._trk)&&isCheckedIn(g)).length;
+  const oppAll = merged.filter(g=>flagOpp(g._trk)).length;
+  const oppCI  = merged.filter(g=>flagOpp(g._trk)&&isCheckedIn(g)).length;
+  const sbkAll = merged.filter(g=>flagSBK(g._trk)).length;
+  const sbkCI  = merged.filter(g=>flagSBK(g._trk)&&isCheckedIn(g)).length;
+  const hbkAll = merged.filter(g=>flagHBK(g._trk)).length;
+  const hbkCI  = merged.filter(g=>flagHBK(g._trk)&&isCheckedIn(g)).length;
 
-  // N/A: Main không có tracking hoặc không nhận dạng status
-  const naAll   = stageAll["na"];
-  const naCI    = stageCI["na"];
+  // N/A: cột P trống, không có cờ chuyển đổi
+  const isNA = g=>{
+    const t=g._trk;
+    if(!t) return true;
+    if(flagOpp(t)||flagSBK(t)||flagHBK(t)||flagDrop(t)) return false;
+    return !(t.status_latest||t.status_event||t.status_label||"").trim();
+  };
+  const naAll = merged.filter(isNA).length;
+  const naCI  = merged.filter(g=>isCheckedIn(g)&&isNA(g)).length;
 
-  const PIES = [
-    {label:"Lead",  nAll:stageAll.Lead, nCI:stageCI.Lead, color:"#6b7590"},
-    {label:"Meet",  nAll:stageAll.Meet, nCI:stageCI.Meet, color:"#9b7fe8"},
-    {label:"Opp",   nAll:oppAll,        nCI:oppCI,        color:"#f5a623"},
-    {label:"SBK",   nAll:sbkAll,        nCI:sbkCI,        color:"#c9a96e"},
-    {label:"HBK",   nAll:hbkAll,        nCI:hbkCI,        color:"#3ecf8e"},
-    {label:"Drop",  nAll:stageAll.Drop, nCI:stageCI.Drop, color:"#e05252"},
-    {label:"N/A",   nAll:naAll,         nCI:naCI,         color:"#3a3f52"},
+  const PIES=[
+    {id:"cpie_Lead", label:"Lead",  nAll:stageAll.Lead, nCI:stageCI.Lead, color:"#6b7590"},
+    {id:"cpie_Meet", label:"Meet",  nAll:stageAll.Meet, nCI:stageCI.Meet, color:"#9b7fe8"},
+    {id:"cpie_Opp",  label:"Opp",   nAll:oppAll,        nCI:oppCI,        color:"#f5a623"},
+    {id:"cpie_SBK",  label:"SBK",   nAll:sbkAll,        nCI:sbkCI,        color:"#c9a96e"},
+    {id:"cpie_HBK",  label:"HBK",   nAll:hbkAll,        nCI:hbkCI,        color:"#3ecf8e"},
+    {id:"cpie_Drop", label:"Drop",  nAll:stageAll.Drop, nCI:stageCI.Drop, color:"#e05252"},
+    {id:"cpie_NA",   label:"N/A",   nAll:naAll,         nCI:naCI,         color:"#3a3f52"},
   ];
 
-  const grid = document.getElementById("pieGrid");
+  const grid=document.getElementById("pieGrid");
   if(!grid) return;
 
-  // Destroy old charts
-  PIES.forEach(p=>{
-    const key="cpie_"+p.label;
-    if(charts[key]) charts[key].destroy();
-  });
+  // STEP 1: Destroy tất cả chart cũ TRƯỚC khi reset DOM
+  PIES.forEach(p=>{ if(charts[p.id]){ charts[p.id].destroy(); delete charts[p.id]; } });
 
-  // Build HTML
-  grid.innerHTML = PIES.map(p=>{
-    const pctAll = total ? Math.round(p.nAll/total*100) : 0;
-    const pctCI  = ci    ? Math.round(p.nCI /ci   *100) : 0;
+  // STEP 2: Build HTML — canvas không có width/height attribute, để Chart.js tự size
+  grid.innerHTML=PIES.map(p=>{
+    const pctAll=total?Math.round(p.nAll/total*100):0;
+    const pctCI =ci   ?Math.round(p.nCI /ci   *100):0;
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-      <div style="position:relative;width:100px;height:100px">
-        <canvas id="cpie_${p.label}" role="img" aria-label="${p.label}: ${pctAll}% ĐK, ${pctCI}% CI" width="100" height="100"></canvas>
-        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
-          <span style="font-size:12px;font-weight:800;color:${p.color}">${pctAll}%</span>
-          <span style="font-size:10px;font-weight:700;color:var(--accent2)">${pctCI}%</span>
+      <div style="position:relative;width:90px;height:90px;flex-shrink:0">
+        <canvas id="${p.id}" role="img" aria-label="${p.label}: ${pctAll}% ĐK ${pctCI}% CI" style="display:block;width:90px;height:90px"></canvas>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:1px">
+          <span style="font-size:11px;font-weight:800;color:${p.color};line-height:1">${pctAll}%</span>
+          <span style="font-size:9px;font-weight:700;color:var(--accent2);line-height:1">${pctCI}%</span>
         </div>
       </div>
       <div style="text-align:center">
@@ -577,43 +576,34 @@ function renderPies(){
     </div>`;
   }).join("");
 
-  // Draw concentric pies
-  PIES.forEach(p=>{
-    const el = document.getElementById("cpie_"+p.label);
-    if(!el) return;
-    const pctAll = total ? p.nAll/total : 0;
-    const pctCI  = ci    ? p.nCI /ci   : 0;
-    const bgColor = "rgba(42,48,69,.6)"; // --border
-    // Outer ring = % toàn bộ ĐK
-    // Inner ring = % CI
-    charts["cpie_"+p.label] = new Chart(el, {
-      type:"doughnut",
-      data:{
-        datasets:[
-          // Dataset 0: vòng NGOÀI (% tổng ĐK)
-          {
-            data:[pctAll, 1-pctAll],
-            backgroundColor:[p.color, bgColor],
-            borderWidth:0,
-            weight:1.4,
-          },
-          // Dataset 1: vòng TRONG (% CI)
-          {
-            data:[pctCI, 1-pctCI],
-            backgroundColor:["#4f9cf9", bgColor],
-            borderWidth:0,
-            weight:1,
-          },
-        ]
-      },
-      options:{
-        responsive:false,
-        cutout:"42%",
-        rotation: -90,
-        circumference: 360,
-        plugins:{legend:{display:false},tooltip:{enabled:false}},
-        animation:{duration:400},
-      }
+  // STEP 3: Draw sau khi DOM đã sẵn sàng
+  const BG="rgba(42,48,69,.55)";
+  requestAnimationFrame(()=>{
+    PIES.forEach(p=>{
+      const el=document.getElementById(p.id);
+      if(!el) return;
+      const pAll=total?p.nAll/total:0;
+      const pCI =ci   ?p.nCI /ci   :0;
+
+      // Guard: nếu cả 2 đều 0 → vẽ vòng tròn empty (không để trắng)
+      const outerData = pAll>0 ? [pAll,1-pAll] : [0.001,0.999];
+      const innerData = pCI >0 ? [pCI, 1-pCI ] : [0.001,0.999];
+      const outerColors= pAll>0 ? [p.color,BG] : [BG,BG];
+      const innerColors= pCI >0 ? ["#4f9cf9",BG] : [BG,BG];
+
+      charts[p.id]=new Chart(el,{
+        type:"doughnut",
+        data:{datasets:[
+          {data:outerData, backgroundColor:outerColors, borderWidth:0, weight:1.5}, // vòng ngoài
+          {data:innerData, backgroundColor:innerColors, borderWidth:0, weight:1.0}, // vòng trong
+        ]},
+        options:{
+          responsive:false,
+          cutout:"38%",
+          plugins:{legend:{display:false},tooltip:{enabled:false}},
+          animation:{duration:300},
+        }
+      });
     });
   });
 }
