@@ -414,10 +414,13 @@
       <div class="sec-title">Hành trình khách hàng</div>
       <div class="sec-ctrl">
         <button class="filter-btn active" onclick="setFilter('all',this)">Tất cả</button>
-        <button class="filter-btn" onclick="setFilter('checkedin',this)">Đã vào</button>
-        <button class="filter-btn" onclick="setFilter('absent',this)">Vắng</button>
+        <button class="filter-btn" onclick="setFilter('lead',this)">Lead</button>
+        <button class="filter-btn" onclick="setFilter('meet',this)">Meet</button>
         <button class="filter-btn" onclick="setFilter('opp',this)">Opp</button>
-        <button class="filter-btn" onclick="setFilter('notrack',this)">Chưa track</button>
+        <button class="filter-btn" onclick="setFilter('sbk',this)">SBK</button>
+        <button class="filter-btn" onclick="setFilter('hbk',this)">HBK</button>
+        <button class="filter-btn" onclick="setFilter('drop',this)">Drop</button>
+        <button class="filter-btn" onclick="setFilter('na',this)">N/A</button>
       </div>
     </div>
     <div class="search-wrap">
@@ -628,20 +631,61 @@ function setFilter(f, el) {
   renderTable();
 }
 
+// ── CLASSIFY helpers ───────────────────────────────────────────
+function hasValue(v) {
+  // true nếu field có giá trị thực (không phải NO / rỗng)
+  return v && String(v).trim() !== "" && String(v).trim() !== "NO";
+}
+
+function classifyStatus(g) {
+  const t = g._trk;
+  if (!t) return "na";
+
+  const lbl = (t.status_label  || "").trim();  // Meet / Opp / Lead
+  const lat = (t.status_latest || t.status_event || "").trim();
+
+  // DROP: ưu tiên cột K (drop_flag) — timestamp lần đầu gặp 2.1/2.2 từ CRM
+  if (hasValue(t.drop_flag)) return "drop";
+  // Fallback: status text bắt đầu 2.1/2.2
+  if (/^2\.[12]/.test(lat)) return "drop";
+
+  // OPP: ưu tiên cột L (opp_flag) — ghi nhận 1 lần từ CRM, không bị ghi đè
+  if (hasValue(t.opp_flag)) return "opp";
+  // Fallback: status_label hoặc bắt đầu "4."
+  if (lbl === "Opp" || /^4\./.test(lat)) return "opp";
+
+  // Meet: label === Meet hoặc bắt đầu "2." hoặc "3."
+  if (lbl === "Meet" || /^[23]\./.test(lat)) return "meet";
+
+  // Lead: label === Lead hoặc bắt đầu "1."
+  if (lbl === "Lead" || /^1\./.test(lat)) return "lead";
+
+  if (!lat) return "na";
+  return "na";
+}
+
 function filterData() {
   const q = document.getElementById("searchInput").value.toLowerCase();
   return merged.filter(g => {
     // text search
-    const searchable = [g.name, g.phone, g._trk?.prm_name, g._trk?.lead_id, g._trk?.sih_name, g.tcb_region, g.unit]
+    const searchable = [g.name, g.phone, g._trk?.prm_name, g._trk?.lead_id,
+                        g._trk?.sih_name, g._trk?.tcb_region, g._trk?.unit]
       .filter(Boolean).join(" ").toLowerCase();
     if (q && !searchable.includes(q)) return false;
 
-    // status filter
-    const s = (g._trk?.status_latest || g._trk?.status_event || "").toLowerCase();
-    if (activeFilter === "checkedin") return g.checked_in;
-    if (activeFilter === "absent")    return !g.checked_in;
-    if (activeFilter === "opp")       return s.includes("opp");
-    if (activeFilter === "notrack")   return !g._trk;
+    if (activeFilter === "all") return true;
+
+    const cls    = classifyStatus(g);
+    const hasSbk = g._trk?.sbk && g._trk.sbk !== "NO" && g._trk.sbk !== "";
+    const hasHbk = g._trk?.hbk && g._trk.hbk !== "NO" && g._trk.hbk !== "";
+
+    if (activeFilter === "lead") return cls === "lead";
+    if (activeFilter === "meet") return cls === "meet";
+    if (activeFilter === "opp")  return cls === "opp";
+    if (activeFilter === "sbk")  return !!hasSbk;
+    if (activeFilter === "hbk")  return !!hasHbk;
+    if (activeFilter === "drop") return cls === "drop";
+    if (activeFilter === "na")   return cls === "na";
     return true;
   });
 }
