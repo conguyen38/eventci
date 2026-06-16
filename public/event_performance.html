@@ -140,17 +140,16 @@
     <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
     <div class="panel"><div class="funnel-h" id="funnel"><div class="loader"><div class="spinner"></div></div></div></div>
 
-    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note">Đăng ký vs Check-in</div></div>
-    <div class="panel">
-      <div class="pie-pair">
-        <div class="pie-unit"><h4>Toàn bộ đăng ký</h4><div class="pie-box"><canvas id="pieReg" role="img" aria-label="Phân bổ toàn bộ đăng ký"></canvas></div></div>
-        <div class="pie-unit"><h4>Chỉ Check-in</h4><div class="pie-box"><canvas id="pieCI" role="img" aria-label="Phân bổ check-in"></canvas></div></div>
+    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · 1 KH đếm 1 lần (Lead/Meet/Drop) hoặc theo cờ (Opp/SBK/HBK)</div></div>
+    <div class="panel" style="padding:20px 16px">
+      <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;">
+        <!-- filled by renderPies() -->
       </div>
-      <div class="legend" id="pieLegend"></div>
+      <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted)">
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(107,117,144,.9);display:inline-block"></span>Vòng ngoài: % toàn bộ ĐK</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(79,156,249,.7);display:inline-block"></span>Vòng trong: % Check-in only</span>
+      </div>
     </div>
-
-    <div class="sec-head"><div class="sec-title">Cơ cấu bucket × Check-in / No-show</div><div class="sec-note">No-show = không đến + cancel</div></div>
-    <div class="panel"><div class="chart-box" style="height:260px"><canvas id="stackBucket" role="img" aria-label="Bucket theo check-in và no-show"></canvas></div></div>
 
     <div class="two-col" style="margin-top:8px">
       <div class="panel">
@@ -196,13 +195,55 @@ async function sbFetch(table, params=""){
 }
 
 // ══════════════ DATE PARSING ══════════════
-// App Script lưu "dd/MM/yyyy" hoặc "dd/MM/yyyy HH:mm:ss" — JS Date không parse được → tự parse
+// App Script fmtDate() output: "dd/MM/yyyy" hoặc "dd/MM/yyyy HH:mm:ss"
+// GG Sheet raw có thể: "MM/dd/yyyy", timestamp ms
+// Guard: nếu value bắt đầu bằng 'M' (dạng lead_id 'M261...') → bị swap cột → return null
 function parseVNDate(s){
-  if(!s || s==="NO" || typeof s!=="string") return null;
-  const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if(!s || s==="NO" || s==="") return null;
+  const str = String(s).trim();
+
+  // Guard: lead_id bị swap vào lead_created_date
+  if(/^M\d+/i.test(str)) return null;
+
+  // Timestamp ms dạng số
+  if(/^\d{10,}$/.test(str)){
+    const d = new Date(parseInt(str));
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // ISO date: yyyy-MM-dd
+  if(/^\d{4}-\d{2}-\d{2}/.test(str)){
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // Match dd/MM/yyyy hoặc MM/dd/yyyy
+  // Dạng: có ít nhất 1 separator / hoặc -
+  const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
   if(!m) return null;
-  const [_,d,mo,y,h,mi,se] = m;
-  return new Date(+y, +mo-1, +d, +(h||0), +(mi||0), +(se||0));
+
+  const [_, p1, p2, y, h, mi, se] = m;
+  const n1 = parseInt(p1), n2 = parseInt(p2);
+
+  // Phân biệt dd/MM vs MM/dd:
+  // Nếu p1 > 12 → chắc chắn là ngày (dd/MM/yyyy)
+  // Nếu p2 > 12 → chắc chắn là tháng trước (MM/dd/yyyy — nhưng App Script KHÔNG dùng format này)
+  // Nếu cả 2 ≤ 12 → App Script luôn output dd/MM → ưu tiên dd/MM
+  let day, month;
+  if(n1 > 12){
+    // p1 là ngày, p2 là tháng: dd/MM/yyyy
+    day = n1; month = n2;
+  } else if(n2 > 12){
+    // p1 là tháng, p2 là ngày: MM/dd/yyyy (GG Sheet raw)
+    month = n1; day = n2;
+  } else {
+    // Ambiguous: App Script output là dd/MM → mặc định dd/MM
+    day = n1; month = n2;
+  }
+
+  if(month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const d = new Date(parseInt(y), month-1, day, +(h||0), +(mi||0), +(se||0));
+  return isNaN(d.getTime()) ? null : d;
 }
 function daysBetween(a,b){ // b - a, theo calendar day
   if(!a||!b) return null;
@@ -330,27 +371,21 @@ async function loadAll(){
     const [guests, tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
 
     // Double-check client side — filter Main, loại Companion
-    const typeValues = [...new Set(guests.map(g=>g.type))]; // log xem type thực tế lưu gì
     allGuests   = guests.filter(isMainGuest);
+    // App Script chỉ sync type=Main lên oh_tracking → không cần filter thêm
     allTracking = tracking;
 
-    console.log("🔍 type values trong oh_guests:", typeValues);
-    console.log("Tổng guests pull về:", guests.length, "→ sau filter Main:", allGuests.length);
-
     // ── BUILD TRACKING LOOKUP ──────────────────────────────
-    // oh_tracking.phone_last4 có thể là 4 số cuối HOẶC số đầy đủ → chuẩn hóa hết về 4 số cuối
+    // Dùng allTracking để build lookup join
     const trk = {};
-    tracking.forEach(t => {
+    allTracking.forEach(t => {
       const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
       const nm  = normName(t.name);
-      // key chính: name + phone4
       if(ph4) trk[nm+"|"+ph4] = t;
-      // key phụ: chỉ tên (fallback khi phone thiếu)
       if(!trk[nm]) trk[nm] = t;
     });
 
     merged = allGuests.map(g => {
-      // phone trong oh_guests có thể là full number → lấy 4 số cuối
       const ph4 = String(g.phone||"").trim().replace(/\D/g,"").slice(-4);
       const nm  = normName(g.name);
       const k1  = nm + "|" + ph4;
@@ -358,19 +393,8 @@ async function loadAll(){
       return { ...g, _trk: t };
     });
 
-    // ── DEBUG LOG (xem trong console trình duyệt) ──────────
-    const noTrk = merged.filter(g=>!g._trk);
-    const noDate= merged.filter(g=>g._trk && !parseVNDate(g._trk.lead_created_date));
-    console.group("📊 OH Dashboard — Debug");
-    console.log("Guests Main (server):", guests.length, "| sau double-check:", allGuests.length);
-    console.log("Tracking records:", tracking.length);
-    console.log("Merged total:", merged.length);
-    console.log("Không match tracking (", noTrk.length, "):", noTrk.map(g=>g.name));
-    console.log("Có tracking nhưng thiếu ngày (", noDate.length, "):", noDate.map(g=>g.name+"→"+g._trk?.lead_created_date));
-    console.log("opp_flag samples:", tracking.slice(0,5).map(t=>t.name+"→opp="+t.opp_flag+"|sbk="+t.sbk+"|hbk="+t.hbk));
-    console.groupEnd();
-
     renderOverview();
+    document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
     document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
   }catch(e){
     console.error(e);
@@ -387,12 +411,6 @@ function renderOverview(){
   const ci    = merged.filter(isCheckedIn).length;
   const cancel= merged.filter(g=>g.cancelled).length;
   const abs   = merged.filter(isNoShow).length;
-
-  // buckets HIỆN TẠI (stage cao nhất, loại trừ) — cho Pie/stacked
-  const bAll={}; BUCKETS.forEach(b=>bAll[b]=0); let na=0;
-  merged.forEach(g=>{ const b=classifyStage(g._trk); if(bAll[b]!=null)bAll[b]++; else na++; });
-  const bCI={}; BUCKETS.forEach(b=>bCI[b]=0);
-  merged.filter(isCheckedIn).forEach(g=>{ const b=classifyStage(g._trk); if(bCI[b]!=null)bCI[b]++; });
 
   // CỜ TÍCH LŨY (cộng dồn) — cho stat card & phễu
   const opp = merged.filter(g=>flagOpp(g._trk)).length;
@@ -412,15 +430,23 @@ function renderOverview(){
   set("st-hbk",hbk); set("st-hbk-sub",P(hbk,ci)+" trên CI");
   set("st-gmv",fmtTy(gmvTotal)+" tỷ"); set("st-gmv-sub", hbk? "TB "+fmtTy(gmvTotal/hbk)+" tỷ/HBK":"—");
 
-  // ── funnel — cờ tích lũy (cộng dồn) ──
-  // Meet+ = đã đạt ít nhất Meet: bucket hiện tại Meet/Opp HOẶC có cờ Opp/SBK/HBK
+  // ── funnel — HOÀN TOÀN dùng cờ tích lũy, KHÔNG dùng classifyBucket ──
+  // Opp chuẩn = flagOpp (cột L) ONLY — đã chốt nghiệp vụ
+  // Meet+ = có tracking và status_label/status_latest là Meet/Opp hoặc đã có cờ Opp/SBK/HBK
+  // Không đếm theo classifyBucket để tránh lẫn với fallback 4.x
   const reachMeet = merged.filter(g=>{
-    const b=classifyBucket(g._trk);
-    return b==="Meet"||b==="Opp"||flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk);
+    const t = g._trk;
+    if(!t) return false;
+    const lbl = (t.status_label||"").trim();
+    const lat = (t.status_latest||t.status_event||"").trim();
+    const isMeetStatus = lbl==="Meet" || /^[23]\./.test(lat) && !/^2\.[12]\b/.test(lat);
+    return isMeetStatus || flagOpp(t) || flagSBK(t) || flagHBK(t);
   }).length;
-  const reachOpp = merged.filter(g=>{
-    return flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk)||classifyBucket(g._trk)==="Opp";
-  }).length;
+
+  // reachOpp = flagOpp ONLY (cột L) + đã SBK/HBK (đã qua Opp rồi lên)
+  const reachOpp = merged.filter(g=>flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk)).length;
+
+  // reachSBK = cột M hoặc đã HBK
   const reachSBK = merged.filter(g=>flagSBK(g._trk)||flagHBK(g._trk)).length;
   const reachHBK = hbk;
   renderFunnel([
@@ -433,10 +459,7 @@ function renderOverview(){
   ], total);
 
   // ── pies ──
-  renderPies(bAll, bCI);
-
-  // ── stacked bucket × CI/Noshow ──
-  renderStackBucket();
+  renderPies();
 
   // ── nurture (tuổi lead) ──
   renderNurture();
@@ -467,39 +490,112 @@ function renderFunnel(steps,total){
   document.getElementById("funnel").innerHTML=h;
 }
 
-function renderPies(bAll,bCI){
-  const legend=BUCKETS.map(b=>`<span><i style="background:${BUCKET_COLOR[b]}"></i>${b}</span>`).join("");
-  document.getElementById("pieLegend").innerHTML=legend;
-  const mkPie=(id,data)=>{
-    if(charts[id])charts[id].destroy();
-    charts[id]=new Chart(document.getElementById(id),{type:"doughnut",
-      data:{labels:BUCKETS,datasets:[{data:BUCKETS.map(b=>data[b]),backgroundColor:BUCKETS.map(b=>BUCKET_COLOR[b]),borderWidth:0}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>c.label+": "+c.raw}}}}});
-  };
-  mkPie("pieReg",bAll); mkPie("pieCI",bCI);
+function renderPies(){
+  const total = merged.length;
+  const ci    = merged.filter(isCheckedIn).length;
+
+  // ── ĐẾM TỪNG BUCKET ──────────────────────────────────────
+  // Lead/Meet/Drop: classifyStage (1 KH đếm 1 lần, bucket cao nhất)
+  const stageAll = {}, stageCI = {};
+  ["Lead","Meet","Drop","na"].forEach(b=>{stageAll[b]=0;stageCI[b]=0;});
+  merged.forEach(g=>{
+    const b = classifyStage(g._trk);
+    const key = ["Lead","Meet","Drop"].includes(b) ? b : "na";
+    stageAll[key]++;
+    if(isCheckedIn(g)) stageCI[key]++;
+  });
+
+  // Opp/SBK/HBK: cờ độc lập theo cột L/M/N
+  const oppAll  = merged.filter(g=>flagOpp(g._trk)).length;
+  const oppCI   = merged.filter(g=>flagOpp(g._trk)&&isCheckedIn(g)).length;
+  const sbkAll  = merged.filter(g=>flagSBK(g._trk)).length;
+  const sbkCI   = merged.filter(g=>flagSBK(g._trk)&&isCheckedIn(g)).length;
+  const hbkAll  = merged.filter(g=>flagHBK(g._trk)).length;
+  const hbkCI   = merged.filter(g=>flagHBK(g._trk)&&isCheckedIn(g)).length;
+
+  // N/A: Main không có tracking hoặc không nhận dạng status
+  const naAll   = stageAll["na"];
+  const naCI    = stageCI["na"];
+
+  const PIES = [
+    {label:"Lead",  nAll:stageAll.Lead, nCI:stageCI.Lead, color:"#6b7590"},
+    {label:"Meet",  nAll:stageAll.Meet, nCI:stageCI.Meet, color:"#9b7fe8"},
+    {label:"Opp",   nAll:oppAll,        nCI:oppCI,        color:"#f5a623"},
+    {label:"SBK",   nAll:sbkAll,        nCI:sbkCI,        color:"#c9a96e"},
+    {label:"HBK",   nAll:hbkAll,        nCI:hbkCI,        color:"#3ecf8e"},
+    {label:"Drop",  nAll:stageAll.Drop, nCI:stageCI.Drop, color:"#e05252"},
+    {label:"N/A",   nAll:naAll,         nCI:naCI,         color:"#3a3f52"},
+  ];
+
+  const grid = document.getElementById("pieGrid");
+  if(!grid) return;
+
+  // Destroy old charts
+  PIES.forEach(p=>{
+    const key="cpie_"+p.label;
+    if(charts[key]) charts[key].destroy();
+  });
+
+  // Build HTML
+  grid.innerHTML = PIES.map(p=>{
+    const pctAll = total ? Math.round(p.nAll/total*100) : 0;
+    const pctCI  = ci    ? Math.round(p.nCI /ci   *100) : 0;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+      <div style="position:relative;width:100px;height:100px">
+        <canvas id="cpie_${p.label}" role="img" aria-label="${p.label}: ${pctAll}% ĐK, ${pctCI}% CI" width="100" height="100"></canvas>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+          <span style="font-size:12px;font-weight:800;color:${p.color}">${pctAll}%</span>
+          <span style="font-size:10px;font-weight:700;color:var(--accent2)">${pctCI}%</span>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:11px;font-weight:700;color:${p.color}">${p.label}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${p.nAll} ĐK · ${p.nCI} CI</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  // Draw concentric pies
+  PIES.forEach(p=>{
+    const el = document.getElementById("cpie_"+p.label);
+    if(!el) return;
+    const pctAll = total ? p.nAll/total : 0;
+    const pctCI  = ci    ? p.nCI /ci   : 0;
+    const bgColor = "rgba(42,48,69,.6)"; // --border
+    // Outer ring = % toàn bộ ĐK
+    // Inner ring = % CI
+    charts["cpie_"+p.label] = new Chart(el, {
+      type:"doughnut",
+      data:{
+        datasets:[
+          // Dataset 0: vòng NGOÀI (% tổng ĐK)
+          {
+            data:[pctAll, 1-pctAll],
+            backgroundColor:[p.color, bgColor],
+            borderWidth:0,
+            weight:1.4,
+          },
+          // Dataset 1: vòng TRONG (% CI)
+          {
+            data:[pctCI, 1-pctCI],
+            backgroundColor:["#4f9cf9", bgColor],
+            borderWidth:0,
+            weight:1,
+          },
+        ]
+      },
+      options:{
+        responsive:false,
+        cutout:"42%",
+        rotation: -90,
+        circumference: 360,
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        animation:{duration:400},
+      }
+    });
+  });
 }
 
-function renderStackBucket(){
-  const ci={}, ns={};
-  BUCKETS.forEach(b=>{ci[b]=0;ns[b]=0;});
-  merged.forEach(g=>{
-    const b=classifyStage(g._trk);
-    if(ci[b]==null) return;
-    if(isCheckedIn(g)) ci[b]++; else ns[b]++;
-  });
-  if(charts.stack)charts.stack.destroy();
-  const tickC="#6b7590", gridC="rgba(107,117,144,.15)";
-  charts.stack=new Chart(document.getElementById("stackBucket"),{type:"bar",
-    data:{labels:BUCKETS,datasets:[
-      {label:"Check-in",data:BUCKETS.map(b=>ci[b]),backgroundColor:"#3ecf8e",borderRadius:4},
-      {label:"No-show",data:BUCKETS.map(b=>ns[b]),backgroundColor:"#6b7590",borderRadius:4},
-    ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:"top",labels:{color:tickC,font:{size:11},boxWidth:10}}},
-      scales:{x:{stacked:true,grid:{display:false},ticks:{color:tickC,font:{size:11}}},
-              y:{stacked:true,grid:{color:gridC},ticks:{color:tickC,font:{size:11}},beginAtZero:true}}}});
-}
 
 function renderNurture(){
   // tuổi lead = T0 - ngày tạo lead (số ngày trước event)
