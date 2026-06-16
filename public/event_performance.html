@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>OneHousing · Event Performance Dashboard</title>
+<title>OneHousing &middot; Event Performance Dashboard</title>
 <style>
   :root{
     --bg:#0d0f14; --surface:#161923; --card:#1e2330; --border:#2a3045;
@@ -30,7 +30,6 @@
   .tab{padding:9px 16px;border-radius:var(--r);font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted);background:transparent;border:1px solid transparent;transition:all .15s;}
   .tab.active{background:var(--card);color:var(--text);border-color:var(--border);}
   .tab:hover:not(.active){color:var(--text);}
-  /* STATS */
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px;margin-bottom:8px;}
   .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:15px 16px;}
   .stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;}
@@ -42,13 +41,11 @@
   .stat.orange .stat-val{color:var(--orange);}
   .stat.red .stat-val{color:var(--red);}
   .stat.purple .stat-val{color:var(--purple);}
-  /* SECTION */
   .sec-head{display:flex;align-items:center;justify-content:space-between;margin:26px 0 14px;gap:12px;flex-wrap:wrap;}
   .sec-title{font-size:13px;font-weight:700;letter-spacing:.3px;display:flex;align-items:center;gap:8px;}
   .sec-title::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;}
   .sec-note{font-size:11px;color:var(--muted);}
   .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:8px;}
-  /* FUNNEL — horizontal clean */
   .funnel-h{display:flex;flex-direction:column;gap:2px;}
   .frow{display:flex;align-items:center;gap:12px;}
   .frow-label{width:90px;flex-shrink:0;font-size:12px;font-weight:600;text-align:right;}
@@ -59,20 +56,16 @@
   .fdrop{display:flex;align-items:center;gap:6px;padding:1px 0 1px 102px;height:16px;}
   .fdrop span{font-size:10px;color:var(--red);}
   .fdrop .keep{color:var(--green);}
-  /* two col */
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:820px){.two-col{grid-template-columns:1fr;}}
   .chart-box{position:relative;width:100%;height:230px;}
-  /* pie group */
   .pie-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .pie-unit{text-align:center;}
   .pie-unit h4{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;}
   .pie-box{position:relative;width:100%;height:170px;}
-  /* legend */
   .legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:var(--muted);}
   .legend span{display:flex;align-items:center;gap:5px;}
   .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
-  /* table */
   .tbl-wrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--border);}
   table{width:100%;border-collapse:collapse;}
   thead th{background:var(--surface);padding:10px 13px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
@@ -85,7 +78,6 @@
   .b-orange{background:rgba(245,166,35,.15);color:var(--orange);}
   .b-red{background:rgba(224,82,82,.15);color:var(--red);}
   .b-muted{background:rgba(107,117,144,.12);color:var(--muted);}
-  /* nurture cards */
   .nurture-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
   @media(max-width:680px){.nurture-grid{grid-template-columns:1fr;}}
   .nc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
@@ -101,99 +93,139 @@
   .loader{display:flex;align-items:center;justify-content:center;padding:50px;gap:10px;color:var(--muted);}
   .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  /* === PATCH: Event Selection Screen === */
+  #screenSelect{display:none;padding:40px 28px;max-width:900px;margin:0 auto;}
+  .sel-heading h1{font-size:22px;font-weight:800;margin-bottom:6px;}
+  .sel-heading p{font-size:13px;color:var(--muted);margin-bottom:28px;}
+  .event-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;}
+  .event-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:20px 22px;cursor:pointer;transition:border-color .15s,transform .1s;position:relative;}
+  .event-card:hover{border-color:var(--accent);transform:translateY(-1px);}
+  .ec-date{font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.5px;margin-bottom:8px;text-transform:uppercase;}
+  .ec-name{font-size:14px;font-weight:700;line-height:1.4;margin-bottom:10px;}
+  .ec-badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:700;}
+  .ec-badge.has-pw{background:rgba(201,169,110,.12);color:var(--accent);border:1px solid rgba(201,169,110,.25);}
+  .ec-badge.no-pw{background:rgba(62,207,142,.1);color:var(--green);border:1px solid rgba(62,207,142,.2);}
+  .ec-arrow{position:absolute;right:18px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--muted);transition:color .15s;}
+  .event-card:hover .ec-arrow{color:var(--accent);}
+  .sel-loading{display:flex;align-items:center;gap:12px;color:var(--muted);padding:40px 0;}
+  /* Back button */
+  #btnBack{display:none;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:var(--r);padding:7px 15px;font-size:12px;font-weight:600;cursor:pointer;}
+  #btnBack:hover{border-color:var(--accent);color:var(--accent);}
+  .header-event-label{display:none;font-size:12px;color:var(--accent);font-weight:700;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 </style>
 </head>
 <body>
 <header>
   <div class="logo">
     <div class="logo-mark">OH</div>
-    <div><div class="logo-text">Event Performance</div><div class="logo-sub">OneHousing · Conversion Tracker</div></div>
+    <div><div class="logo-text">Event Performance</div><div class="logo-sub">OneHousing &middot; Conversion Tracker</div></div>
   </div>
   <div class="header-right">
-    <select class="event-select" id="eventSelect" onchange="loadAll()"><option>⏳ Đang tải...</option></select>
-    <div class="sync-badge">Sync: <span id="syncTime">—</span></div>
-    <button id="btnRefresh" onclick="loadAll()">↻ Refresh</button>
+    <div class="header-event-label" id="headerEventLabel"></div>
+    <div class="sync-badge">Sync: <span id="syncTime">&mdash;</span></div>
+    <button id="btnRefresh" onclick="loadAll()">&#x21BB; Refresh</button>
+    <button id="btnBack" onclick="goBack()">&#x2190; &Docirc;&#x1ED5;i s&#x1EF1; ki&#x1EC7;n</button>
   </div>
 </header>
 
+<!-- EVENT SELECTION SCREEN -->
+<div id="screenSelect">
+  <div class="sel-heading">
+    <h1>Ch&#x1ECD;n s&#x1EF1; ki&#x1EC7;n</h1>
+    <p>Ch&#x1ECD;n s&#x1EF1; ki&#x1EC7;n &#x111;&#x1EC3; xem b&#xE1;o c&#xE1;o hi&#x1EC7;u su&#x1EA5;t chuy&#x1EC3;n &#x111;&#x1ED5;i</p>
+  </div>
+  <div id="eventGrid">
+    <div class="sel-loading"><div class="spinner"></div><span>&#x110;ang t&#x1EA3;i danh s&#xE1;ch s&#x1EF1; ki&#x1EC7;n...</span></div>
+  </div>
+</div>
+
 <!-- PASSWORD GATE MODAL -->
-<div id="pwGate" style="display:none;position:fixed;inset:0;background:rgba(13,15,20,.92);z-index:999;display:flex;align-items:center;justify-content:center;">
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px 36px;width:360px;max-width:90vw;">
-    <div style="font-size:13px;font-weight:700;margin-bottom:4px">Xác thực truy cập</div>
-    <div id="pwEventName" style="font-size:11px;color:var(--muted);margin-bottom:20px">—</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Mã truy cập sự kiện</div>
-    <input id="pwInput" type="password" placeholder="Nhập mã..." autocomplete="off"
-      style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:10px 14px;font-size:14px;outline:none;margin-bottom:8px;"
+<div id="pwGate" style="display:none;position:fixed;inset:0;background:rgba(13,15,20,.93);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px 36px;width:380px;max-width:92vw;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <div style="width:36px;height:36px;background:rgba(201,169,110,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">&#x1F512;</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">X&#xE1;c th&#x1EF1;c truy c&#x1EDA;p</div>
+        <div id="pwEventName" style="font-size:11px;color:var(--accent);margin-top:2px;font-weight:600">&mdash;</div>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.3px">M&#xC3; TRUY C&#x1EDA;P S&#x1EF0; KI&#x1EC6;N</div>
+    <input id="pwInput" type="password" placeholder="Nh&#x1EAD;p m&#xE3;..." autocomplete="off"
+      style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:11px 14px;font-size:14px;outline:none;margin-bottom:8px;transition:border-color .15s;"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
       onkeydown="if(event.key==='Enter')submitPw()"/>
-    <div id="pwError" style="font-size:11px;color:var(--red);min-height:16px;margin-bottom:12px"></div>
+    <div id="pwError" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:14px"></div>
     <button onclick="submitPw()"
-      style="width:100%;background:var(--accent);color:#0d0f14;border:none;border-radius:var(--r);padding:10px;font-size:13px;font-weight:700;cursor:pointer;">
-      Xác nhận
+      style="width:100%;background:var(--accent);color:#0d0f14;border:none;border-radius:var(--r);padding:11px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">
+      X&#xE1;c nh&#x1EAD;n &#x2192;
+    </button>
+    <button onclick="cancelPw()"
+      style="width:100%;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--r);padding:9px;font-size:12px;cursor:pointer;margin-top:10px;">
+      &#x2190; Ch&#x1ECD;n s&#x1EF1; ki&#x1EC7;n kh&#xE1;c
     </button>
   </div>
 </div>
 
-<div class="main">
+<div class="main" id="mainDash" style="display:none;">
   <div class="tabs">
-    <button class="tab active" data-tab="overview">1 · Tổng quan</button>
-    <button class="tab" data-tab="showup">2 · Show-up</button>
-    <button class="tab" data-tab="timeline">3 · Timeline T+</button>
-    <button class="tab" data-tab="breakdown">4 · Breakdown</button>
-    <button class="tab" data-tab="ltv">5 · LTV &amp; GMV</button>
+    <button class="tab active" data-tab="overview">1 &middot; T&#x1ED5;ng quan</button>
+    <button class="tab" data-tab="showup">2 &middot; Show-up</button>
+    <button class="tab" data-tab="timeline">3 &middot; Timeline T+</button>
+    <button class="tab" data-tab="breakdown">4 &middot; Breakdown</button>
+    <button class="tab" data-tab="ltv">5 &middot; LTV &amp; GMV</button>
   </div>
 
   <!-- TAB 1 -->
   <div id="t-overview" class="tabpane">
     <div class="stats" id="statStrip">
-      <div class="stat accent"><div class="stat-label">Tổng đăng ký</div><div class="stat-val" id="st-reg">—</div><div class="stat-sub">Main guests</div></div>
-      <div class="stat green"><div class="stat-label">Check-in</div><div class="stat-val" id="st-ci">—</div><div class="stat-sub" id="st-ci-sub">—</div></div>
-      <div class="stat red"><div class="stat-label">Không đến</div><div class="stat-val" id="st-abs">—</div><div class="stat-sub" id="st-abs-sub">—</div></div>
-      <div class="stat orange"><div class="stat-label">Opp</div><div class="stat-val" id="st-opp">—</div><div class="stat-sub" id="st-opp-sub">—</div></div>
-      <div class="stat purple"><div class="stat-label">SBK</div><div class="stat-val" id="st-sbk">—</div><div class="stat-sub" id="st-sbk-sub">—</div></div>
-      <div class="stat blue"><div class="stat-label">HBK</div><div class="stat-val" id="st-hbk">—</div><div class="stat-sub" id="st-hbk-sub">—</div></div>
-      <div class="stat"><div class="stat-label">GMV tổng</div><div class="stat-val" id="st-gmv" style="font-size:19px;color:var(--accent)">—</div><div class="stat-sub" id="st-gmv-sub">—</div></div>
+      <div class="stat accent"><div class="stat-label">T&#x1ED5;ng &#x111;&#x103;ng k&yacute;</div><div class="stat-val" id="st-reg">&mdash;</div><div class="stat-sub">Main guests</div></div>
+      <div class="stat green"><div class="stat-label">Check-in</div><div class="stat-val" id="st-ci">&mdash;</div><div class="stat-sub" id="st-ci-sub">&mdash;</div></div>
+      <div class="stat red"><div class="stat-label">Kh&ocirc;ng &#x111;&#x1EBF;n</div><div class="stat-val" id="st-abs">&mdash;</div><div class="stat-sub" id="st-abs-sub">&mdash;</div></div>
+      <div class="stat orange"><div class="stat-label">Opp</div><div class="stat-val" id="st-opp">&mdash;</div><div class="stat-sub" id="st-opp-sub">&mdash;</div></div>
+      <div class="stat purple"><div class="stat-label">SBK</div><div class="stat-val" id="st-sbk">&mdash;</div><div class="stat-sub" id="st-sbk-sub">&mdash;</div></div>
+      <div class="stat blue"><div class="stat-label">HBK</div><div class="stat-val" id="st-hbk">&mdash;</div><div class="stat-sub" id="st-hbk-sub">&mdash;</div></div>
+      <div class="stat"><div class="stat-label">GMV t&#x1ED5;ng</div><div class="stat-val" id="st-gmv" style="font-size:19px;color:var(--accent)">&mdash;</div><div class="stat-sub" id="st-gmv-sub">&mdash;</div></div>
     </div>
-    <!-- Sync timeline bar — cùng format với sec-note bên dưới -->
     <div style="display:flex;align-items:center;justify-content:flex-end;margin:6px 0 18px;font-size:11px;color:var(--muted)">
-      Tất cả 7 chỉ số trên cùng timeline: <span id="note-stats" style="margin-left:6px">—</span>
+      T&#x1EA5;t c&#x1EA3; 7 ch&#x1EC9; s&#x1ED1; tr&ecirc;n c&ugrave;ng timeline: <span id="note-stats" style="margin-left:6px">&mdash;</span>
     </div>
 
-    <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note" id="note-funnel">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
+    <div class="sec-head"><div class="sec-title">Ph&#x1EC5;u chuy&#x1EC3;n &#x111;&#x1ED5;i s&#x1EF1; ki&#x1EC7;n</div><div class="sec-note" id="note-funnel">% tr&ecirc;n t&#x1ED5;ng &#x111;&#x103;ng k&yacute; &middot; m&#x1EE9;c r&#x1EE1;i r&#x1EDB;t m&#x1ED7;i t&#x1EA7;ng</div></div>
     <div class="panel"><div class="funnel-h" id="funnel"><div class="loader"><div class="spinner"></div></div></div></div>
 
-    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note" id="note-pie">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · 1 KH đếm 1 lần (Lead/Meet/Drop) hoặc theo cờ (Opp/SBK/HBK)</div></div>
+    <div class="sec-head"><div class="sec-title">Ph&acirc;n b&#x1ED5; tr&#x1EA1;ng th&aacute;i chuy&#x1EC3;n &#x111;&#x1ED5;i</div><div class="sec-note" id="note-pie">V&ograve;ng ngo&agrave;i = % / t&#x1ED5;ng &#x110;K &middot; V&ograve;ng trong = % / Check-in &middot; 1 KH &#x111;&#x1EBF;m 1 l&#x1EA7;n (Lead/Meet/Drop) ho&#x1EB7;c theo c&#x1EDD; (Opp/SBK/HBK)</div></div>
     <div class="panel" style="padding:20px 16px">
       <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;">
-        <!-- filled by renderPies() -->
       </div>
       <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted)">
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(107,117,144,.9);display:inline-block"></span>Vòng ngoài: % toàn bộ ĐK</span>
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(79,156,249,.7);display:inline-block"></span>Vòng trong: % Check-in only</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(107,117,144,.9);display:inline-block"></span>V&ograve;ng ngo&agrave;i: % to&agrave;n b&#x1ED9; &#x110;K</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(79,156,249,.7);display:inline-block"></span>V&ograve;ng trong: % Check-in only</span>
       </div>
     </div>
 
     <div class="two-col" style="margin-top:8px">
       <div class="panel">
-        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Thời gian nuôi dưỡng lead trước event</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Th&#x1EDD;i gian nu&ocirc;i d&#x01B0;&#x1EE1;ng lead tr&#x01B0;&#x1EDB;c event</div>
         <div class="nurture-grid" id="nurtureCards"></div>
-        <div class="sec-note" style="margin-top:12px;line-height:1.5">Mốc tính từ ngày tổ chức (T0). Event thường kickoff trước 14 ngày.</div>
+        <div class="sec-note" style="margin-top:12px;line-height:1.5">M&#x1ED1;c t&iacute;nh t&#x1EEB; ng&agrave;y t&#x1ED5; ch&#x1EE9;c (T0). Event th&#x01B0;&#x1EDD;ng kickoff tr&#x01B0;&#x1EDB;c 14 ng&agrave;y.</div>
       </div>
       <div class="panel">
-        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Tốc độ chuyển đổi sau event (trung vị)</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:14px">T&#x1ED1;c &#x111;&#x1ED9; chuy&#x1EC3;n &#x111;&#x1ED5;i sau event (trung v&#x1ECB;)</div>
         <div class="speed-row">
-          <div class="speed-item"><div class="sl">Event → SBK</div><div class="sv" style="color:var(--purple)" id="sp-sbk">—</div></div>
-          <div class="speed-item"><div class="sl">Event → HBK</div><div class="sv" style="color:var(--green)" id="sp-hbk">—</div></div>
+          <div class="speed-item"><div class="sl">Event &#x2192; SBK</div><div class="sv" style="color:var(--purple)" id="sp-sbk">&mdash;</div></div>
+          <div class="speed-item"><div class="sl">Event &#x2192; HBK</div><div class="sv" style="color:var(--green)" id="sp-hbk">&mdash;</div></div>
         </div>
-        <div class="sec-note" id="note-speed" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK (chỉ tính lead có chuyển đổi).</div>
+        <div class="sec-note" id="note-speed" style="margin-top:16px;line-height:1.5">S&#x1ED1; ng&agrave;y trung v&#x1ECB; t&#x1EEB; ng&agrave;y t&#x1ED5; ch&#x1EE9;c &#x111;&#x1EBF;n khi lead chuy&#x1EC3;n sang SBK / HBK (ch&#x1EC9; t&iacute;nh lead c&oacute; chuy&#x1EC3;n &#x111;&#x1ED5;i).</div>
       </div>
     </div>
   </div>
 
   <!-- Other tabs placeholder -->
-  <div id="t-showup" class="tabpane" style="display:none"><div class="placeholder"><div class="big">②</div>Tab Show-up — sẽ dựng sau khi Mai duyệt Tab 1</div></div>
-  <div id="t-timeline" class="tabpane" style="display:none"><div class="placeholder"><div class="big">③</div>Tab Timeline T+ — sẽ dựng sau</div></div>
-  <div id="t-breakdown" class="tabpane" style="display:none"><div class="placeholder"><div class="big">④</div>Tab Breakdown — sẽ dựng sau</div></div>
-  <div id="t-ltv" class="tabpane" style="display:none"><div class="placeholder"><div class="big">⑤</div>Tab LTV &amp; GMV — sẽ dựng sau</div></div>
+  <div id="t-showup" class="tabpane" style="display:none"><div class="placeholder"><div class="big">&#x2461;</div>Tab Show-up &mdash; s&#x1EBD; d&#x1EF1;ng sau khi Mai duy&#x1EC7;t Tab 1</div></div>
+  <div id="t-timeline" class="tabpane" style="display:none"><div class="placeholder"><div class="big">&#x2462;</div>Tab Timeline T+ &mdash; s&#x1EBD; d&#x1EF1;ng sau</div></div>
+  <div id="t-breakdown" class="tabpane" style="display:none"><div class="placeholder"><div class="big">&#x2463;</div>Tab Breakdown &mdash; s&#x1EBD; d&#x1EF1;ng sau</div></div>
+  <div id="t-ltv" class="tabpane" style="display:none"><div class="placeholder"><div class="big">&#x2464;</div>Tab LTV &amp; GMV &mdash; s&#x1EBD; d&#x1EF1;ng sau</div></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -202,11 +234,13 @@
 const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendtYW5jaWVlbWVmY3ZndGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODQyMTksImV4cCI6MjA5NTk2MDIxOX0.WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
 const HDR = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY };
-const FORCE_T0_LEAD_EVENT = "mpwg4n7kmy0x"; // event quên log T+0 → force Lead
+const FORCE_T0_LEAD_EVENT = "mpwg4n7kmy0x";
 
 // ══════════════ STATE ══════════════
 let allGuests=[], allTracking=[], allEvents=[], merged=[], selectedEventId="", eventT0=null;
 let charts={};
+// PATCH additions
+let selectedEvent=null, refreshTimer=null;
 
 // ══════════════ FETCH ══════════════
 async function sbFetch(table, params=""){
@@ -216,57 +250,31 @@ async function sbFetch(table, params=""){
 }
 
 // ══════════════ DATE PARSING ══════════════
-// App Script fmtDate() output: "dd/MM/yyyy" hoặc "dd/MM/yyyy HH:mm:ss"
-// GG Sheet raw có thể: "MM/dd/yyyy", timestamp ms
-// Guard: nếu value bắt đầu bằng 'M' (dạng lead_id 'M261...') → bị swap cột → return null
 function parseVNDate(s){
   if(!s || s==="NO" || s==="") return null;
   const str = String(s).trim();
-
-  // Guard: lead_id bị swap vào lead_created_date
   if(/^M\d+/i.test(str)) return null;
-
-  // Timestamp ms dạng số
   if(/^\d{10,}$/.test(str)){
     const d = new Date(parseInt(str));
     return isNaN(d.getTime()) ? null : d;
   }
-
-  // ISO date: yyyy-MM-dd
   if(/^\d{4}-\d{2}-\d{2}/.test(str)){
     const d = new Date(str);
     return isNaN(d.getTime()) ? null : d;
   }
-
-  // Match dd/MM/yyyy hoặc MM/dd/yyyy
-  // Dạng: có ít nhất 1 separator / hoặc -
   const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
   if(!m) return null;
-
   const [_, p1, p2, y, h, mi, se] = m;
   const n1 = parseInt(p1), n2 = parseInt(p2);
-
-  // Phân biệt dd/MM vs MM/dd:
-  // Nếu p1 > 12 → chắc chắn là ngày (dd/MM/yyyy)
-  // Nếu p2 > 12 → chắc chắn là tháng trước (MM/dd/yyyy — nhưng App Script KHÔNG dùng format này)
-  // Nếu cả 2 ≤ 12 → App Script luôn output dd/MM → ưu tiên dd/MM
   let day, month;
-  if(n1 > 12){
-    // p1 là ngày, p2 là tháng: dd/MM/yyyy
-    day = n1; month = n2;
-  } else if(n2 > 12){
-    // p1 là tháng, p2 là ngày: MM/dd/yyyy (GG Sheet raw)
-    month = n1; day = n2;
-  } else {
-    // Ambiguous: App Script output là dd/MM → mặc định dd/MM
-    day = n1; month = n2;
-  }
-
+  if(n1 > 12){ day = n1; month = n2; }
+  else if(n2 > 12){ month = n1; day = n2; }
+  else { day = n1; month = n2; }
   if(month < 1 || month > 12 || day < 1 || day > 31) return null;
   const d = new Date(parseInt(y), month-1, day, +(h||0), +(mi||0), +(se||0));
   return isNaN(d.getTime()) ? null : d;
 }
-function daysBetween(a,b){ // b - a, theo calendar day
+function daysBetween(a,b){
   if(!a||!b) return null;
   const A=new Date(a.getFullYear(),a.getMonth(),a.getDate());
   const B=new Date(b.getFullYear(),b.getMonth(),b.getDate());
@@ -279,78 +287,59 @@ function median(arr){
   return a.length%2 ? a[m] : Math.round((a[m-1]+a[m])/2);
 }
 
-// ══════════════ GMV PARSING (số tiền) ══════════════
+// ══════════════ GMV PARSING ══════════════
 function parseGMV(v){
   if(!v || v==="NO") return 0;
   let s = String(v).trim().replace(/[,\s]/g,"");
-  // dạng "12.4" (tỷ) hoặc "12400000000" (đồng)
   const n = parseFloat(s);
   if(isNaN(n)) return 0;
-  // heuristic: >1 triệu coi là đồng → quy ra tỷ; nhỏ hơn coi là đã tính bằng tỷ
   return n >= 1e6 ? n/1e9 : n;
 }
-function fmtTy(n){ // format tỷ VND
+function fmtTy(n){
   if(!n) return "0";
   return (Math.round(n*10)/10).toLocaleString("vi-VN");
 }
 
 // ══════════════ NORMALIZE ══════════════
 function normName(s){
-  return (s||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/Đ/g,"D").replace(/đ/g,"d");
+  return (s||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\u0110/g,"D").replace(/\u0111/g,"d");
 }
 
 // ══════════════ MAIN GUEST FILTER ══════════════
-// Performance chỉ tính trên Main, loại Companion
 function isMainGuest(g){
   const t = String(g.type||"").trim().toLowerCase();
-  // Nếu có cột type rõ ràng → chỉ lấy "main"
   if(t) return t==="main";
-  // Fallback (record cũ không có type): loại theo tên "đi kèm"
-  return !(g.name||"").toLowerCase().includes("đi kèm");
+  return !(g.name||"").toLowerCase().includes("\u0111i k\xE8m");
 }
 
 // ══════════════ CLASSIFY ══════════════
-// Helper: field có timestamp thật (≠ NO/rỗng)
 function hasTs(v){ return v && String(v).trim()!=="" && String(v).trim().toUpperCase()!=="NO"; }
-
-// ── CỜ TÍCH LŨY (cộng dồn, độc lập) — cho stat card & phễu ──
-// Nguồn sự thật: timestamp cột L/M/N, ghi 1 lần từ CRM
-function flagOpp(t){ return !!t && hasTs(t.opp_flag); }   // cột L
-function flagSBK(t){ return !!t && hasTs(t.sbk); }        // cột M
-function flagHBK(t){ return !!t && hasTs(t.hbk); }        // cột N
+function flagOpp(t){ return !!t && hasTs(t.opp_flag); }
+function flagSBK(t){ return !!t && hasTs(t.sbk); }
+function flagHBK(t){ return !!t && hasTs(t.hbk); }
 function flagDrop(t){
   if(!t) return false;
-  if(hasTs(t.drop_flag)) return true;                     // cột K
+  if(hasTs(t.drop_flag)) return true;
   const lat=(t.status_latest||t.status_event||"").trim();
   return /^2\.[12]\b/.test(lat);
 }
 
-// ── STAGE CAO NHẤT (cho Pie/stacked) ──
-// Khác bucket status: nếu có cờ SBK/HBK thì hiển thị ở lát đó (giai đoạn xa nhất đã đạt)
-// Drop vẫn ưu tiên tuyệt đối (lead đã drop thì không tính tiến trình)
 function classifyStage(t){
   if(!t) return "na";
   if(flagDrop(t)) return "Drop";
   if(flagHBK(t)) return "HBK";
   if(flagSBK(t)) return "SBK";
   if(flagOpp(t)) return "Opp";
-  // chưa có cờ chuyển đổi → theo status hiện tại
   const b=classifyBucket(t);
-  return b==="Opp"?"Opp":b; // bucket Opp theo 4.x vẫn là Opp
+  return b==="Opp"?"Opp":b;
 }
-// "lead đang ở đâu trên thang status", KHÔNG phụ thuộc cờ SBK/HBK
 function classifyBucket(t){
   if(!t) return "na";
   const lat=(t.status_latest||t.status_event||"").trim();
-  // Drop ưu tiên cao nhất
   if(flagDrop(t)) return "Drop";
-  // Opp = status hiện tại 4.x
   if(/^4\./.test(lat)) return "Opp";
-  // Meet = 3.x hoặc 2.x (trừ 2.1/2.2)
   if(/^3\./.test(lat) || (/^2\./.test(lat) && !/^2\.[12]\b/.test(lat))) return "Meet";
-  // Lead = 1.x
   if(/^1\./.test(lat)) return "Lead";
-  // Fallback theo label nếu status text trống
   const lbl=(t.status_label||"").trim();
   if(lbl==="Opp") return "Opp";
   if(lbl==="Meet") return "Meet";
@@ -358,11 +347,8 @@ function classifyBucket(t){
   return "na";
 }
 
-const BUCKETS=["Lead","Meet","Opp","SBK","HBK","Drop"];
-const BUCKET_COLOR={Lead:"#6b7590",Meet:"#9b7fe8",Opp:"#f5a623",SBK:"#c9a96e",HBK:"#3ecf8e",Drop:"#e05252"};
-
 // ══════════════ PASSWORD GATE ══════════════
-// Session key: pw_<event_id> — mỗi event unlock riêng, đồng nhất với hệ thống check-in
+// Key format DONG NHAT voi index.html checkin: "pw_" + eventId
 function sessionKey(eid){ return "pw_"+eid; }
 
 function isUnlocked(eid){
@@ -371,16 +357,18 @@ function isUnlocked(eid){
 
 function getEventPw(eid){
   const ev=allEvents.find(e=>e.id===eid);
-  return (ev?.event_password||"").trim();
+  return (ev?.event_pw||"").trim();
 }
 
 function showPwGate(eid){
   const ev=allEvents.find(e=>e.id===eid);
-  document.getElementById("pwEventName").textContent=(ev?.date_str||"")+" · "+(ev?.name||eid);
+  const evName = ev ? (ev.date_str||"")+" \xB7 "+(ev.name||eid) : eid;
+  document.getElementById("pwEventName").textContent = evName;
   document.getElementById("pwInput").value="";
   document.getElementById("pwError").textContent="";
-  document.getElementById("pwGate").style.display="flex";
-  setTimeout(()=>document.getElementById("pwInput").focus(),100);
+  const gate=document.getElementById("pwGate");
+  gate.style.display="flex";
+  setTimeout(()=>document.getElementById("pwInput").focus(),150);
 }
 
 function hidePwGate(){
@@ -393,73 +381,121 @@ function submitPw(){
   if(!correct || input===correct){
     sessionStorage.setItem(sessionKey(selectedEventId),"1");
     hidePwGate();
-    loadAll();
+    enterDashboard();
   } else {
-    document.getElementById("pwError").textContent="Mã không đúng. Vui lòng thử lại.";
+    document.getElementById("pwError").textContent="M\xE3 kh\xF4ng \u0111\xFAng. Vui l\xF2ng th\u1EED l\u1EA1i.";
     document.getElementById("pwInput").select();
   }
 }
 
-// ══════════════ LOAD EVENTS ══════════════
-async function loadEvents(){
-  try{
-    // Fetch thêm event_password để dùng cho password gate
-    allEvents = await sbFetch("oh_events","select=id,name,date_str,event_password&order=date_str.desc");
-    const sel=document.getElementById("eventSelect");
-    sel.innerHTML = allEvents.map(e=>`<option value="${e.id}">${e.date_str||""} · ${e.name||e.id}</option>`).join("");
-    if(allEvents.length){ sel.value=allEvents[0].id; selectedEventId=allEvents[0].id; }
-  }catch(e){ console.error("loadEvents:",e); document.getElementById("eventSelect").innerHTML='<option>⚠ Lỗi tải events</option>'; }
+function cancelPw(){
+  hidePwGate();
+  selectedEvent=null; selectedEventId="";
+  // Hien lai man hinh chon event
+  document.getElementById("screenSelect").style.display="";
+  document.getElementById("mainDash").style.display="none";
+  document.getElementById("btnBack").style.display="none";
+  document.getElementById("headerEventLabel").style.display="none";
 }
 
-function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(d)?null:d; }
+// ══════════════ SCREEN MANAGEMENT ══════════════
+function showDash(){
+  document.getElementById("screenSelect").style.display="none";
+  document.getElementById("mainDash").style.display="";
+  document.getElementById("btnBack").style.display="inline-block";
+  const evLabel=document.getElementById("headerEventLabel");
+  evLabel.style.display="";
+  evLabel.textContent=selectedEvent
+    ? (selectedEvent.date_str||"")+" \xB7 "+(selectedEvent.name||selectedEvent.id)
+    : "";
+}
 
-// ══════════════ LOAD ALL ══════════════
+function goBack(){
+  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null;}
+  selectedEvent=null; selectedEventId="";
+  document.getElementById("screenSelect").style.display="";
+  document.getElementById("mainDash").style.display="none";
+  document.getElementById("btnBack").style.display="none";
+  document.getElementById("headerEventLabel").style.display="none";
+}
+
+// ══════════════ LOAD EVENTS (card grid) ══════════════
+async function loadEvents(){
+  const grid=document.getElementById("eventGrid");
+  try{
+    allEvents = await sbFetch("oh_events","select=id,name,date_str,event_pw&order=date_str.desc");
+    if(!allEvents.length){
+      grid.innerHTML='<div style="color:var(--muted);padding:40px 0">Ch\u01B0a c\xF3 s\u1EF1 ki\u1EC7n n\xE0o.</div>';
+      return;
+    }
+    grid.innerHTML='<div class="event-grid">'+allEvents.map(ev=>{
+      const hasPw=!!(ev.event_pw||"").trim();
+      return '<div class="event-card" onclick="selectEvent(\''+ev.id+'\')">'+
+        '<div class="ec-date">'+(ev.date_str||"&mdash;")+'</div>'+
+        '<div class="ec-name">'+(ev.name||ev.id)+'</div>'+
+        '<div><span class="ec-badge '+(hasPw?"has-pw":"no-pw")+'">'+(hasPw?"\uD83D\uDD12 C\xF3 m\xE3 b\u1EA3o v\u1EC7":"&#x2713; M\u1EDF")+'</span></div>'+
+        '<div class="ec-arrow">&rsaquo;</div>'+
+        '</div>';
+    }).join("")+'</div>';
+  }catch(e){
+    console.error("loadEvents:",e);
+    grid.innerHTML='<div style="color:var(--red);padding:20px 0">&#x26A0; L\u1ED7i t\u1EA3i danh s\xE1ch: '+e.message+'</div>';
+  }
+}
+
+// ══════════════ SELECT EVENT (card click) ══════════════
+function selectEvent(eid){
+  const ev=allEvents.find(e=>e.id===eid);
+  if(!ev) return;
+  selectedEvent=ev; selectedEventId=eid;
+  if(isUnlocked(eid)){
+    enterDashboard();
+  } else {
+    showPwGate(eid);
+  }
+}
+
+// ══════════════ ENTER DASHBOARD ══════════════
+function enterDashboard(){
+  showDash();
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer=setInterval(()=>{
+    if(!selectedEventId) return;
+    if(!isUnlocked(selectedEventId)){
+      clearInterval(refreshTimer); refreshTimer=null;
+      goBack(); return;
+    }
+    loadAll();
+  }, 5*60*1000);
+  loadAll();
+}
+
+// ══════════════ LOAD ALL (data) ══════════════
 async function loadAll(){
-  selectedEventId = document.getElementById("eventSelect")?.value || "";
+  if(!selectedEventId){ return; }
   const ev = allEvents.find(e=>e.id===selectedEventId);
   eventT0 = ev ? parseVNDate(ev.date_str) || parseISODate(ev.date_str) : null;
 
-  // Password gate: nếu event có password và chưa unlock → hiện modal
-  if(selectedEventId && !isUnlocked(selectedEventId)){
-    showPwGate(selectedEventId);
-    return;
-  }
-
   try{
-    // Pull toàn bộ guests của event → filter Main client-side
-    // (không filter type tại server vì "type" là reserved word trong PostgREST → HTTP 400)
-    const gP = selectedEventId
-      ? `select=*&event_id=eq.${selectedEventId}&order=created_at.asc`
-      : `select=*&order=created_at.asc`;
-    const tP = selectedEventId
-      ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`
-      : `select=*&order=synced_at.desc`;
+    const gP = `select=*&event_id=eq.${selectedEventId}&order=created_at.asc`;
+    const tP = `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`;
 
     const [guests, tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
 
-    // Double-check client side — filter Main, loại Companion
     allGuests   = guests.filter(isMainGuest);
-    // App Script chỉ sync type=Main lên oh_tracking → không cần filter thêm
     allTracking = tracking;
 
-    // ── BUILD TRACKING LOOKUP ──────────────────────────────
-    // Dedup: mỗi KH (name+phone) chỉ giữ record mới nhất (synced_at lớn nhất)
-    // Lý do: UPSERT conflict key lệch → Supabase có thể có 2 records cho cùng 1 KH
-    // Record mới nhất = data đúng sau khi fix swap cột
     const trkDedup = {};
     allTracking.forEach(t => {
       const nm  = normName(t.name);
       const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
       const key = nm + "|" + ph4;
       const existing = trkDedup[key];
-      // So sánh synced_at — giữ record mới hơn
-      // synced_at là timestamp ms (number)
       if(!existing || (t.synced_at||0) > (existing.synced_at||0)){
         trkDedup[key] = t;
       }
     });
 
-    // Build lookup từ deduped records
     const trk = {};
     Object.values(trkDedup).forEach(t => {
       const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
@@ -476,7 +512,6 @@ async function loadAll(){
       return { ...g, _trk: t };
     });
 
-    // ONE-TIME CHECK: xem raw lead_created_date Supabase đang trả về
     console.table(merged.slice(0,5).map(g=>({
       name: g.name,
       lead_created_date: g._trk?.lead_created_date ?? "NO_TRK"
@@ -484,90 +519,69 @@ async function loadAll(){
 
     renderOverview();
     document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
-    document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
   }catch(e){
     console.error(e);
-    document.getElementById("funnel").innerHTML='<div class="placeholder">❌ Lỗi: '+e.message+'</div>';
+    document.getElementById("funnel").innerHTML='<div class="placeholder">&#x274C; L\u1ED7i: '+e.message+'</div>';
   }
 }
 
+function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(d)?null:d; }
+
 // ══════════════ RENDER TAB 1 ══════════════
 function isCheckedIn(g){ return g.checked_in && !g.cancelled; }
-function isNoShow(g){ return !g.checked_in || g.cancelled; } // không đến + cancel
+function isNoShow(g){ return !g.checked_in || g.cancelled; }
 
 function renderOverview(){
   const total = merged.length;
   const ci    = merged.filter(isCheckedIn).length;
   const cancel= merged.filter(g=>g.cancelled).length;
   const abs   = merged.filter(isNoShow).length;
-
-  // CỜ TÍCH LŨY (cộng dồn) — cho stat card & phễu
   const opp = merged.filter(g=>flagOpp(g._trk)).length;
   const sbk = merged.filter(g=>flagSBK(g._trk)).length;
   const hbk = merged.filter(g=>flagHBK(g._trk)).length;
-
-  // GMV tổng
   let gmvTotal=0; merged.forEach(g=>{ if(g._trk) gmvTotal += parseGMV(g._trk.gmv); });
 
-  // ── TÍNH LAST SYNC & T+ ──────────────────────────────────
-  // lastSync = synced_at lớn nhất trong allTracking (epoch ms)
   let lastSyncMs = 0;
   allTracking.forEach(t=>{ if((t.synced_at||0)>lastSyncMs) lastSyncMs=t.synced_at; });
   const lastSyncDate = lastSyncMs ? new Date(lastSyncMs) : null;
   const lastSyncLabel = lastSyncDate
     ? lastSyncDate.toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})
-    : "—";
-  // T+ = số ngày calendar từ T0 đến lastSync
-  const tPlusDays = (lastSyncDate && eventT0)
-    ? daysBetween(eventT0, lastSyncDate)
-    : null;
-  const tPlusLabel = tPlusDays!=null && tPlusDays>=0
-    ? `T+${tPlusDays}`
-    : tPlusDays!=null && tPlusDays<0
-      ? `T${tPlusDays}` // trước event
-      : "—";
+    : "\u2014";
+  const tPlusDays = (lastSyncDate && eventT0) ? daysBetween(eventT0, lastSyncDate) : null;
+  const tPlusLabel = tPlusDays!=null && tPlusDays>=0 ? "T+"+tPlusDays
+    : tPlusDays!=null && tPlusDays<0 ? "T"+tPlusDays : "\u2014";
   const syncNote = lastSyncMs
-    ? `<span style="color:var(--accent2);font-weight:700">${tPlusLabel}</span> · cập nhật lúc ${lastSyncLabel}`
-    : "—";
+    ? '<span style="color:var(--accent2);font-weight:700">'+tPlusLabel+'</span> \xB7 c\u1EADp nh\u1EADt l\xFAc '+lastSyncLabel
+    : "\u2014";
 
-  // Inject vào sec-note của các bảng có data thay đổi theo thời gian
   const setNote=(id,txt)=>{ const e=document.getElementById(id); if(e) e.innerHTML=txt; };
   setNote("note-stats",  syncNote);
-  setNote("note-funnel", `% trên tổng đăng ký · mức rơi rớt mỗi tầng · ${syncNote}`);
-  setNote("note-pie",    `Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · ${syncNote}`);
-  setNote("note-speed",  `Trung vị ngày từ T0 → SBK/HBK · ${syncNote}`);
+  setNote("note-funnel", "% tr\xEAn t\u1ED5ng \u0111\u0103ng k\xFD \xB7 m\u1EE9c r\u01A1i r\u1EDBt m\u1ED7i t\u1EA7ng \xB7 "+syncNote);
+  setNote("note-pie",    "V\xF2ng ngo\xE0i = % / t\u1ED5ng \u0110K \xB7 V\xF2ng trong = % / Check-in \xB7 "+syncNote);
+  setNote("note-speed",  "Trung v\u1ECB ng\xE0y t\u1EEB T0 \u2192 SBK/HBK \xB7 "+syncNote);
 
-  // ── stat cards ──
   const P=(n,d)=> d? Math.round(n/d*100)+"%":"0%";
   set("st-reg",total);
   set("st-ci",ci); set("st-ci-sub",P(ci,total)+" show-up");
-  set("st-abs",abs); set("st-abs-sub",P(abs,total)+" · cancel "+cancel);
-  set("st-opp",opp); set("st-opp-sub",P(opp,ci)+" trên CI");
-  set("st-sbk",sbk); set("st-sbk-sub",P(sbk,ci)+" trên CI");
-  set("st-hbk",hbk); set("st-hbk-sub",P(hbk,ci)+" trên CI");
-  set("st-gmv",fmtTy(gmvTotal)+" tỷ"); set("st-gmv-sub", hbk? "TB "+fmtTy(gmvTotal/hbk)+" tỷ/HBK":"—");
+  set("st-abs",abs); set("st-abs-sub",P(abs,total)+" \xB7 cancel "+cancel);
+  set("st-opp",opp); set("st-opp-sub",P(opp,ci)+" tr\xEAn CI");
+  set("st-sbk",sbk); set("st-sbk-sub",P(sbk,ci)+" tr\xEAn CI");
+  set("st-hbk",hbk); set("st-hbk-sub",P(hbk,ci)+" tr\xEAn CI");
+  set("st-gmv",fmtTy(gmvTotal)+" t\u1EF7"); set("st-gmv-sub", hbk? "TB "+fmtTy(gmvTotal/hbk)+" t\u1EF7/HBK":"\u2014");
 
-  // ── funnel — HOÀN TOÀN dùng cờ tích lũy, KHÔNG dùng classifyBucket ──
-  // Opp chuẩn = flagOpp (cột L) ONLY — đã chốt nghiệp vụ
-  // Meet+ = có tracking và status_label/status_latest là Meet/Opp hoặc đã có cờ Opp/SBK/HBK
-  // Không đếm theo classifyBucket để tránh lẫn với fallback 4.x
   const reachMeet = merged.filter(g=>{
     const t = g._trk;
     if(!t) return false;
     const lbl = (t.status_label||"").trim();
     const lat = (t.status_latest||t.status_event||"").trim();
-    const isMeetStatus = lbl==="Meet" || /^[23]\./.test(lat) && !/^2\.[12]\b/.test(lat);
+    const isMeetStatus = lbl==="Meet" || (/^[23]\./.test(lat) && !/^2\.[12]\b/.test(lat));
     return isMeetStatus || flagOpp(t) || flagSBK(t) || flagHBK(t);
   }).length;
-
-  // reachOpp = flagOpp ONLY (cột L) + đã SBK/HBK (đã qua Opp rồi lên)
   const reachOpp = merged.filter(g=>flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk)).length;
-
-  // reachSBK = cột M hoặc đã HBK
   const reachSBK = merged.filter(g=>flagSBK(g._trk)||flagHBK(g._trk)).length;
   const reachHBK = hbk;
   renderFunnel([
-    {l:"Đăng ký",v:total,c:"#4f9cf9"},
+    {l:"\u0110\u0103ng k\xFD",v:total,c:"#4f9cf9"},
     {l:"Check-in",v:ci,c:"#c9a96e"},
     {l:"Meet+",v:reachMeet,c:"#9b7fe8"},
     {l:"Opp+",v:reachOpp,c:"#f5a623"},
@@ -575,13 +589,8 @@ function renderOverview(){
     {l:"HBK",v:reachHBK,c:"#3ecf8e"},
   ], total);
 
-  // ── pies ──
   renderPies();
-
-  // ── nurture (tuổi lead) ──
   renderNurture();
-
-  // ── speed ──
   renderSpeed();
 }
 
@@ -593,15 +602,15 @@ function renderFunnel(steps,total){
   steps.forEach((s,i)=>{
     const w=Math.max(s.v/max*100,4);
     const pc=total?Math.round(s.v/total*100):0;
-    h+=`<div class="frow">
-      <div class="frow-label">${s.l}</div>
-      <div class="frow-track"><div class="frow-fill" style="width:${w}%;background:${s.c}">${s.v}</div></div>
-      <div class="frow-pct"><b>${pc}%</b> trên ĐK</div>
-    </div>`;
+    h+='<div class="frow">'+
+      '<div class="frow-label">'+s.l+'</div>'+
+      '<div class="frow-track"><div class="frow-fill" style="width:'+w+'%;background:'+s.c+'">'+s.v+'</div></div>'+
+      '<div class="frow-pct"><b>'+pc+'%</b> tr\xEAn \u0110K</div>'+
+      '</div>';
     if(i<steps.length-1){
       const next=steps[i+1].v;
       const keepPct=s.v?Math.round(next/s.v*100):0;
-      h+=`<div class="fdrop"><span class="keep">↓ giữ ${keepPct}%</span><span>· rơi ${100-keepPct}%</span></div>`;
+      h+='<div class="fdrop"><span class="keep">\u2193 gi\u1EEF '+keepPct+'%</span><span>\xB7 r\u01A1i '+(100-keepPct)+'%</span></div>';
     }
   });
   document.getElementById("funnel").innerHTML=h;
@@ -610,23 +619,18 @@ function renderFunnel(steps,total){
 function renderPies(){
   const total = merged.length;
   const ci    = merged.filter(isCheckedIn).length;
-
-  // ── ĐẾM TỪNG BUCKET ──────────────────────────────────────
   const stageAll={Lead:0,Meet:0,Drop:0}, stageCI={Lead:0,Meet:0,Drop:0};
   merged.forEach(g=>{
     const b=classifyStage(g._trk);
     if(!["Lead","Meet","Drop"].includes(b)) return;
     stageAll[b]++; if(isCheckedIn(g)) stageCI[b]++;
   });
-
   const oppAll = merged.filter(g=>flagOpp(g._trk)).length;
   const oppCI  = merged.filter(g=>flagOpp(g._trk)&&isCheckedIn(g)).length;
   const sbkAll = merged.filter(g=>flagSBK(g._trk)).length;
   const sbkCI  = merged.filter(g=>flagSBK(g._trk)&&isCheckedIn(g)).length;
   const hbkAll = merged.filter(g=>flagHBK(g._trk)).length;
   const hbkCI  = merged.filter(g=>flagHBK(g._trk)&&isCheckedIn(g)).length;
-
-  // N/A: cột P trống, không có cờ chuyển đổi
   const isNA = g=>{
     const t=g._trk;
     if(!t) return true;
@@ -635,62 +639,49 @@ function renderPies(){
   };
   const naAll = merged.filter(isNA).length;
   const naCI  = merged.filter(g=>isCheckedIn(g)&&isNA(g)).length;
-
   const PIES=[
-    {id:"cpie_Lead", label:"Lead",  nAll:stageAll.Lead, nCI:stageCI.Lead, color:"#6b7590"},
-    {id:"cpie_Meet", label:"Meet",  nAll:stageAll.Meet, nCI:stageCI.Meet, color:"#9b7fe8"},
-    {id:"cpie_Opp",  label:"Opp",   nAll:oppAll,        nCI:oppCI,        color:"#f5a623"},
-    {id:"cpie_SBK",  label:"SBK",   nAll:sbkAll,        nCI:sbkCI,        color:"#c9a96e"},
-    {id:"cpie_HBK",  label:"HBK",   nAll:hbkAll,        nCI:hbkCI,        color:"#3ecf8e"},
-    {id:"cpie_Drop", label:"Drop",  nAll:stageAll.Drop, nCI:stageCI.Drop, color:"#e05252"},
-    {id:"cpie_NA",   label:"N/A",   nAll:naAll,         nCI:naCI,         color:"#3a3f52"},
+    {id:"cpie_Lead",label:"Lead", nAll:stageAll.Lead,nCI:stageCI.Lead,color:"#6b7590"},
+    {id:"cpie_Meet",label:"Meet", nAll:stageAll.Meet,nCI:stageCI.Meet,color:"#9b7fe8"},
+    {id:"cpie_Opp", label:"Opp",  nAll:oppAll,       nCI:oppCI,       color:"#f5a623"},
+    {id:"cpie_SBK", label:"SBK",  nAll:sbkAll,       nCI:sbkCI,       color:"#c9a96e"},
+    {id:"cpie_HBK", label:"HBK",  nAll:hbkAll,       nCI:hbkCI,       color:"#3ecf8e"},
+    {id:"cpie_Drop",label:"Drop", nAll:stageAll.Drop,nCI:stageCI.Drop,color:"#e05252"},
+    {id:"cpie_NA",  label:"N/A",  nAll:naAll,        nCI:naCI,        color:"#3a3f52"},
   ];
-
   const grid=document.getElementById("pieGrid");
   if(!grid) return;
-
-  // STEP 1: Destroy tất cả chart cũ TRƯỚC khi reset DOM
   PIES.forEach(p=>{ if(charts[p.id]){ charts[p.id].destroy(); delete charts[p.id]; } });
-
-  // STEP 2: Build HTML — canvas không có width/height attribute, để Chart.js tự size
+  const BG="rgba(42,48,69,.55)";
   grid.innerHTML=PIES.map(p=>{
     const pctAll=total?Math.round(p.nAll/total*100):0;
     const pctCI =ci   ?Math.round(p.nCI /ci   *100):0;
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-      <div style="position:relative;width:90px;height:90px;flex-shrink:0">
-        <canvas id="${p.id}" role="img" aria-label="${p.label}: ${pctAll}% ĐK ${pctCI}% CI" style="display:block;width:90px;height:90px"></canvas>
-        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:1px">
-          <span style="font-size:11px;font-weight:800;color:${p.color};line-height:1">${pctAll}%</span>
-          <span style="font-size:9px;font-weight:700;color:var(--accent2);line-height:1">${pctCI}%</span>
-        </div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;font-weight:700;color:${p.color}">${p.label}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">${p.nAll} ĐK · ${p.nCI} CI</div>
-      </div>
-    </div>`;
+    return '<div style="display:flex;flex-direction:column;align-items:center;gap:8px">'+
+      '<div style="position:relative;width:90px;height:90px;flex-shrink:0">'+
+      '<canvas id="'+p.id+'" role="img" aria-label="'+p.label+': '+pctAll+'% \u0110K '+pctCI+'% CI" style="display:block;width:90px;height:90px"></canvas>'+
+      '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:1px">'+
+      '<span style="font-size:11px;font-weight:800;color:'+p.color+';line-height:1">'+pctAll+'%</span>'+
+      '<span style="font-size:9px;font-weight:700;color:var(--accent2);line-height:1">'+pctCI+'%</span>'+
+      '</div></div>'+
+      '<div style="text-align:center">'+
+      '<div style="font-size:11px;font-weight:700;color:'+p.color+'">'+p.label+'</div>'+
+      '<div style="font-size:10px;color:var(--muted);margin-top:2px">'+p.nAll+' \u0110K \xB7 '+p.nCI+' CI</div>'+
+      '</div></div>';
   }).join("");
-
-  // STEP 3: Draw sau khi DOM đã sẵn sàng
-  const BG="rgba(42,48,69,.55)";
   requestAnimationFrame(()=>{
     PIES.forEach(p=>{
       const el=document.getElementById(p.id);
       if(!el) return;
       const pAll=total?p.nAll/total:0;
       const pCI =ci   ?p.nCI /ci   :0;
-
-      // Guard: nếu cả 2 đều 0 → vẽ vòng tròn empty (không để trắng)
       const outerData = pAll>0 ? [pAll,1-pAll] : [0.001,0.999];
       const innerData = pCI >0 ? [pCI, 1-pCI ] : [0.001,0.999];
       const outerColors= pAll>0 ? [p.color,BG] : [BG,BG];
       const innerColors= pCI >0 ? ["#4f9cf9",BG] : [BG,BG];
-
       charts[p.id]=new Chart(el,{
         type:"doughnut",
         data:{datasets:[
-          {data:outerData, backgroundColor:outerColors, borderWidth:0, weight:1.5}, // vòng ngoài
-          {data:innerData, backgroundColor:innerColors, borderWidth:0, weight:1.0}, // vòng trong
+          {data:outerData,backgroundColor:outerColors,borderWidth:0,weight:1.5},
+          {data:innerData,backgroundColor:innerColors,borderWidth:0,weight:1.0},
         ]},
         options:{
           responsive:false,
@@ -703,14 +694,12 @@ function renderPies(){
   });
 }
 
-
 function renderNurture(){
-  // tuổi lead = T0 - ngày tạo lead (số ngày trước event)
   const g3=[], g14=[], gold=[], gNoTrk=[], gNoDate=[];
   merged.forEach(g=>{
-    if(!g._trk){ gNoTrk.push(g); return; }          // Main nhưng không match tracking
+    if(!g._trk){ gNoTrk.push(g); return; }
     const ld = parseVNDate(g._trk.lead_created_date);
-    if(!ld || !eventT0){ gNoDate.push(g); return; }  // có tracking nhưng thiếu/lỗi ngày
+    if(!ld || !eventT0){ gNoDate.push(g); return; }
     const age = daysBetween(ld, eventT0);
     if(age==null){ gNoDate.push(g); return; }
     if(age<=3) g3.push(g);
@@ -719,17 +708,17 @@ function renderNurture(){
   });
   const showup=arr=>arr.length?Math.round(arr.filter(isCheckedIn).length/arr.length*100):0;
   const cards=[
-    {l:"Mới toanh (≤3 ngày)",n:g3,c:"var(--green)"},
-    {l:"Mới (4–14 ngày)",n:g14,c:"var(--accent)"},
-    {l:"Cũ (>14 ngày)",n:gold,c:"var(--orange)"},
+    {l:"M\u1EDBi to\u1EA3nh (\u22643 ng\xE0y)",n:g3,c:"var(--green)"},
+    {l:"M\u1EDBi (4\u201314 ng\xE0y)",n:g14,c:"var(--accent)"},
+    {l:"C\u0169 (>14 ng\xE0y)",n:gold,c:"var(--orange)"},
   ];
-  let h=cards.map(c=>`<div class="nc">
-    <div class="nc-label">${c.l}</div>
-    <div class="nc-val" style="color:${c.c}">${c.n.length}</div>
-    <div class="nc-sub">Show-up ${showup(c.n)}% · CI ${c.n.filter(isCheckedIn).length}</div>
-  </div>`).join("");
-  if(gNoTrk.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Main chưa match tracking (chưa có lead trên hệ thống / lệch tên-SĐT)</div><div class="nc-val" style="font-size:16px;color:var(--muted)">${gNoTrk.length} KH</div></div>`;
-  if(gNoDate.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Có tracking nhưng thiếu/lỗi ngày tạo lead</div><div class="nc-val" style="font-size:16px;color:var(--orange)">${gNoDate.length} KH</div></div>`;
+  let h=cards.map(c=>'<div class="nc">'+
+    '<div class="nc-label">'+c.l+'</div>'+
+    '<div class="nc-val" style="color:'+c.c+'">'+c.n.length+'</div>'+
+    '<div class="nc-sub">Show-up '+showup(c.n)+'% \xB7 CI '+c.n.filter(isCheckedIn).length+'</div>'+
+    '</div>').join("");
+  if(gNoTrk.length) h+='<div class="nc" style="grid-column:1/-1"><div class="nc-label">Main ch\u01B0a match tracking (ch\u01B0a c\xF3 lead tr\xEAn h\u1EC7 th\u1ED1ng / l\u1EC7ch t\xEAn-S\u0110T)</div><div class="nc-val" style="font-size:16px;color:var(--muted)">'+gNoTrk.length+' KH</div></div>';
+  if(gNoDate.length) h+='<div class="nc" style="grid-column:1/-1"><div class="nc-label">C\xF3 tracking nh\u01B0ng thi\u1EBFu/l\u1ED7i ng\xE0y t\u1EA1o lead</div><div class="nc-val" style="font-size:16px;color:var(--orange)">'+gNoDate.length+' KH</div></div>';
   document.getElementById("nurtureCards").innerHTML=h;
 }
 
@@ -742,8 +731,8 @@ function renderSpeed(){
     if(hd){ const d=daysBetween(eventT0,hd); if(d!=null&&d>=0) hbkDays.push(d); }
   });
   const ms=median(sbkDays), mh=median(hbkDays);
-  set("sp-sbk", ms!=null? ms+" ngày":"—");
-  set("sp-hbk", mh!=null? mh+" ngày":"—");
+  set("sp-sbk", ms!=null? ms+" ng\xE0y":"\u2014");
+  set("sp-hbk", mh!=null? mh+" ng\xE0y":"\u2014");
 }
 
 // ══════════════ TABS ══════════════
@@ -757,8 +746,10 @@ document.querySelectorAll(".tab").forEach(t=>{
 });
 
 // ══════════════ INIT ══════════════
-loadEvents().then(loadAll);
-setInterval(loadAll, 5*60*1000);
+// Show selection screen first, load event cards
+document.getElementById("screenSelect").style.display="";
+document.getElementById("mainDash").style.display="none";
+loadEvents();
 </script>
 </body>
 </html>
