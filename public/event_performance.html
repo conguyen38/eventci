@@ -923,7 +923,7 @@ function renderBkGroup(elId, keyFn) {
   document.getElementById(elId).innerHTML = cards.join("") || '<div class="empty">Chưa có dữ liệu.</div>';
 }
 
-// ── PERFORMANCE TAB ────────────────────────────────────────────
+// ── PERFORMANCE TAB ────────────────────────────────────────
 function renderPerformance() {
   // Status distribution
   const statusMap = {};
@@ -947,52 +947,55 @@ function renderPerformance() {
       </div>
     </div>`).join("");
 
-  // Performance table (chỉ rows có tracking)
+  // Performance table
   const tracked = merged.filter(g => g._trk);
   if (!tracked.length) {
     document.getElementById("perfTableWrap").innerHTML = '<div class="empty">Chưa có dữ liệu tracking. Chạy sync từ Google Sheet trước.</div>';
     return;
   }
 
-  document.getElementById("perfTableWrap").innerHTML = `<table>
-    <thead><tr>
-      <th>Khách hàng</th>
-      <th>Lead Date</th>
-      <th>Status Event</th>
-      <th>Status Mới nhất</th>
-      <th>Drop</th>
-      <th>Opp</th>
-      <th>SBK</th>
-      <th>HBK</th>
-      <th>GMV</th>
-      <th>Sync lúc</th>
-    </tr></thead>
-    <tbody>${tracked.map(g => {
-      const t = g._trk;
-      const syncTime = t.synced_at
-        ? new Date(t.synced_at).toLocaleString("vi-VN", {hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit",year:"2-digit"})
-        : "—";
-      function flagBadge(val, color) {
-        const has = val && val !== "NO" && val !== "";
-        return has
-          ? \`<span class="badge badge-\${color}" title="\${val}">\${val}</span>\`
-          : \`<span class="badge badge-muted">—</span>\`;
-      }
-      return \`<tr>
-        <td><div class="td-name">\${g.name}<small>\${t.lead_id || "—"}</small></div></td>
-        <td style="font-size:11px;color:var(--muted)">\${t.lead_created_date || "—"}</td>
-        <td>\${statusToBadge(t.status_event)}</td>
-        <td>\${statusToBadge(t.status_latest)}</td>
-        <td>\${flagBadge(t.drop_flag, "orange")}</td>
-        <td>\${flagBadge(t.opp_flag,  "gold")}</td>
-        <td>\${flagBadge(t.sbk,       "purple")}</td>
-        <td>\${flagBadge(t.hbk,       "green")}</td>
-        <td>\${flagBadge(t.gmv,       "blue")}</td>
-        <td style="font-size:11px;color:var(--muted)">\${syncTime}</td>
-      </tr>\`;
-    }).join("")}</tbody>
-  </table>\`;
+  function flagBadge(val, color) {
+    const has = val && val !== "NO" && val !== "";
+    if (has) return '<span class="badge badge-' + color + '" title="' + val + '">' + val + '</span>';
+    return '<span class="badge badge-muted">—</span>';
+  }
+
+  const rows = tracked.map(g => {
+    const t = g._trk;
+    const syncTime = t.synced_at
+      ? new Date(t.synced_at).toLocaleString("vi-VN", {hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit",year:"2-digit"})
+      : "—";
+    return "<tr>"
+      + "<td><div class=\"td-name\">" + g.name + "<small>" + (t.lead_id || "—") + "</small></div></td>"
+      + "<td style=\"font-size:11px;color:var(--muted)\">" + (t.lead_created_date || "—") + "</td>"
+      + "<td>" + statusToBadge(t.status_event) + "</td>"
+      + "<td>" + statusToBadge(t.status_latest) + "</td>"
+      + "<td>" + flagBadge(t.drop_flag, "orange") + "</td>"
+      + "<td>" + flagBadge(t.opp_flag,  "gold")   + "</td>"
+      + "<td>" + flagBadge(t.sbk,       "purple")  + "</td>"
+      + "<td>" + flagBadge(t.hbk,       "green")   + "</td>"
+      + "<td>" + flagBadge(t.gmv,       "blue")    + "</td>"
+      + "<td style=\"font-size:11px;color:var(--muted)\">" + syncTime + "</td>"
+      + "</tr>";
+  }).join("");
+
+  document.getElementById("perfTableWrap").innerHTML =
+    "<table><thead><tr>"
+    + "<th>Khách hàng</th>"
+    + "<th>Lead Date</th>"
+    + "<th>Status Event</th>"
+    + "<th>Status Mới nhất</th>"
+    + "<th>Drop</th>"
+    + "<th>Opp</th>"
+    + "<th>SBK</th>"
+    + "<th>HBK</th>"
+    + "<th>GMV</th>"
+    + "<th>Sync lúc</th>"
+    + "</tr></thead><tbody>"
+    + rows
+    + "</tbody></table>";
 }
+
 
 // ── TABS ───────────────────────────────────────────────────────
 function switchTab(name, el) {
