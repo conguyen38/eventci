@@ -116,30 +116,6 @@
   </div>
 </header>
 
-<!-- PASSWORD GATE MODAL -->
-<div id="pwGate" style="display:none;position:fixed;inset:0;background:rgba(13,15,20,.93);z-index:999;align-items:center;justify-content:center;">
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:32px 36px;width:380px;max-width:92vw;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-      <div style="width:36px;height:36px;background:rgba(201,169,110,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🔒</div>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:var(--text)">Xác thực truy cập</div>
-        <div id="pwEventName" style="font-size:11px;color:var(--accent);margin-top:2px;font-weight:600">—</div>
-      </div>
-    </div>
-    <div style="height:1px;background:var(--border);margin-bottom:20px"></div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.3px">MÃ TRUY CẬP SỰ KIỆN</div>
-    <input id="pwInput" type="password" placeholder="Nhập mã..." autocomplete="off"
-      style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:11px 14px;font-size:14px;outline:none;margin-bottom:8px;transition:border-color .15s;"
-      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
-      onkeydown="if(event.key==='Enter')submitPw()"/>
-    <div id="pwError" style="font-size:11px;color:var(--red);min-height:18px;margin-bottom:14px"></div>
-    <button onclick="submitPw()"
-      style="width:100%;background:var(--accent);color:#0d0f14;border:none;border-radius:var(--r);padding:11px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:.3px;">
-      Xác nhận →
-    </button>
-  </div>
-</div>
-
 <div class="main">
   <div class="tabs">
     <button class="tab active" data-tab="overview">1 · Tổng quan</button>
@@ -368,52 +344,10 @@ function classifyBucket(t){
 const BUCKETS=["Lead","Meet","Opp","SBK","HBK","Drop"];
 const BUCKET_COLOR={Lead:"#6b7590",Meet:"#9b7fe8",Opp:"#f5a623",SBK:"#c9a96e",HBK:"#3ecf8e",Drop:"#e05252"};
 
-// ══════════════ PASSWORD GATE ══════════════
-// Session key: pw_<event_id> — mỗi event unlock riêng, đồng nhất với hệ thống check-in
-function sessionKey(eid){ return "pw_"+eid; }
-
-function isUnlocked(eid){
-  return !getEventPw(eid) || sessionStorage.getItem(sessionKey(eid))==="1";
-}
-
-function getEventPw(eid){
-  const ev=allEvents.find(e=>e.id===eid);
-  return (ev?.event_pw||"").trim();
-}
-
-function showPwGate(eid){
-  const ev=allEvents.find(e=>e.id===eid);
-  const evName = ev ? `${ev.date_str||""} · ${ev.name||eid}` : eid;
-  document.getElementById("pwEventName").textContent = evName;
-  document.getElementById("pwInput").value="";
-  document.getElementById("pwError").textContent="";
-  const gate=document.getElementById("pwGate");
-  gate.style.display="flex";
-  setTimeout(()=>document.getElementById("pwInput").focus(),150);
-}
-
-function hidePwGate(){
-  document.getElementById("pwGate").style.display="none";
-}
-
-function submitPw(){
-  const input=(document.getElementById("pwInput").value||"").trim();
-  const correct=getEventPw(selectedEventId);
-  if(!correct || input===correct){
-    sessionStorage.setItem(sessionKey(selectedEventId),"1");
-    hidePwGate();
-    loadAll();
-  } else {
-    document.getElementById("pwError").textContent="Mã không đúng. Vui lòng thử lại.";
-    document.getElementById("pwInput").select();
-  }
-}
-
 // ══════════════ LOAD EVENTS ══════════════
 async function loadEvents(){
   try{
-    // Fetch thêm event_pw để dùng cho password gate
-    allEvents = await sbFetch("oh_events","select=id,name,date_str,event_pw&order=date_str.desc");
+    allEvents = await sbFetch("oh_events","select=id,name,date_str&order=date_str.desc");
     const sel=document.getElementById("eventSelect");
     sel.innerHTML = allEvents.map(e=>`<option value="${e.id}">${e.date_str||""} · ${e.name||e.id}</option>`).join("");
     if(allEvents.length){ sel.value=allEvents[0].id; selectedEventId=allEvents[0].id; }
@@ -427,12 +361,6 @@ async function loadAll(){
   selectedEventId = document.getElementById("eventSelect")?.value || "";
   const ev = allEvents.find(e=>e.id===selectedEventId);
   eventT0 = ev ? parseVNDate(ev.date_str) || parseISODate(ev.date_str) : null;
-
-  // Password gate: nếu event có password và chưa unlock → hiện modal
-  if(selectedEventId && !isUnlocked(selectedEventId)){
-    showPwGate(selectedEventId);
-    return;
-  }
 
   try{
     // Pull toàn bộ guests của event → filter Main client-side
