@@ -309,6 +309,8 @@ async function loadEvents(){
   }catch(e){ console.error("loadEvents:",e); document.getElementById("eventSelect").innerHTML='<option>⚠ Lỗi tải events</option>'; }
 }
 
+function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(d)?null:d; }
+
 // ══════════════ LOAD ALL ══════════════
 async function loadAll(){
   selectedEventId = document.getElementById("eventSelect")?.value || "";
@@ -316,35 +318,60 @@ async function loadAll(){
   eventT0 = ev ? parseVNDate(ev.date_str) || parseISODate(ev.date_str) : null;
 
   try{
-    const gP = selectedEventId ? `select=*&event_id=eq.${selectedEventId}` : "select=*";
-    const tP = selectedEventId ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc` : "select=*&order=synced_at.desc";
-    const [guests,tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
+    // Filter type=Main tại server — không pull companion về
+    const gP = selectedEventId
+      ? `select=*&event_id=eq.${selectedEventId}&type=eq.Main`
+      : `select=*&type=eq.Main`;
+    const tP = selectedEventId
+      ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`
+      : `select=*&order=synced_at.desc`;
 
-    allGuests = guests.filter(isMainGuest);
+    const [guests, tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
+
+    // Double-check client side phòng data dirty
+    allGuests   = guests.filter(isMainGuest);
     allTracking = tracking;
 
-    // tracking lookup
-    const trk={};
-    tracking.forEach(t=>{
-      const k1=normName(t.name)+"|"+(t.phone_last4||"");
-      trk[k1]=t;
-      const k2=normName(t.name);
-      if(!trk[k2]) trk[k2]=t;
+    // ── BUILD TRACKING LOOKUP ──────────────────────────────
+    // oh_tracking.phone_last4 có thể là 4 số cuối HOẶC số đầy đủ → chuẩn hóa hết về 4 số cuối
+    const trk = {};
+    tracking.forEach(t => {
+      const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
+      const nm  = normName(t.name);
+      // key chính: name + phone4
+      if(ph4) trk[nm+"|"+ph4] = t;
+      // key phụ: chỉ tên (fallback khi phone thiếu)
+      if(!trk[nm]) trk[nm] = t;
     });
-    merged = allGuests.map(g=>{
-      const k1=normName(g.name)+"|"+(g.phone||"").slice(-4);
-      const k2=normName(g.name);
-      return {...g, _trk: trk[k1]||trk[k2]||null};
+
+    merged = allGuests.map(g => {
+      // phone trong oh_guests có thể là full number → lấy 4 số cuối
+      const ph4 = String(g.phone||"").trim().replace(/\D/g,"").slice(-4);
+      const nm  = normName(g.name);
+      const k1  = nm + "|" + ph4;
+      const t   = (ph4 && trk[k1]) ? trk[k1] : trk[nm] || null;
+      return { ...g, _trk: t };
     });
+
+    // ── DEBUG LOG (xem trong console trình duyệt) ──────────
+    const noTrk = merged.filter(g=>!g._trk);
+    const noDate= merged.filter(g=>g._trk && !parseVNDate(g._trk.lead_created_date));
+    console.group("📊 OH Dashboard — Debug");
+    console.log("Guests Main (server):", guests.length, "| sau double-check:", allGuests.length);
+    console.log("Tracking records:", tracking.length);
+    console.log("Merged total:", merged.length);
+    console.log("Không match tracking (", noTrk.length, "):", noTrk.map(g=>g.name));
+    console.log("Có tracking nhưng thiếu ngày (", noDate.length, "):", noDate.map(g=>g.name+"→"+g._trk?.lead_created_date));
+    console.log("opp_flag samples:", tracking.slice(0,5).map(t=>t.name+"→opp="+t.opp_flag+"|sbk="+t.sbk+"|hbk="+t.hbk));
+    console.groupEnd();
 
     renderOverview();
     document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
   }catch(e){
     console.error(e);
-    document.getElementById("funnel").innerHTML='<div class="placeholder">❌ Lỗi tải dữ liệu: '+e.message+'</div>';
+    document.getElementById("funnel").innerHTML='<div class="placeholder">❌ Lỗi: '+e.message+'</div>';
   }
 }
-function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(d)?null:d; }
 
 // ══════════════ RENDER TAB 1 ══════════════
 function isCheckedIn(g){ return g.checked_in && !g.cancelled; }
