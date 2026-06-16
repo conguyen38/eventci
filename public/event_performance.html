@@ -117,6 +117,21 @@
 </header>
 
 <div class="main">
+
+  <div id="lockState" style="display:none; max-width:400px; margin:60px auto;">
+    <div class="panel" style="text-align:center; padding:32px 24px;">
+      <div style="font-size:36px; margin-bottom:12px;">🔒</div>
+      <div style="font-weight:800; font-size:16px; margin-bottom:6px;" id="lockEvName"></div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:20px;">
+        Báo cáo sự kiện này được bảo vệ. Vui lòng nhập mật khẩu để xem.
+      </div>
+      <input type="password" id="lockPwInput" placeholder="Nhập mật khẩu..."
+        style="width:100%; font-size:14px; padding:12px; text-align:center; letter-spacing:2px; border:1px solid var(--border); background:var(--bg); color:var(--text); border-radius:var(--r); font-family:inherit; margin-bottom:12px; outline:none;"
+        onkeydown="if(event.key==='Enter')checkEventPassword()"/>
+      <div id="lockErr" style="color:var(--red); font-size:12px; margin-bottom:14px; min-height:16px;"></div>
+      <button style="width:100%; background:var(--accent); color:#0d0f14; border:none; border-radius:var(--r); padding:10px 15px; font-size:13px; font-weight:700; cursor:pointer;" onclick="checkEventPassword()">Xem báo cáo →</button>
+    </div>
+  </div>
   <div class="tabs">
     <button class="tab active" data-tab="overview">1 · Tổng quan</button>
     <button class="tab" data-tab="showup">2 · Show-up</button>
@@ -125,7 +140,6 @@
     <button class="tab" data-tab="ltv">5 · LTV &amp; GMV</button>
   </div>
 
-  <!-- TAB 1 -->
   <div id="t-overview" class="tabpane">
     <div class="stats" id="statStrip">
       <div class="stat accent"><div class="stat-label">Tổng đăng ký</div><div class="stat-val" id="st-reg">—</div><div class="stat-sub">Main guests</div></div>
@@ -136,7 +150,6 @@
       <div class="stat blue"><div class="stat-label">HBK</div><div class="stat-val" id="st-hbk">—</div><div class="stat-sub" id="st-hbk-sub">—</div></div>
       <div class="stat"><div class="stat-label">GMV tổng</div><div class="stat-val" id="st-gmv" style="font-size:19px;color:var(--accent)">—</div><div class="stat-sub" id="st-gmv-sub">—</div></div>
     </div>
-    <!-- Sync timeline bar — cùng format với sec-note bên dưới -->
     <div style="display:flex;align-items:center;justify-content:flex-end;margin:6px 0 18px;font-size:11px;color:var(--muted)">
       Tất cả 7 chỉ số trên cùng timeline: <span id="note-stats" style="margin-left:6px">—</span>
     </div>
@@ -147,8 +160,7 @@
     <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note" id="note-pie">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · 1 KH đếm 1 lần (Lead/Meet/Drop) hoặc theo cờ (Opp/SBK/HBK)</div></div>
     <div class="panel" style="padding:20px 16px">
       <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;">
-        <!-- filled by renderPies() -->
-      </div>
+        </div>
       <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted)">
         <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(107,117,144,.9);display:inline-block"></span>Vòng ngoài: % toàn bộ ĐK</span>
         <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(79,156,249,.7);display:inline-block"></span>Vòng trong: % Check-in only</span>
@@ -172,7 +184,6 @@
     </div>
   </div>
 
-  <!-- Other tabs placeholder -->
   <div id="t-showup" class="tabpane" style="display:none"><div class="placeholder"><div class="big">②</div>Tab Show-up — sẽ dựng sau khi Mai duyệt Tab 1</div></div>
   <div id="t-timeline" class="tabpane" style="display:none"><div class="placeholder"><div class="big">③</div>Tab Timeline T+ — sẽ dựng sau</div></div>
   <div id="t-breakdown" class="tabpane" style="display:none"><div class="placeholder"><div class="big">④</div>Tab Breakdown — sẽ dựng sau</div></div>
@@ -190,6 +201,7 @@ const FORCE_T0_LEAD_EVENT = "mpwg4n7kmy0x"; // event quên log T+0 → force Lea
 // ══════════════ STATE ══════════════
 let allGuests=[], allTracking=[], allEvents=[], merged=[], selectedEventId="", eventT0=null;
 let charts={};
+let unlockedEvs = {}; // Thêm dòng này để lưu trạng thái mở khoá
 
 // ══════════════ FETCH ══════════════
 async function sbFetch(table, params=""){
@@ -344,12 +356,39 @@ function classifyBucket(t){
 const BUCKETS=["Lead","Meet","Opp","SBK","HBK","Drop"];
 const BUCKET_COLOR={Lead:"#6b7590",Meet:"#9b7fe8",Opp:"#f5a623",SBK:"#c9a96e",HBK:"#3ecf8e",Drop:"#e05252"};
 
+// ══════════════ GATE CHECKIN LOGIC ══════════════
+function checkEventPassword(){
+  const evId = document.getElementById('eventSelect').value;
+  const ev = allEvents.find(e=>e.id===evId);
+  if(!ev) return;
+  const pw = document.getElementById('lockPwInput').value || '';
+  if(pw !== ev.event_pw){
+    document.getElementById('lockErr').textContent = 'Mật khẩu không đúng.';
+    const inp = document.getElementById('lockPwInput');
+    inp.value=''; inp.focus();
+    return;
+  }
+  // Mở khoá thành công
+  unlockedEvs[evId] = true;
+  
+  // Cập nhật lại dropdown (xoá icon 🔒 của event hiện tại)
+  const sel = document.getElementById('eventSelect');
+  Array.from(sel.options).forEach(opt => {
+    if(opt.value === evId) opt.text = opt.text.replace(' 🔒', '');
+  });
+  
+  // Kích hoạt lại việc tải dữ liệu
+  loadAll();
+}
+
 // ══════════════ LOAD EVENTS ══════════════
 async function loadEvents(){
   try{
-    allEvents = await sbFetch("oh_events","select=id,name,date_str&order=date_str.desc");
+    // Đã thêm event_pw vào câu select
+    allEvents = await sbFetch("oh_events","select=id,name,date_str,event_pw&order=date_str.desc");
     const sel=document.getElementById("eventSelect");
-    sel.innerHTML = allEvents.map(e=>`<option value="${e.id}">${e.date_str||""} · ${e.name||e.id}</option>`).join("");
+    // Đã thêm logic hiển thị icon 🔒
+    sel.innerHTML = allEvents.map(e=>`<option value="${e.id}">${e.date_str||""} · ${e.name||e.id}${e.event_pw && !unlockedEvs[e.id] ? ' 🔒' : ''}</option>`).join("");
     if(allEvents.length){ sel.value=allEvents[0].id; selectedEventId=allEvents[0].id; }
   }catch(e){ console.error("loadEvents:",e); document.getElementById("eventSelect").innerHTML='<option>⚠ Lỗi tải events</option>'; }
 }
@@ -361,6 +400,32 @@ async function loadAll(){
   selectedEventId = document.getElementById("eventSelect")?.value || "";
   const ev = allEvents.find(e=>e.id===selectedEventId);
   eventT0 = ev ? parseVNDate(ev.date_str) || parseISODate(ev.date_str) : null;
+
+  // --- THÊM MỚI: GATE CHECKIN INTERCEPT ---
+  const tabsEl = document.querySelector('.tabs');
+  const lockEl = document.getElementById('lockState');
+
+  if(ev?.event_pw && !unlockedEvs[selectedEventId]){
+    document.getElementById('lockEvName').textContent = ev.name;
+    document.getElementById('lockPwInput').value = '';
+    document.getElementById('lockErr').textContent = '';
+    
+    lockEl.style.display = 'block';
+    tabsEl.style.display = 'none'; // Giấu Tabs
+    document.querySelectorAll('.tabpane').forEach(el => el.style.display = 'none'); // Giấu content
+    
+    document.getElementById('lockPwInput').focus();
+    return; // Dừng hoàn toàn việc fetch data bên dưới
+  } else {
+    lockEl.style.display = 'none';
+    tabsEl.style.display = 'flex'; // Khôi phục hiển thị Tabs
+    // Khôi phục hiển thị Tabpane đang active
+    const activeTabBtn = document.querySelector('.tab.active');
+    if(activeTabBtn) {
+        document.getElementById('t-' + activeTabBtn.dataset.tab).style.display = '';
+    }
+  }
+  // --- END GATE CHECKIN INTERCEPT ---
 
   try{
     // Pull toàn bộ guests của event → filter Main client-side
@@ -420,7 +485,6 @@ async function loadAll(){
     })));
 
     renderOverview();
-    document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
     document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
   }catch(e){
     console.error(e);
