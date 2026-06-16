@@ -410,6 +410,17 @@
 
   <!-- ── TAB: JOURNEY ── -->
   <div id="tab-journey">
+    <div class="sec-head" style="margin-top:8px">
+      <div class="sec-title">Tổng quan hành trình</div>
+      <div style="font-size:11px;color:var(--muted)">Xem chi tiết từng khách hàng tại tab Breakdown</div>
+    </div>
+    <div id="journeyChartWrap" style="margin-top:16px"></div>
+  </div>
+
+  <!-- ── TAB: BREAKDOWN ── -->
+  <div id="tab-breakdown" style="display:none">
+
+    <!-- Bảng hành trình khách hàng -->
     <div class="sec-head">
       <div class="sec-title">Hành trình khách hàng</div>
       <div class="sec-ctrl">
@@ -429,10 +440,8 @@
     <div class="tbl-wrap" id="tableWrap">
       <div class="loader"><div class="spinner"></div> Đang tải dữ liệu...</div>
     </div>
-  </div>
 
-  <!-- ── TAB: BREAKDOWN ── -->
-  <div id="tab-breakdown" style="display:none">
+    <!-- Breakdown theo nhóm -->
     <div class="sec-head"><div class="sec-title">Theo Vùng TCB</div></div>
     <div class="breakdown-grid" id="bkVung"></div>
 
@@ -541,6 +550,7 @@ async function loadAll() {
     });
 
     updateStats();
+    renderJourneyChart();
     renderTable();
     renderBreakdowns();
     renderPerformance();
@@ -558,6 +568,54 @@ function normName(s) {
   return (s || "").trim().toUpperCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/Đ/g,"D").replace(/đ/g,"d");
+}
+
+// ── JOURNEY FUNNEL CHART ───────────────────────────────────────
+function renderJourneyChart() {
+  const el = document.getElementById("journeyChartWrap");
+  if (!el) return;
+
+  const total = merged.length;
+  const ci    = merged.filter(g => g.checked_in && !g.cancelled).length;
+  const meet  = merged.filter(g => {
+    const lbl = (g._trk?.status_label || "").toLowerCase();
+    const lat = (g._trk?.status_latest || "").toLowerCase();
+    return lbl === "meet" || /^[23]\./.test(g._trk?.status_latest || "");
+  }).length;
+  const opp   = merged.filter(g => hasValue(g._trk?.opp_flag) ||
+    (g._trk?.status_label || "") === "Opp").length;
+  const sbk   = merged.filter(g => hasValue(g._trk?.sbk)).length;
+  const hbk   = merged.filter(g => hasValue(g._trk?.hbk)).length;
+
+  const steps = [
+    { label: "Đăng ký",  val: total, color: "var(--accent2)" },
+    { label: "Check-in", val: ci,    color: "var(--accent)" },
+    { label: "Meet",     val: meet,  color: "var(--purple)" },
+    { label: "Opp",      val: opp,   color: "var(--orange)" },
+    { label: "SBK",      val: sbk,   color: "var(--green)" },
+    { label: "HBK",      val: hbk,   color: "#3ecf8e" },
+  ];
+
+  const max = total || 1;
+  el.innerHTML = \`
+    <div style="display:flex;gap:8px;align-items:flex-end;height:160px;padding:0 4px">
+      \${steps.map((s,i) => {
+        const h = Math.max(Math.round(s.val / max * 140), s.val > 0 ? 20 : 4);
+        const pct = total ? Math.round(s.val / total * 100) : 0;
+        return \`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+          <div style="font-size:13px;font-weight:800;color:var(--text)">\${s.val}</div>
+          <div style="width:100%;height:\${h}px;background:\${s.color};border-radius:6px 6px 0 0;
+            opacity:.85;transition:height .3s;position:relative;min-height:4px">
+          </div>
+          <div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.3">\${s.label}</div>
+          <div style="font-size:10px;color:\${s.color};font-weight:700">\${pct}%</div>
+        </div>\`;
+      }).join("")}
+    </div>
+    <div style="text-align:center;font-size:10px;color:var(--muted);margin-top:8px">
+      % tính trên tổng đăng ký · Xem chi tiết tại tab Breakdown
+    </div>
+  \`;
 }
 
 // ── STATS ──────────────────────────────────────────────────────
@@ -899,27 +957,41 @@ function renderPerformance() {
   document.getElementById("perfTableWrap").innerHTML = `<table>
     <thead><tr>
       <th>Khách hàng</th>
+      <th>Lead Date</th>
       <th>Status Event</th>
-      <th>T+1</th>
-      <th>${allTracking[0]?.status_latest_date || "Mới nhất"}</th>
-      <th>SBK</th><th>HBK</th><th>GMV</th>
+      <th>Status Mới nhất</th>
+      <th>Drop</th>
+      <th>Opp</th>
+      <th>SBK</th>
+      <th>HBK</th>
+      <th>GMV</th>
       <th>Sync lúc</th>
     </tr></thead>
     <tbody>${tracked.map(g => {
       const t = g._trk;
-      const syncTime = t.synced_at ? new Date(t.synced_at).toLocaleString("vi-VN") : "—";
-      return `<tr>
-        <td><div class="td-name">${g.name}<small>${t.lead_id}</small></div></td>
-        <td>${statusToBadge(t.status_event)}</td>
-        <td>${statusToBadge(t.status_t1)}</td>
-        <td>${statusToBadge(t.status_latest)}</td>
-        <td><span class="badge ${t.sbk && t.sbk!=='NO'?'badge-green':'badge-muted'}">${t.sbk||'—'}</span></td>
-        <td><span class="badge ${t.hbk && t.hbk!=='NO'?'badge-green':'badge-muted'}">${t.hbk||'—'}</span></td>
-        <td><span class="badge ${t.gmv && t.gmv!=='NO'?'badge-green':'badge-muted'}">${t.gmv||'—'}</span></td>
-        <td style="font-size:11px;color:var(--muted)">${syncTime}</td>
-      </tr>`;
+      const syncTime = t.synced_at
+        ? new Date(t.synced_at).toLocaleString("vi-VN", {hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit",year:"2-digit"})
+        : "—";
+      function flagBadge(val, color) {
+        const has = val && val !== "NO" && val !== "";
+        return has
+          ? \`<span class="badge badge-\${color}" title="\${val}">\${val}</span>\`
+          : \`<span class="badge badge-muted">—</span>\`;
+      }
+      return \`<tr>
+        <td><div class="td-name">\${g.name}<small>\${t.lead_id || "—"}</small></div></td>
+        <td style="font-size:11px;color:var(--muted)">\${t.lead_created_date || "—"}</td>
+        <td>\${statusToBadge(t.status_event)}</td>
+        <td>\${statusToBadge(t.status_latest)}</td>
+        <td>\${flagBadge(t.drop_flag, "orange")}</td>
+        <td>\${flagBadge(t.opp_flag,  "gold")}</td>
+        <td>\${flagBadge(t.sbk,       "purple")}</td>
+        <td>\${flagBadge(t.hbk,       "green")}</td>
+        <td>\${flagBadge(t.gmv,       "blue")}</td>
+        <td style="font-size:11px;color:var(--muted)">\${syncTime}</td>
+      </tr>\`;
     }).join("")}</tbody>
-  </table>`;
+  </table>\`;
 }
 
 // ── TABS ───────────────────────────────────────────────────────
