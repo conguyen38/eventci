@@ -3,1010 +3,481 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>OneHousing · Customer Journey Dashboard</title>
+<title>OneHousing · Event Performance Dashboard</title>
 <style>
-  /* ── TOKENS ─────────────────────────────── */
-  :root {
-    --bg:        #0d0f14;
-    --surface:   #161923;
-    --card:      #1e2330;
-    --border:    #2a3045;
-    --accent:    #c9a96e;       /* gold — OneHousing luxury tone */
-    --accent2:   #4f9cf9;       /* blue — TCB brand */
-    --text:      #e8eaf0;
-    --muted:     #6b7590;
-    --green:     #3ecf8e;
-    --orange:    #f5a623;
-    --red:       #e05252;
-    --purple:    #9b7fe8;
-    --font-head: 'Inter', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-    --r:         8px;
-    --r-lg:      14px;
+  :root{
+    --bg:#0d0f14; --surface:#161923; --card:#1e2330; --border:#2a3045;
+    --accent:#c9a96e; --accent2:#4f9cf9; --text:#e8eaf0; --muted:#6b7590;
+    --green:#3ecf8e; --orange:#f5a623; --red:#e05252; --purple:#9b7fe8;
+    --r:8px; --r-lg:14px;
   }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-head);
-    font-size: 14px;
-    min-height: 100vh;
-  }
-
-  /* ── HEADER ─────────────────────────────── */
-  header {
-    padding: 20px 28px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--surface);
-    position: sticky; top: 0; z-index: 100;
-  }
-  .logo {
-    display: flex; align-items: center; gap: 10px;
-  }
-  .logo-mark {
-    width: 32px; height: 32px;
-    background: linear-gradient(135deg, var(--accent), #8a6a3e);
-    border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 14px; color: #0d0f14;
-  }
-  .logo-text { font-weight: 700; font-size: 15px; letter-spacing: -.3px; }
-  .logo-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
-  .header-right { display: flex; align-items: center; gap: 12px; }
-  .sync-badge {
-    font-size: 11px; color: var(--muted);
-    background: var(--card); border: 1px solid var(--border);
-    padding: 4px 10px; border-radius: 20px;
-  }
-  .sync-badge span { color: var(--green); }
-  #btnRefresh {
-    background: var(--accent); color: #0d0f14;
-    border: none; border-radius: var(--r); padding: 7px 16px;
-    font-size: 12px; font-weight: 700; cursor: pointer;
-    transition: opacity .15s;
-  }
-  #btnRefresh:hover { opacity: .85; }
-
-  /* ── LAYOUT ─────────────────────────────── */
-  .main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
-
-  /* ── STAT STRIP ─────────────────────────── */
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    margin-bottom: 24px;
-  }
-  .stat {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--r-lg);
-    padding: 16px 18px;
-  }
-  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
-  .stat-val   { font-size: 28px; font-weight: 800; line-height: 1; }
-  .stat-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; }
-  .stat.accent .stat-val { color: var(--accent); }
-  .stat.green  .stat-val { color: var(--green); }
-  .stat.blue   .stat-val { color: var(--accent2); }
-  .stat.orange .stat-val { color: var(--orange); }
-  .stat.red    .stat-val { color: var(--red); }
-
-  /* ── SECTION HEADER ─────────────────────── */
-  .sec-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 14px; margin-top: 28px;
-  }
-  .sec-title {
-    font-size: 13px; font-weight: 700; letter-spacing: .4px;
-    color: var(--text);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .sec-title::before {
-    content: '';
-    display: inline-block;
-    width: 3px; height: 14px;
-    background: var(--accent);
-    border-radius: 2px;
-  }
-  .sec-ctrl { display: flex; gap: 8px; }
-  .filter-btn {
-    background: var(--card); border: 1px solid var(--border);
-    color: var(--muted); border-radius: 20px;
-    padding: 4px 12px; font-size: 11px; cursor: pointer;
-    transition: all .15s;
-  }
-  .filter-btn.active, .filter-btn:hover {
-    border-color: var(--accent); color: var(--accent); background: rgba(201,169,110,.08);
-  }
-
-  /* ── SEARCH ─────────────────────────────── */
-  .search-wrap {
-    position: relative; margin-bottom: 16px;
-  }
-  .search-wrap input {
-    width: 100%; background: var(--card); border: 1px solid var(--border);
-    color: var(--text); border-radius: var(--r);
-    padding: 10px 14px 10px 38px;
-    font-size: 13px; outline: none;
-    transition: border-color .15s;
-  }
-  .search-wrap input:focus { border-color: var(--accent); }
-  .search-wrap::before {
-    content: '⌕';
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-    color: var(--muted); font-size: 16px;
-  }
-
-  /* ── TABLE ──────────────────────────────── */
-  .tbl-wrap { overflow-x: auto; border-radius: var(--r-lg); border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; }
-  thead th {
-    background: var(--surface);
-    padding: 10px 14px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .7px;
-    color: var(--muted);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-    cursor: pointer;
-    user-select: none;
-  }
-  thead th:hover { color: var(--accent); }
-  tbody tr {
-    border-bottom: 1px solid var(--border);
-    transition: background .1s;
-  }
-  tbody tr:last-child { border-bottom: none; }
-  tbody tr:hover { background: rgba(255,255,255,.03); }
-  tbody td {
-    padding: 11px 14px;
-    font-size: 12.5px;
-    vertical-align: middle;
-  }
-  .td-name { font-weight: 600; color: var(--text); }
-  .td-name small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; margin-top: 1px; }
-  .td-mono { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
-
-  /* ── BADGES ─────────────────────────────── */
-  .badge {
-    display: inline-flex; align-items: center;
-    padding: 2px 8px; border-radius: 20px;
-    font-size: 10px; font-weight: 700;
-    white-space: nowrap;
-    text-transform: uppercase; letter-spacing: .4px;
-  }
-  .badge-green  { background: rgba(62,207,142,.15); color: var(--green); }
-  .badge-orange { background: rgba(245,166,35,.15);  color: var(--orange); }
-  .badge-red    { background: rgba(224,82,82,.15);   color: var(--red); }
-  .badge-blue   { background: rgba(79,156,249,.15);  color: var(--accent2); }
-  .badge-gold   { background: rgba(201,169,110,.15); color: var(--accent); }
-  .badge-muted  { background: rgba(107,117,144,.12); color: var(--muted); }
-  .badge-purple { background: rgba(155,127,232,.15); color: var(--purple); }
-
-  /* ── CHECKIN STATUS ─────────────────────── */
-  .ci-dot {
-    display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
-  }
-  .ci-dot::before {
-    content: ''; display: inline-block;
-    width: 7px; height: 7px; border-radius: 50%;
-  }
-  .ci-dot.in::before    { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .ci-dot.cancel::before{ background: var(--red); }
-  .ci-dot.pending::before{ background: var(--muted); }
-
-  /* ── JOURNEY TRACK ──────────────────────── */
-  .journey {
-    display: flex; align-items: center; gap: 0;
-    font-size: 10px;
-  }
-  .j-step {
-    display: flex; flex-direction: column; align-items: center;
-    min-width: 52px;
-  }
-  .j-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    background: var(--border);
-    margin-bottom: 3px; position: relative;
-  }
-  .j-dot.done   { background: var(--green); }
-  .j-dot.active { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
-  .j-label { color: var(--muted); text-align: center; line-height: 1.2; }
-  .j-line {
-    flex: 1; height: 1px; background: var(--border);
-    margin-bottom: 14px; min-width: 8px;
-  }
-  .j-line.done { background: var(--green); }
-
-  /* ── PERFORMANCE FLAGS ──────────────────── */
-  .perf-flags { display: flex; gap: 4px; }
-  .pflag {
-    width: 22px; height: 22px; border-radius: 4px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 9px; font-weight: 800; letter-spacing: 0;
-  }
-  .pflag.yes { background: rgba(62,207,142,.2); color: var(--green); }
-  .pflag.no  { background: rgba(107,117,144,.1); color: #3a3f52; }
-
-  /* ── STATUS HISTORY TOOLTIP ─────────────── */
-  .history-wrap { position: relative; display: inline-block; }
-  .history-trigger {
-    cursor: pointer; text-decoration: underline dotted;
-    color: var(--accent2); font-size: 11px;
-  }
-  .history-popup {
-    display: none;
-    position: absolute; bottom: calc(100% + 6px); left: 0;
-    background: #242938; border: 1px solid var(--border);
-    border-radius: var(--r); padding: 10px 12px;
-    min-width: 220px; z-index: 200;
-    box-shadow: 0 8px 24px rgba(0,0,0,.5);
-  }
-  .history-wrap:hover .history-popup { display: block; }
-  .history-row {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 4px 0; border-bottom: 1px solid var(--border);
-    gap: 10px;
-  }
-  .history-row:last-child { border-bottom: none; }
-  .history-date { font-size: 10px; color: var(--muted); white-space: nowrap; }
-
-  /* ── EMPTY / LOADING ─────────────────────── */
-  .empty {
-    text-align: center; padding: 60px 20px; color: var(--muted);
-  }
-  .empty svg { opacity: .2; margin-bottom: 12px; }
-  .loader {
-    display: flex; align-items: center; justify-content: center;
-    padding: 60px; gap: 10px; color: var(--muted); font-size: 13px;
-  }
-  .spinner {
-    width: 18px; height: 18px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── BREAKDOWN GRID ─────────────────────── */
-  .breakdown-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 12px;
-  }
-  .bk-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--r-lg); padding: 14px 16px;
-  }
-  .bk-label { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
-  .bk-bar-wrap { display: flex; flex-direction: column; gap: 7px; }
-  .bk-row { display: flex; align-items: center; gap: 8px; }
-  .bk-name { font-size: 11px; color: var(--muted); min-width: 60px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
-  .bk-bar-bg { flex: 1; background: var(--border); border-radius: 3px; height: 5px; }
-  .bk-bar-fill { height: 5px; border-radius: 3px; background: var(--accent); }
-  .bk-count { font-size: 11px; font-weight: 700; color: var(--text); min-width: 18px; text-align: right; }
-
-  /* ── TABS ────────────────────────────────── */
-  .tabs { display: flex; gap: 2px; margin-bottom: 20px; }
-  .tab {
-    padding: 8px 18px; border-radius: var(--r);
-    font-size: 12px; font-weight: 600; cursor: pointer;
-    color: var(--muted); background: transparent; border: none;
-    transition: all .15s;
-  }
-  .tab.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
-  .tab:hover:not(.active) { color: var(--text); }
-
-  /* ── STAT UPDATE TIME ───────────────────── */
-  .stat-update {
-    font-size: 9px; color: var(--muted); margin-top: 3px;
-    font-family: var(--font-mono); opacity: .7;
-  }
-
-  /* ── EVENT SELECTOR ─────────────────────── */
-  .event-select {
-    background: var(--card);
-    border: 1px solid var(--accent);
-    color: var(--text);
-    border-radius: var(--r);
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    outline: none;
-    max-width: 260px;
-  }
-  .event-select option { background: var(--card); }
-
-  /* ── RESPONSIVE ─────────────────────────── */
-  @media (max-width: 768px) {
-    .main { padding: 16px; }
-    header { padding: 14px 16px; }
-    .stats { grid-template-columns: repeat(2, 1fr); }
-  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;min-height:100vh;}
+  header{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface);position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo-mark{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),#8a6a3e);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#0d0f14;}
+  .logo-text{font-weight:700;font-size:15px;}
+  .logo-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+  .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .event-select{background:var(--card);border:1px solid var(--accent);color:var(--text);border-radius:var(--r);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;outline:none;max-width:280px;}
+  .event-select option{background:var(--card);}
+  .sync-badge{font-size:11px;color:var(--muted);background:var(--card);border:1px solid var(--border);padding:5px 10px;border-radius:20px;}
+  .sync-badge span{color:var(--green);}
+  #btnRefresh{background:var(--accent);color:#0d0f14;border:none;border-radius:var(--r);padding:7px 15px;font-size:12px;font-weight:700;cursor:pointer;}
+  #btnRefresh:hover{opacity:.85;}
+  .main{padding:22px 28px;max-width:1280px;margin:0 auto;}
+  .tabs{display:flex;gap:2px;margin-bottom:20px;flex-wrap:wrap;}
+  .tab{padding:9px 16px;border-radius:var(--r);font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted);background:transparent;border:1px solid transparent;transition:all .15s;}
+  .tab.active{background:var(--card);color:var(--text);border-color:var(--border);}
+  .tab:hover:not(.active){color:var(--text);}
+  /* STATS */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px;margin-bottom:8px;}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:15px 16px;}
+  .stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;}
+  .stat-val{font-size:25px;font-weight:800;line-height:1;}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:5px;}
+  .stat.accent .stat-val{color:var(--accent);}
+  .stat.green .stat-val{color:var(--green);}
+  .stat.blue .stat-val{color:var(--accent2);}
+  .stat.orange .stat-val{color:var(--orange);}
+  .stat.red .stat-val{color:var(--red);}
+  .stat.purple .stat-val{color:var(--purple);}
+  /* SECTION */
+  .sec-head{display:flex;align-items:center;justify-content:space-between;margin:26px 0 14px;gap:12px;flex-wrap:wrap;}
+  .sec-title{font-size:13px;font-weight:700;letter-spacing:.3px;display:flex;align-items:center;gap:8px;}
+  .sec-title::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;}
+  .sec-note{font-size:11px;color:var(--muted);}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:8px;}
+  /* FUNNEL — horizontal clean */
+  .funnel-h{display:flex;flex-direction:column;gap:2px;}
+  .frow{display:flex;align-items:center;gap:12px;}
+  .frow-label{width:90px;flex-shrink:0;font-size:12px;font-weight:600;text-align:right;}
+  .frow-track{flex:1;height:34px;background:var(--surface);border-radius:6px;position:relative;overflow:hidden;}
+  .frow-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:12px;font-size:13px;font-weight:800;color:#0d0f14;transition:width .5s;min-width:42px;}
+  .frow-pct{width:120px;flex-shrink:0;font-size:11px;color:var(--muted);}
+  .frow-pct b{color:var(--text);font-size:12px;}
+  .fdrop{display:flex;align-items:center;gap:6px;padding:1px 0 1px 102px;height:16px;}
+  .fdrop span{font-size:10px;color:var(--red);}
+  .fdrop .keep{color:var(--green);}
+  /* two col */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:820px){.two-col{grid-template-columns:1fr;}}
+  .chart-box{position:relative;width:100%;height:230px;}
+  /* pie group */
+  .pie-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .pie-unit{text-align:center;}
+  .pie-unit h4{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;}
+  .pie-box{position:relative;width:100%;height:170px;}
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:var(--muted);}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
+  /* table */
+  .tbl-wrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;}
+  thead th{background:var(--surface);padding:10px 13px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
+  tbody tr{border-bottom:1px solid var(--border);}
+  tbody tr:last-child{border-bottom:none;}
+  tbody td{padding:9px 13px;font-size:12.5px;}
+  td.num{text-align:center;font-family:monospace;font-weight:700;}
+  .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;}
+  .b-green{background:rgba(62,207,142,.15);color:var(--green);}
+  .b-orange{background:rgba(245,166,35,.15);color:var(--orange);}
+  .b-red{background:rgba(224,82,82,.15);color:var(--red);}
+  .b-muted{background:rgba(107,117,144,.12);color:var(--muted);}
+  /* nurture cards */
+  .nurture-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  @media(max-width:680px){.nurture-grid{grid-template-columns:1fr;}}
+  .nc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
+  .nc-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
+  .nc-val{font-size:24px;font-weight:800;}
+  .nc-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+  .speed-row{display:flex;gap:24px;flex-wrap:wrap;}
+  .speed-item{flex:1;min-width:120px;}
+  .speed-item .sl{font-size:11px;color:var(--muted);}
+  .speed-item .sv{font-size:22px;font-weight:800;}
+  .placeholder{text-align:center;padding:80px 20px;color:var(--muted);}
+  .placeholder .big{font-size:40px;opacity:.2;margin-bottom:12px;}
+  .loader{display:flex;align-items:center;justify-content:center;padding:50px;gap:10px;color:var(--muted);}
+  .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
-
-<!-- ── HEADER ── -->
 <header>
   <div class="logo">
     <div class="logo-mark">OH</div>
-    <div>
-      <div class="logo-text">Customer Journey</div>
-      <div class="logo-sub">OneHousing · Event Performance Tracker</div>
-    </div>
+    <div><div class="logo-text">Event Performance</div><div class="logo-sub">OneHousing · Conversion Tracker</div></div>
   </div>
   <div class="header-right">
-    <select class="event-select" id="eventSelect" onchange="loadAll()">
-      <option value="">⏳ Đang tải events...</option>
-    </select>
+    <select class="event-select" id="eventSelect" onchange="loadAll()"><option>⏳ Đang tải...</option></select>
     <div class="sync-badge">Sync: <span id="syncTime">—</span></div>
     <button id="btnRefresh" onclick="loadAll()">↻ Refresh</button>
   </div>
 </header>
 
 <div class="main">
-
-  <!-- ── TABS ── -->
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('journey',this)">Customer Journey</button>
-    <button class="tab" onclick="switchTab('breakdown',this)">Breakdown</button>
-    <button class="tab" onclick="switchTab('performance',this)">Performance</button>
+    <button class="tab active" data-tab="overview">1 · Tổng quan</button>
+    <button class="tab" data-tab="showup">2 · Show-up</button>
+    <button class="tab" data-tab="timeline">3 · Timeline T+</button>
+    <button class="tab" data-tab="breakdown">4 · Breakdown</button>
+    <button class="tab" data-tab="ltv">5 · LTV &amp; GMV</button>
   </div>
 
-  <!-- ── STAT STRIP ── -->
-  <div class="stats" id="statStrip">
-    <!-- 1. Tổng đăng ký -->
-    <div class="stat accent">
-      <div class="stat-label">Tổng đăng ký</div>
-      <div class="stat-val" id="st-reg">—</div>
-      <div class="stat-sub">Main guests</div>
+  <!-- TAB 1 -->
+  <div id="t-overview" class="tabpane">
+    <div class="stats" id="statStrip">
+      <div class="stat accent"><div class="stat-label">Tổng đăng ký</div><div class="stat-val" id="st-reg">—</div><div class="stat-sub">Main guests</div></div>
+      <div class="stat green"><div class="stat-label">Check-in</div><div class="stat-val" id="st-ci">—</div><div class="stat-sub" id="st-ci-sub">—</div></div>
+      <div class="stat red"><div class="stat-label">Không đến</div><div class="stat-val" id="st-abs">—</div><div class="stat-sub" id="st-abs-sub">—</div></div>
+      <div class="stat orange"><div class="stat-label">Opp</div><div class="stat-val" id="st-opp">—</div><div class="stat-sub" id="st-opp-sub">—</div></div>
+      <div class="stat purple"><div class="stat-label">SBK</div><div class="stat-val" id="st-sbk">—</div><div class="stat-sub" id="st-sbk-sub">—</div></div>
+      <div class="stat blue"><div class="stat-label">HBK</div><div class="stat-val" id="st-hbk">—</div><div class="stat-sub" id="st-hbk-sub">—</div></div>
+      <div class="stat"><div class="stat-label">GMV tổng</div><div class="stat-val" id="st-gmv" style="font-size:19px;color:var(--accent)">—</div><div class="stat-sub" id="st-gmv-sub">—</div></div>
     </div>
-    <!-- 2. Check-in -->
-    <div class="stat green">
-      <div class="stat-label">Đã check-in</div>
-      <div class="stat-val" id="st-ci">—</div>
-      <div class="stat-sub" id="st-ci-pct">—% tổng đăng ký</div>
-    </div>
-    <!-- 3. Vắng mặt -->
-    <div class="stat red">
-      <div class="stat-label">Vắng mặt</div>
-      <div class="stat-val" id="st-abs">—</div>
-      <div class="stat-sub" id="st-abs-pct">—% tổng đăng ký</div>
-    </div>
-    <!-- 4. HBK chuyển đổi -->
-    <div class="stat blue">
-      <div class="stat-label">HBK chuyển đổi</div>
-      <div class="stat-val" id="st-hbk">—</div>
-      <div class="stat-sub" id="st-hbk-pct">—% CI · —% ĐK</div>
-      <div class="stat-update" id="st-hbk-time"></div>
-    </div>
-    <!-- 5. SBK -->
-    <div class="stat" style="border-color:var(--purple)">
-      <div class="stat-label">SBK</div>
-      <div class="stat-val" id="st-sbk" style="color:var(--purple)">—</div>
-      <div class="stat-sub" id="st-sbk-pct">—% CI · —% ĐK</div>
-      <div class="stat-update" id="st-sbk-time"></div>
-    </div>
-    <!-- 6. OPP -->
-    <div class="stat orange">
-      <div class="stat-label">Opp</div>
-      <div class="stat-val" id="st-opp">—</div>
-      <div class="stat-sub" id="st-opp-pct">—% CI · —% ĐK</div>
-      <div class="stat-update" id="st-opp-time"></div>
-    </div>
-  </div>
 
-  <!-- ── TAB: JOURNEY ── -->
-  <div id="tab-journey">
-    <div class="sec-head" style="margin-top:8px">
-      <div class="sec-title">Tổng quan hành trình</div>
-      <div style="font-size:11px;color:var(--muted)">Xem chi tiết từng khách hàng tại tab Breakdown</div>
+    <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
+    <div class="panel"><div class="funnel-h" id="funnel"><div class="loader"><div class="spinner"></div></div></div></div>
+
+    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note">Đăng ký vs Check-in</div></div>
+    <div class="panel">
+      <div class="pie-pair">
+        <div class="pie-unit"><h4>Toàn bộ đăng ký</h4><div class="pie-box"><canvas id="pieReg" role="img" aria-label="Phân bổ toàn bộ đăng ký"></canvas></div></div>
+        <div class="pie-unit"><h4>Chỉ Check-in</h4><div class="pie-box"><canvas id="pieCI" role="img" aria-label="Phân bổ check-in"></canvas></div></div>
+      </div>
+      <div class="legend" id="pieLegend"></div>
     </div>
-    <div id="journeyChartWrap" style="margin-top:16px"></div>
-  </div>
 
-  <!-- ── TAB: BREAKDOWN ── -->
-  <div id="tab-breakdown" style="display:none">
+    <div class="sec-head"><div class="sec-title">Cơ cấu bucket × Check-in / No-show</div><div class="sec-note">No-show = không đến + cancel</div></div>
+    <div class="panel"><div class="chart-box" style="height:260px"><canvas id="stackBucket" role="img" aria-label="Bucket theo check-in và no-show"></canvas></div></div>
 
-    <!-- Bảng hành trình khách hàng -->
-    <div class="sec-head">
-      <div class="sec-title">Hành trình khách hàng</div>
-      <div class="sec-ctrl">
-        <button class="filter-btn active" onclick="setFilter('all',this)">Tất cả</button>
-        <button class="filter-btn" onclick="setFilter('lead',this)">Lead</button>
-        <button class="filter-btn" onclick="setFilter('meet',this)">Meet</button>
-        <button class="filter-btn" onclick="setFilter('opp',this)">Opp</button>
-        <button class="filter-btn" onclick="setFilter('sbk',this)">SBK</button>
-        <button class="filter-btn" onclick="setFilter('hbk',this)">HBK</button>
-        <button class="filter-btn" onclick="setFilter('drop',this)">Drop</button>
-        <button class="filter-btn" onclick="setFilter('na',this)">N/A</button>
+    <div class="two-col" style="margin-top:8px">
+      <div class="panel">
+        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Thời gian nuôi dưỡng lead trước event</div>
+        <div class="nurture-grid" id="nurtureCards"></div>
+        <div class="sec-note" style="margin-top:12px;line-height:1.5">Mốc tính từ ngày tổ chức (T0). Event thường kickoff trước 14 ngày.</div>
+      </div>
+      <div class="panel">
+        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Tốc độ chuyển đổi sau event (trung vị)</div>
+        <div class="speed-row">
+          <div class="speed-item"><div class="sl">Event → SBK</div><div class="sv" style="color:var(--purple)" id="sp-sbk">—</div></div>
+          <div class="speed-item"><div class="sl">Event → HBK</div><div class="sv" style="color:var(--green)" id="sp-hbk">—</div></div>
+        </div>
+        <div class="sec-note" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK (chỉ tính lead có chuyển đổi).</div>
       </div>
     </div>
-    <div class="search-wrap">
-      <input type="text" id="searchInput" placeholder="Tìm tên, SĐT, PRM, mã KH..." oninput="renderTable()"/>
-    </div>
-    <div class="tbl-wrap" id="tableWrap">
-      <div class="loader"><div class="spinner"></div> Đang tải dữ liệu...</div>
-    </div>
-
-    <!-- Breakdown theo nhóm -->
-    <div class="sec-head"><div class="sec-title">Theo Vùng TCB</div></div>
-    <div class="breakdown-grid" id="bkVung"></div>
-
-    <div class="sec-head"><div class="sec-title">Theo Chi nhánh / PGD</div></div>
-    <div class="breakdown-grid" id="bkUnit"></div>
-
-    <div class="sec-head"><div class="sec-title">Theo SIH (Sales OneHousing)</div></div>
-    <div class="breakdown-grid" id="bkSih"></div>
   </div>
 
-  <!-- ── TAB: PERFORMANCE ── -->
-  <div id="tab-performance" style="display:none">
-    <div class="sec-head"><div class="sec-title">Lead Status phân phối</div></div>
-    <div class="breakdown-grid" id="bkStatus"></div>
+  <!-- Other tabs placeholder -->
+  <div id="t-showup" class="tabpane" style="display:none"><div class="placeholder"><div class="big">②</div>Tab Show-up — sẽ dựng sau khi Mai duyệt Tab 1</div></div>
+  <div id="t-timeline" class="tabpane" style="display:none"><div class="placeholder"><div class="big">③</div>Tab Timeline T+ — sẽ dựng sau</div></div>
+  <div id="t-breakdown" class="tabpane" style="display:none"><div class="placeholder"><div class="big">④</div>Tab Breakdown — sẽ dựng sau</div></div>
+  <div id="t-ltv" class="tabpane" style="display:none"><div class="placeholder"><div class="big">⑤</div>Tab LTV &amp; GMV — sẽ dựng sau</div></div>
+</div>
 
-    <div class="sec-head"><div class="sec-title">Timeline follow-up</div></div>
-    <div class="tbl-wrap" id="perfTableWrap">
-      <div class="loader"><div class="spinner"></div>...</div>
-    </div>
-  </div>
-
-</div><!-- /main -->
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
-// ── CONFIG ─────────────────────────────────────────────────────
+// ══════════════ CONFIG ══════════════
 const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendtYW5jaWVlbWVmY3ZndGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODQyMTksImV4cCI6MjA5NTk2MDIxOX0.WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
-const HDR = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
+const HDR = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY };
+const FORCE_T0_LEAD_EVENT = "mpwg4n7kmy0x"; // event quên log T+0 → force Lead
 
-// ── STATE ───────────────────────────────────────────────────────
-let allGuests   = [];   // từ oh_guests (check-in data)
-let allTracking = [];   // từ oh_tracking (performance data)
-let allEvents   = [];   // từ oh_events
-let merged      = [];   // joined theo name + phone_last4
-let activeFilter = "all";
-let selectedEventId = "";
+// ══════════════ STATE ══════════════
+let allGuests=[], allTracking=[], allEvents=[], merged=[], selectedEventId="", eventT0=null;
+let charts={};
 
-// ── FETCH ───────────────────────────────────────────────────────
-async function sbFetch(table, params = "") {
-  const r = await fetch(`${SB_URL}/rest/v1/${table}?${params}&limit=1000`, { headers: HDR });
-  if (!r.ok) throw new Error(`Supabase ${table}: HTTP ${r.status}`);
+// ══════════════ FETCH ══════════════
+async function sbFetch(table, params=""){
+  const r = await fetch(SB_URL+"/rest/v1/"+table+"?"+params+"&limit=2000",{headers:HDR});
+  if(!r.ok) throw new Error(table+": HTTP "+r.status);
   return r.json();
 }
 
-// ── LOAD EVENTS DROPDOWN ────────────────────────────────────────
-async function loadEvents() {
-  try {
-    allEvents = await sbFetch("oh_events", "select=id,name,date_str&order=date_str.desc");
-    const sel = document.getElementById("eventSelect");
-    sel.innerHTML = '<option value="">— Tất cả events —</option>' +
-      allEvents.map(e =>
-        `<option value="${e.id}">${e.date_str} · ${e.name}</option>`
-      ).join("");
-    // Auto-chọn event mới nhất
-    if (allEvents.length > 0) {
-      sel.value = allEvents[0].id;
-      selectedEventId = allEvents[0].id;
-    }
-  } catch(e) {
-    console.error("Load events failed:", e);
-  }
+// ══════════════ DATE PARSING ══════════════
+// App Script lưu "dd/MM/yyyy" hoặc "dd/MM/yyyy HH:mm:ss" — JS Date không parse được → tự parse
+function parseVNDate(s){
+  if(!s || s==="NO" || typeof s!=="string") return null;
+  const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if(!m) return null;
+  const [_,d,mo,y,h,mi,se] = m;
+  return new Date(+y, +mo-1, +d, +(h||0), +(mi||0), +(se||0));
+}
+function daysBetween(a,b){ // b - a, theo calendar day
+  if(!a||!b) return null;
+  const A=new Date(a.getFullYear(),a.getMonth(),a.getDate());
+  const B=new Date(b.getFullYear(),b.getMonth(),b.getDate());
+  return Math.round((B-A)/86400000);
+}
+function median(arr){
+  const a=arr.filter(x=>x!=null).sort((x,y)=>x-y);
+  if(!a.length) return null;
+  const m=Math.floor(a.length/2);
+  return a.length%2 ? a[m] : Math.round((a[m-1]+a[m])/2);
 }
 
-async function loadAll() {
-  selectedEventId = document.getElementById("eventSelect")?.value || "";
-
-  document.getElementById("tableWrap").innerHTML    = '<div class="loader"><div class="spinner"></div> Đang tải dữ liệu...</div>';
-  document.getElementById("perfTableWrap").innerHTML = '<div class="loader"><div class="spinner"></div>...</div>';
-
-  try {
-    // oh_guests: load tất cả records của event (bao gồm cancelled để hiển thị đúng)
-    const guestParams = selectedEventId
-      ? `select=*&event_id=eq.${selectedEventId}&order=created_at.asc`
-      : `select=*&order=created_at.asc`;
-
-    // oh_tracking: filter theo event_id
-    const trackParams = selectedEventId
-      ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`
-      : `select=*&order=synced_at.desc`;
-
-    // Pull song song 2 tables
-    const [guests, tracking] = await Promise.all([
-      sbFetch("oh_guests", guestParams),
-      sbFetch("oh_tracking", trackParams),
-    ]);
-
-    // Chỉ lấy Main guests (không phải companion)
-    allGuests   = guests.filter(g => !g.companions || !g.name.includes("Đi kèm"));
-    allTracking = tracking;
-
-    // Build tracking lookup: key = name_normalize
-    const trkMap = {};
-    tracking.forEach(t => {
-      const key = normName(t.name) + "|" + (t.phone_last4 || "");
-      trkMap[key] = t;
-      // fallback: chỉ tên
-      if (!trkMap[normName(t.name)]) trkMap[normName(t.name)] = t;
-    });
-
-    // Merge
-    merged = allGuests.map(g => {
-      const key1 = normName(g.name) + "|" + (g.phone || "").slice(-4);
-      const key2 = normName(g.name);
-      const trk  = trkMap[key1] || trkMap[key2] || null;
-      return { ...g, _trk: trk };
-    });
-
-    updateStats();
-    renderJourneyChart();
-    renderTable();
-    renderBreakdowns();
-    renderPerformance();
-
-    document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
-  } catch(e) {
-    document.getElementById("tableWrap").innerHTML =
-      `<div class="empty">❌ Lỗi tải dữ liệu: ${e.message}<br><small>Kiểm tra Supabase key hoặc table name.</small></div>`;
-    console.error(e);
-  }
+// ══════════════ GMV PARSING (số tiền) ══════════════
+function parseGMV(v){
+  if(!v || v==="NO") return 0;
+  let s = String(v).trim().replace(/[,\s]/g,"");
+  // dạng "12.4" (tỷ) hoặc "12400000000" (đồng)
+  const n = parseFloat(s);
+  if(isNaN(n)) return 0;
+  // heuristic: >1 triệu coi là đồng → quy ra tỷ; nhỏ hơn coi là đã tính bằng tỷ
+  return n >= 1e6 ? n/1e9 : n;
+}
+function fmtTy(n){ // format tỷ VND
+  if(!n) return "0";
+  return (Math.round(n*10)/10).toLocaleString("vi-VN");
 }
 
-// ── NORMALIZE ──────────────────────────────────────────────────
-function normName(s) {
-  return (s || "").trim().toUpperCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/Đ/g,"D").replace(/đ/g,"d");
+// ══════════════ NORMALIZE ══════════════
+function normName(s){
+  return (s||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/Đ/g,"D").replace(/đ/g,"d");
 }
 
-// ── JOURNEY FUNNEL CHART ───────────────────────────────────────
-function renderJourneyChart() {
-  const el = document.getElementById("journeyChartWrap");
-  if (!el) return;
-
-  const total = merged.length;
-  const ci    = merged.filter(g => g.checked_in && !g.cancelled).length;
-  const meet  = merged.filter(g => {
-    const lbl = (g._trk?.status_label || "").toLowerCase();
-    const lat = (g._trk?.status_latest || "");
-    return lbl === "meet" || /^[23]\./.test(lat);
-  }).length;
-  const opp = merged.filter(g => hasValue(g._trk?.opp_flag) || (g._trk?.status_label || "") === "Opp").length;
-  const sbk = merged.filter(g => hasValue(g._trk?.sbk)).length;
-  const hbk = merged.filter(g => hasValue(g._trk?.hbk)).length;
-
-  const steps = [
-    { label: "Đăng ký",  val: total, color: "var(--accent2)" },
-    { label: "Check-in", val: ci,    color: "var(--accent)"  },
-    { label: "Meet",     val: meet,  color: "var(--purple)"  },
-    { label: "Opp",      val: opp,   color: "var(--orange)"  },
-    { label: "SBK",      val: sbk,   color: "var(--green)"   },
-    { label: "HBK",      val: hbk,   color: "#3ecf8e"        },
-  ];
-
-  const maxVal = total || 1;
-  let bars = "";
-  steps.forEach(function(s) {
-    const h   = Math.max(Math.round(s.val / maxVal * 140), s.val > 0 ? 20 : 4);
-    const pct = total ? Math.round(s.val / total * 100) : 0;
-    bars += "<div style='flex:1;display:flex;flex-direction:column;align-items:center;gap:6px'>"
-          + "<div style='font-size:13px;font-weight:800;color:var(--text)'>" + s.val + "</div>"
-          + "<div style='width:100%;height:" + h + "px;background:" + s.color + ";border-radius:6px 6px 0 0;opacity:.85;min-height:4px'></div>"
-          + "<div style='font-size:10px;color:var(--muted);text-align:center;line-height:1.3'>" + s.label + "</div>"
-          + "<div style='font-size:10px;color:" + s.color + ";font-weight:700'>" + pct + "%</div>"
-          + "</div>";
-  });
-
-  el.innerHTML = "<div style='display:flex;gap:8px;align-items:flex-end;height:160px;padding:0 4px'>"
-               + bars
-               + "</div>"
-               + "<div style='text-align:center;font-size:10px;color:var(--muted);margin-top:8px'>"
-               + "% tính trên tổng đăng ký &nbsp;·&nbsp; Xem chi tiết từng khách hàng tại tab Breakdown"
-               + "</div>";
-}
-
-// ── STATS ──────────────────────────────────────────────────────
-function pct(n, d) {
-  if (!d) return "0%";
-  return Math.round(n / d * 100) + "%";
-}
-
-function latestSyncTime() {
-  // Lấy synced_at mới nhất từ allTracking
-  if (!allTracking.length) return "";
-  const ts = Math.max(...allTracking.map(t => t.synced_at || 0));
-  if (!ts) return "";
-  return new Date(ts).toLocaleString("vi-VN", { hour:"2-digit", minute:"2-digit", day:"2-digit", month:"2-digit" });
-}
-
-function updateStats() {
-  const total = merged.length;
-  const ci    = merged.filter(g => g.checked_in && !g.cancelled).length;
-  const abs   = merged.filter(g => !g.checked_in && !g.cancelled).length;
-
-  // HBK: có giá trị khác "NO" và không rỗng
-  const hbk = merged.filter(g => {
-    const v = (g._trk?.hbk || "NO").trim();
-    return v !== "NO" && v !== "";
-  }).length;
-
-  // SBK: có giá trị khác "NO" và không rỗng
-  const sbk = merged.filter(g => {
-    const v = (g._trk?.sbk || "NO").trim();
-    return v !== "NO" && v !== "";
-  }).length;
-
-  // OPP: status_label === "Opp" hoặc status_latest chứa "opp"
-  const opp = merged.filter(g => {
-    const lbl = (g._trk?.status_label || "").toLowerCase();
-    const lat = (g._trk?.status_latest || "").toLowerCase();
-    return lbl === "opp" || lat.includes("opp") || lat.startsWith("4.");
-  }).length;
-
-  const syncTime = latestSyncTime();
-  const syncLabel = syncTime ? `Cập nhật ${syncTime}` : "";
-
-  // Set values
-  document.getElementById("st-reg").textContent  = total;
-
-  document.getElementById("st-ci").textContent   = ci;
-  document.getElementById("st-ci-pct").textContent = pct(ci, total) + " tổng ĐK";
-
-  document.getElementById("st-abs").textContent  = abs;
-  document.getElementById("st-abs-pct").textContent = pct(abs, total) + " tổng ĐK";
-
-  document.getElementById("st-hbk").textContent  = hbk;
-  document.getElementById("st-hbk-pct").textContent = pct(hbk, ci) + " CI · " + pct(hbk, total) + " ĐK";
-  document.getElementById("st-hbk-time").textContent = hbk === 0 ? syncLabel : syncLabel;
-
-  document.getElementById("st-sbk").textContent  = sbk;
-  document.getElementById("st-sbk-pct").textContent = pct(sbk, ci) + " CI · " + pct(sbk, total) + " ĐK";
-  document.getElementById("st-sbk-time").textContent = sbk === 0 ? syncLabel : syncLabel;
-
-  document.getElementById("st-opp").textContent  = opp;
-  document.getElementById("st-opp-pct").textContent = pct(opp, ci) + " CI · " + pct(opp, total) + " ĐK";
-  document.getElementById("st-opp-time").textContent = opp === 0 ? syncLabel : syncLabel;
-}
-
-// ── FILTER ─────────────────────────────────────────────────────
-function setFilter(f, el) {
-  activeFilter = f;
-  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-  el.classList.add("active");
-  renderTable();
-}
-
-// ── CLASSIFY helpers ───────────────────────────────────────────
-function hasValue(v) {
-  // true nếu field có giá trị thực (không phải NO / rỗng)
-  return v && String(v).trim() !== "" && String(v).trim() !== "NO";
-}
-
-function classifyStatus(g) {
-  const t = g._trk;
-  if (!t) return "na";
-
-  const lbl = (t.status_label  || "").trim();  // Meet / Opp / Lead
+// ══════════════ CLASSIFY BUCKET ══════════════
+// Lead=1.x | Meet=2.x(trừ 2.1/2.2)+3.x | Drop=2.1/2.2 hoặc drop_flag | Opp=4.x | SBK/HBK theo timestamp
+function classifyBucket(t){
+  if(!t) return "na";
+  const sbk = t.sbk && t.sbk!=="NO";
+  const hbk = t.hbk && t.hbk!=="NO";
+  if(hbk) return "HBK";
+  if(sbk) return "SBK";
+  // Drop
+  const dropFlag = t.drop_flag && t.drop_flag!=="NO";
   const lat = (t.status_latest || t.status_event || "").trim();
-
-  // DROP: ưu tiên cột K (drop_flag) — timestamp lần đầu gặp 2.1/2.2 từ CRM
-  if (hasValue(t.drop_flag)) return "drop";
-  // Fallback: status text bắt đầu 2.1/2.2
-  if (/^2\.[12]/.test(lat)) return "drop";
-
-  // OPP: ưu tiên cột L (opp_flag) — ghi nhận 1 lần từ CRM, không bị ghi đè
-  if (hasValue(t.opp_flag)) return "opp";
-  // Fallback: status_label hoặc bắt đầu "4."
-  if (lbl === "Opp" || /^4\./.test(lat)) return "opp";
-
-  // Meet: label === Meet hoặc bắt đầu "2." hoặc "3."
-  if (lbl === "Meet" || /^[23]\./.test(lat)) return "meet";
-
-  // Lead: label === Lead hoặc bắt đầu "1."
-  if (lbl === "Lead" || /^1\./.test(lat)) return "lead";
-
-  if (!lat) return "na";
+  if(dropFlag || /^2\.[12]\b/.test(lat)) return "Drop";
+  // Opp
+  const oppFlag = t.opp_flag && t.opp_flag!=="NO";
+  if(oppFlag || /^4\./.test(lat) || (t.status_label||"")==="Opp") return "Opp";
+  // Meet = 2.x (trừ 2.1/2.2) hoặc 3.x
+  if(/^3\./.test(lat) || (/^2\./.test(lat) && !/^2\.[12]\b/.test(lat)) || (t.status_label||"")==="Meet") return "Meet";
+  // Lead
+  if(/^1\./.test(lat) || (t.status_label||"")==="Lead") return "Lead";
   return "na";
 }
 
-function filterData() {
-  const q = document.getElementById("searchInput").value.toLowerCase();
-  return merged.filter(g => {
-    // text search
-    const searchable = [g.name, g.phone, g._trk?.prm_name, g._trk?.lead_id,
-                        g._trk?.sih_name, g._trk?.tcb_region, g._trk?.unit]
-      .filter(Boolean).join(" ").toLowerCase();
-    if (q && !searchable.includes(q)) return false;
+const BUCKETS=["Lead","Meet","Opp","SBK","HBK","Drop"];
+const BUCKET_COLOR={Lead:"#6b7590",Meet:"#9b7fe8",Opp:"#f5a623",SBK:"#c9a96e",HBK:"#3ecf8e",Drop:"#e05252"};
 
-    if (activeFilter === "all") return true;
-
-    const cls    = classifyStatus(g);
-    const hasSbk = g._trk?.sbk && g._trk.sbk !== "NO" && g._trk.sbk !== "";
-    const hasHbk = g._trk?.hbk && g._trk.hbk !== "NO" && g._trk.hbk !== "";
-
-    if (activeFilter === "lead") return cls === "lead";
-    if (activeFilter === "meet") return cls === "meet";
-    if (activeFilter === "opp")  return cls === "opp";
-    if (activeFilter === "sbk")  return !!hasSbk;
-    if (activeFilter === "hbk")  return !!hasHbk;
-    if (activeFilter === "drop") return cls === "drop";
-    if (activeFilter === "na")   return cls === "na";
-    return true;
-  });
+// ══════════════ LOAD EVENTS ══════════════
+async function loadEvents(){
+  try{
+    allEvents = await sbFetch("oh_events","select=id,name,date_str&order=date_str.desc");
+    const sel=document.getElementById("eventSelect");
+    sel.innerHTML = allEvents.map(e=>`<option value="${e.id}">${e.date_str||""} · ${e.name||e.id}</option>`).join("");
+    if(allEvents.length){ sel.value=allEvents[0].id; selectedEventId=allEvents[0].id; }
+  }catch(e){ console.error("loadEvents:",e); document.getElementById("eventSelect").innerHTML='<option>⚠ Lỗi tải events</option>'; }
 }
 
-// ── TABLE ──────────────────────────────────────────────────────
-function renderTable() {
-  const rows = filterData();
-  if (!rows.length) {
-    document.getElementById("tableWrap").innerHTML =
-      '<div class="empty">Không có dữ liệu khớp với bộ lọc.</div>';
-    return;
-  }
+// ══════════════ LOAD ALL ══════════════
+async function loadAll(){
+  selectedEventId = document.getElementById("eventSelect")?.value || "";
+  const ev = allEvents.find(e=>e.id===selectedEventId);
+  eventT0 = ev ? parseVNDate(ev.date_str) || parseISODate(ev.date_str) : null;
 
-  const html = `<table>
-    <thead><tr>
-      <th>Khách hàng</th>
-      <th>PRM / Vùng</th>
-      <th>SIH</th>
-      <th>Check-in</th>
-      <th>Hành trình</th>
-      <th>Status hiện tại</th>
-      <th>Performance</th>
-    </tr></thead>
-    <tbody>${rows.map(rowHtml).join("")}</tbody>
-  </table>`;
-  document.getElementById("tableWrap").innerHTML = html;
+  try{
+    const gP = selectedEventId ? `select=*&event_id=eq.${selectedEventId}` : "select=*";
+    const tP = selectedEventId ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc` : "select=*&order=synced_at.desc";
+    const [guests,tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
+
+    allGuests = guests.filter(g=>!g.companions || !(g.name||"").includes("Đi kèm"));
+    allTracking = tracking;
+
+    // tracking lookup
+    const trk={};
+    tracking.forEach(t=>{
+      const k1=normName(t.name)+"|"+(t.phone_last4||"");
+      trk[k1]=t;
+      const k2=normName(t.name);
+      if(!trk[k2]) trk[k2]=t;
+    });
+    merged = allGuests.map(g=>{
+      const k1=normName(g.name)+"|"+(g.phone||"").slice(-4);
+      const k2=normName(g.name);
+      return {...g, _trk: trk[k1]||trk[k2]||null};
+    });
+
+    renderOverview();
+    document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
+  }catch(e){
+    console.error(e);
+    document.getElementById("funnel").innerHTML='<div class="placeholder">❌ Lỗi tải dữ liệu: '+e.message+'</div>';
+  }
+}
+function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(d)?null:d; }
+
+// ══════════════ RENDER TAB 1 ══════════════
+function isCheckedIn(g){ return g.checked_in && !g.cancelled; }
+function isNoShow(g){ return !g.checked_in || g.cancelled; } // không đến + cancel
+
+function renderOverview(){
+  const total = merged.length;
+  const ci    = merged.filter(isCheckedIn).length;
+  const cancel= merged.filter(g=>g.cancelled).length;
+  const abs   = merged.filter(isNoShow).length;
+
+  // buckets (toàn bộ)
+  const bAll={}; BUCKETS.forEach(b=>bAll[b]=0); let na=0;
+  merged.forEach(g=>{ const b=classifyBucket(g._trk); if(bAll[b]!=null)bAll[b]++; else na++; });
+
+  // buckets (chỉ check-in)
+  const bCI={}; BUCKETS.forEach(b=>bCI[b]=0);
+  merged.filter(isCheckedIn).forEach(g=>{ const b=classifyBucket(g._trk); if(bCI[b]!=null)bCI[b]++; });
+
+  const opp = bAll.Opp, sbk=bAll.SBK, hbk=bAll.HBK;
+  // GMV tổng
+  let gmvTotal=0; merged.forEach(g=>{ if(g._trk) gmvTotal += parseGMV(g._trk.gmv); });
+
+  // ── stat cards ──
+  const P=(n,d)=> d? Math.round(n/d*100)+"%":"0%";
+  set("st-reg",total);
+  set("st-ci",ci); set("st-ci-sub",P(ci,total)+" show-up");
+  set("st-abs",abs); set("st-abs-sub",P(abs,total)+" · cancel "+cancel);
+  set("st-opp",opp); set("st-opp-sub",P(opp,ci)+" trên CI");
+  set("st-sbk",sbk); set("st-sbk-sub",P(sbk,ci)+" trên CI");
+  set("st-hbk",hbk); set("st-hbk-sub",P(hbk,ci)+" trên CI");
+  set("st-gmv",fmtTy(gmvTotal)+" tỷ"); set("st-gmv-sub", hbk? "TB "+fmtTy(gmvTotal/hbk)+" tỷ/HBK":"—");
+
+  // ── funnel (Đăng ký→CI→Meet→Opp→SBK→HBK) — cumulative reach ──
+  // Meet+ = đã đạt ít nhất Meet (Meet,Opp,SBK,HBK). Opp+ tương tự
+  const reachMeet = merged.filter(g=>["Meet","Opp","SBK","HBK"].includes(classifyBucket(g._trk))).length;
+  const reachOpp  = merged.filter(g=>["Opp","SBK","HBK"].includes(classifyBucket(g._trk))).length;
+  const reachSBK  = merged.filter(g=>["SBK","HBK"].includes(classifyBucket(g._trk))).length;
+  const reachHBK  = hbk;
+  renderFunnel([
+    {l:"Đăng ký",v:total,c:"#4f9cf9"},
+    {l:"Check-in",v:ci,c:"#c9a96e"},
+    {l:"Meet+",v:reachMeet,c:"#9b7fe8"},
+    {l:"Opp+",v:reachOpp,c:"#f5a623"},
+    {l:"SBK+",v:reachSBK,c:"#c9a96e"},
+    {l:"HBK",v:reachHBK,c:"#3ecf8e"},
+  ], total);
+
+  // ── pies ──
+  renderPies(bAll, bCI);
+
+  // ── stacked bucket × CI/Noshow ──
+  renderStackBucket();
+
+  // ── nurture (tuổi lead) ──
+  renderNurture();
+
+  // ── speed ──
+  renderSpeed();
 }
 
-function rowHtml(g) {
-  const t = g._trk;
+function set(id,v){ const e=document.getElementById(id); if(e)e.textContent=v; }
 
-  // Convert checkin_time UTC → GMT+7
-  function fmtCheckinTime(utcStr) {
-    if (!utcStr) return "Đã vào";
-    const d = new Date(utcStr);
-    // +7 hours
-    const local = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-    const hh = String(local.getUTCHours()).padStart(2,"0");
-    const mm = String(local.getUTCMinutes()).padStart(2,"0");
-    return `${hh}:${mm}`;
-  }
-
-  // Check-in status
-  const ciClass = g.cancelled ? "cancel" : g.checked_in ? "in" : "pending";
-  const ciLabel = g.cancelled
-    ? "Cancel"
-    : g.checked_in
-      ? fmtCheckinTime(g.checkin_time)
-      : "Không đến";
-
-  // Journey steps: Đăng ký → Check-in → Follow-up → Opp
-  const sEv  = (t?.status_event  || "").toLowerCase();
-  const sT1  = (t?.status_t1     || "").toLowerCase();
-  const sNow = (t?.status_latest || "").toLowerCase();
-  const isOpp = sNow.includes("opp") || sEv.includes("opp");
-  const journey = `
-    <div class="journey">
-      <div class="j-step">
-        <div class="j-dot done"></div>
-        <div class="j-label">Đăng ký</div>
-      </div>
-      <div class="j-line ${g.checked_in ? 'done' : ''}"></div>
-      <div class="j-step">
-        <div class="j-dot ${g.checked_in ? 'done' : ''}"></div>
-        <div class="j-label">Check-in</div>
-      </div>
-      <div class="j-line ${sT1 ? 'done' : ''}"></div>
-      <div class="j-step">
-        <div class="j-dot ${sT1 ? (sT1.includes('meet') ? 'active' : 'done') : ''}"></div>
-        <div class="j-label">Follow-up</div>
-      </div>
-      <div class="j-line ${isOpp ? 'done' : ''}"></div>
-      <div class="j-step">
-        <div class="j-dot ${isOpp ? 'active' : ''}"></div>
-        <div class="j-label">Opp</div>
-      </div>
+function renderFunnel(steps,total){
+  const max=total||1;
+  let h="";
+  steps.forEach((s,i)=>{
+    const w=Math.max(s.v/max*100,4);
+    const pc=total?Math.round(s.v/total*100):0;
+    h+=`<div class="frow">
+      <div class="frow-label">${s.l}</div>
+      <div class="frow-track"><div class="frow-fill" style="width:${w}%;background:${s.c}">${s.v}</div></div>
+      <div class="frow-pct"><b>${pc}%</b> trên ĐK</div>
     </div>`;
-
-  // Status badge
-  const statusBadge = t ? statusToBadge(t.status_latest || t.status_event) : '<span class="badge badge-muted">Chưa sync</span>';
-
-  // History tooltip
-  const historyEl = t && t.status_history && t.status_history.length > 0
-    ? `<div class="history-wrap">
-        <span class="history-trigger">${t.status_latest_date || "Lịch sử"}</span>
-        <div class="history-popup">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:700">STATUS HISTORY</div>
-          ${(t.status_history || []).map(h => `
-            <div class="history-row">
-              <span class="history-date">${h.date}</span>
-              ${statusToBadge(h.status)}
-            </div>`).join("")}
-        </div>
-      </div>`
-    : "";
-
-  // Performance flags
-  const perf = t ? `
-    <div class="perf-flags">
-      <div class="pflag ${t.sbk && t.sbk !== 'NO' ? 'yes' : 'no'}" title="SBK">S</div>
-      <div class="pflag ${t.hbk && t.hbk !== 'NO' ? 'yes' : 'no'}" title="HBK">H</div>
-      <div class="pflag ${t.gmv && t.gmv !== 'NO' ? 'yes' : 'no'}" title="GMV">G</div>
-    </div>` : '<span style="color:var(--border)">—</span>';
-
-  return `<tr>
-    <td>
-      <div class="td-name">${g.name}<small>${t?.lead_id || g.guest_code || "—"}</small></div>
-    </td>
-    <td>
-      <div style="font-size:12px">${t?.prm_name || g.prm_name || "—"}</div>
-      <div class="td-mono">${t?.tcb_region || g.tcb_region || ""}${t?.unit ? " · " + t.unit : ""}</div>
-    </td>
-    <td style="font-size:12px">${t?.sih_name || g.sih_name || "—"}</td>
-    <td><div class="ci-dot ${ciClass}">${ciLabel}</div></td>
-    <td>${journey}</td>
-    <td>${statusBadge} ${historyEl}</td>
-    <td>${perf}</td>
-  </tr>`;
-}
-
-function statusToBadge(s) {
-  if (!s) return '<span class="badge badge-muted">—</span>';
-  const sl = s.toLowerCase();
-  if (sl.includes("opp"))    return `<span class="badge badge-gold">${shortStatus(s)}</span>`;
-  if (sl.includes("meet"))   return `<span class="badge badge-blue">${shortStatus(s)}</span>`;
-  if (sl.includes("lead"))   return `<span class="badge badge-muted">${shortStatus(s)}</span>`;
-  if (sl.includes("cancel")) return `<span class="badge badge-red">Cancel</span>`;
-  if (sl.includes("win"))    return `<span class="badge badge-green">Win</span>`;
-  return `<span class="badge badge-muted">${shortStatus(s)}</span>`;
-}
-
-function shortStatus(s) {
-  if (!s) return "—";
-  // Lấy phần chính trước dấu " -" nếu có
-  const m = s.match(/^(\d+\.\d+\s+\w+)/);
-  return m ? m[1] : s.slice(0, 12);
-}
-
-// ── BREAKDOWN ──────────────────────────────────────────────────
-function renderBreakdowns() {
-  renderBkGroup("bkVung",  g => g._trk?.tcb_region || g.tcb_region || "Không xác định");
-  renderBkGroup("bkUnit",  g => g._trk?.unit || g.unit || "Không xác định");
-  renderBkGroup("bkSih",   g => g._trk?.sih_name || g.sih_name || "Không xác định");
-}
-
-function renderBkGroup(elId, keyFn) {
-  const map = {};
-  merged.forEach(g => {
-    const k = keyFn(g);
-    if (!map[k]) map[k] = { total: 0, ci: 0 };
-    map[k].total++;
-    if (g.checked_in) map[k].ci++;
+    if(i<steps.length-1){
+      const next=steps[i+1].v;
+      const keepPct=s.v?Math.round(next/s.v*100):0;
+      h+=`<div class="fdrop"><span class="keep">↓ giữ ${keepPct}%</span><span>· rơi ${100-keepPct}%</span></div>`;
+    }
   });
-
-  const sorted = Object.entries(map).sort((a,b) => b[1].total - a[1].total);
-  const max = sorted[0]?.[1].total || 1;
-
-  const cards = sorted.map(([name, d]) => {
-    const pct = Math.round(d.ci / d.total * 100);
-    return `<div class="bk-card">
-      <div class="bk-label">${name}</div>
-      <div class="bk-bar-wrap">
-        <div class="bk-row">
-          <div class="bk-name" title="Tổng đăng ký">Đăng ký</div>
-          <div class="bk-bar-bg"><div class="bk-bar-fill" style="width:${d.total/max*100}%;background:var(--accent2)"></div></div>
-          <div class="bk-count">${d.total}</div>
-        </div>
-        <div class="bk-row">
-          <div class="bk-name" title="Đã check-in">Check-in</div>
-          <div class="bk-bar-bg"><div class="bk-bar-fill" style="width:${pct}%;background:var(--green)"></div></div>
-          <div class="bk-count">${d.ci}</div>
-        </div>
-      </div>
-    </div>`;
-  });
-
-  document.getElementById(elId).innerHTML = cards.join("") || '<div class="empty">Chưa có dữ liệu.</div>';
+  document.getElementById("funnel").innerHTML=h;
 }
 
-// ── PERFORMANCE TAB ────────────────────────────────────────
-function renderPerformance() {
-  // Status distribution
-  const statusMap = {};
-  merged.forEach(g => {
-    const s = g._trk?.status_latest || g._trk?.status_event || "Chưa có tracking";
-    if (!statusMap[s]) statusMap[s] = 0;
-    statusMap[s]++;
-  });
-  const sorted = Object.entries(statusMap).sort((a,b) => b[1]-a[1]);
-  const max = sorted[0]?.[1] || 1;
-
-  document.getElementById("bkStatus").innerHTML = sorted.map(([s, n]) => `
-    <div class="bk-card">
-      <div class="bk-label">${statusToBadge(s)}</div>
-      <div class="bk-bar-wrap">
-        <div class="bk-row">
-          <div class="bk-name">${s.length > 20 ? s.slice(0,20)+"…" : s}</div>
-          <div class="bk-bar-bg"><div class="bk-bar-fill" style="width:${n/max*100}%"></div></div>
-          <div class="bk-count">${n}</div>
-        </div>
-      </div>
-    </div>`).join("");
-
-  // Performance table
-  const tracked = merged.filter(g => g._trk);
-  if (!tracked.length) {
-    document.getElementById("perfTableWrap").innerHTML = '<div class="empty">Chưa có dữ liệu tracking. Chạy sync từ Google Sheet trước.</div>';
-    return;
-  }
-
-  function flagBadge(val, color) {
-    const has = val && val !== "NO" && val !== "";
-    if (has) return '<span class="badge badge-' + color + '" title="' + val + '">' + val + '</span>';
-    return '<span class="badge badge-muted">—</span>';
-  }
-
-  const rows = tracked.map(g => {
-    const t = g._trk;
-    const syncTime = t.synced_at
-      ? new Date(t.synced_at).toLocaleString("vi-VN", {hour:"2-digit",minute:"2-digit",day:"2-digit",month:"2-digit",year:"2-digit"})
-      : "—";
-    return "<tr>"
-      + "<td><div class=\"td-name\">" + g.name + "<small>" + (t.lead_id || "—") + "</small></div></td>"
-      + "<td style=\"font-size:11px;color:var(--muted)\">" + (t.lead_created_date || "—") + "</td>"
-      + "<td>" + statusToBadge(t.status_event) + "</td>"
-      + "<td>" + statusToBadge(t.status_latest) + "</td>"
-      + "<td>" + flagBadge(t.drop_flag, "orange") + "</td>"
-      + "<td>" + flagBadge(t.opp_flag,  "gold")   + "</td>"
-      + "<td>" + flagBadge(t.sbk,       "purple")  + "</td>"
-      + "<td>" + flagBadge(t.hbk,       "green")   + "</td>"
-      + "<td>" + flagBadge(t.gmv,       "blue")    + "</td>"
-      + "<td style=\"font-size:11px;color:var(--muted)\">" + syncTime + "</td>"
-      + "</tr>";
-  }).join("");
-
-  document.getElementById("perfTableWrap").innerHTML =
-    "<table><thead><tr>"
-    + "<th>Khách hàng</th>"
-    + "<th>Lead Date</th>"
-    + "<th>Status Event</th>"
-    + "<th>Status Mới nhất</th>"
-    + "<th>Drop</th>"
-    + "<th>Opp</th>"
-    + "<th>SBK</th>"
-    + "<th>HBK</th>"
-    + "<th>GMV</th>"
-    + "<th>Sync lúc</th>"
-    + "</tr></thead><tbody>"
-    + rows
-    + "</tbody></table>";
+function renderPies(bAll,bCI){
+  const legend=BUCKETS.map(b=>`<span><i style="background:${BUCKET_COLOR[b]}"></i>${b}</span>`).join("");
+  document.getElementById("pieLegend").innerHTML=legend;
+  const mkPie=(id,data)=>{
+    if(charts[id])charts[id].destroy();
+    charts[id]=new Chart(document.getElementById(id),{type:"doughnut",
+      data:{labels:BUCKETS,datasets:[{data:BUCKETS.map(b=>data[b]),backgroundColor:BUCKETS.map(b=>BUCKET_COLOR[b]),borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"58%",plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>c.label+": "+c.raw}}}}});
+  };
+  mkPie("pieReg",bAll); mkPie("pieCI",bCI);
 }
 
-
-// ── TABS ───────────────────────────────────────────────────────
-function switchTab(name, el) {
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  el.classList.add("active");
-  ["journey","breakdown","performance"].forEach(t => {
-    document.getElementById(`tab-${t}`).style.display = t === name ? "" : "none";
+function renderStackBucket(){
+  const ci={}, ns={};
+  BUCKETS.forEach(b=>{ci[b]=0;ns[b]=0;});
+  merged.forEach(g=>{
+    const b=classifyBucket(g._trk);
+    if(ci[b]==null) return;
+    if(isCheckedIn(g)) ci[b]++; else ns[b]++;
   });
+  if(charts.stack)charts.stack.destroy();
+  const tickC="#6b7590", gridC="rgba(107,117,144,.15)";
+  charts.stack=new Chart(document.getElementById("stackBucket"),{type:"bar",
+    data:{labels:BUCKETS,datasets:[
+      {label:"Check-in",data:BUCKETS.map(b=>ci[b]),backgroundColor:"#3ecf8e",borderRadius:4},
+      {label:"No-show",data:BUCKETS.map(b=>ns[b]),backgroundColor:"#6b7590",borderRadius:4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:"top",labels:{color:tickC,font:{size:11},boxWidth:10}}},
+      scales:{x:{stacked:true,grid:{display:false},ticks:{color:tickC,font:{size:11}}},
+              y:{stacked:true,grid:{color:gridC},ticks:{color:tickC,font:{size:11}},beginAtZero:true}}}});
 }
 
-// ── INIT ───────────────────────────────────────────────────────
-loadEvents().then(() => loadAll());
-setInterval(loadAll, 5 * 60 * 1000);
+function renderNurture(){
+  // tuổi lead = T0 - ngày tạo lead (số ngày trước event)
+  const g3=[], g14=[], gold=[], gnone=[];
+  merged.forEach(g=>{
+    const ld = g._trk ? parseVNDate(g._trk.lead_created_date) : null;
+    if(!ld || !eventT0){ gnone.push(g); return; }
+    const age = daysBetween(ld, eventT0); // >0 nếu lead tạo trước event
+    if(age==null){ gnone.push(g); return; }
+    if(age<=3) g3.push(g);
+    else if(age<=14) g14.push(g);
+    else gold.push(g);
+  });
+  const showup=arr=>arr.length?Math.round(arr.filter(isCheckedIn).length/arr.length*100):0;
+  const cards=[
+    {l:"Mới toanh (≤3 ngày)",n:g3,c:"var(--green)"},
+    {l:"Mới (4–14 ngày)",n:g14,c:"var(--accent)"},
+    {l:"Cũ (>14 ngày)",n:gold,c:"var(--orange)"},
+  ];
+  let h=cards.map(c=>`<div class="nc">
+    <div class="nc-label">${c.l}</div>
+    <div class="nc-val" style="color:${c.c}">${c.n.length}</div>
+    <div class="nc-sub">Show-up ${showup(c.n)}% · CI ${c.n.filter(isCheckedIn).length}</div>
+  </div>`).join("");
+  if(gnone.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Chưa xác định ngày tạo lead</div><div class="nc-val" style="font-size:16px;color:var(--muted)">${gnone.length} KH</div></div>`;
+  document.getElementById("nurtureCards").innerHTML=h;
+}
+
+function renderSpeed(){
+  const sbkDays=[], hbkDays=[];
+  merged.forEach(g=>{
+    if(!g._trk || !eventT0) return;
+    const sd=parseVNDate(g._trk.sbk), hd=parseVNDate(g._trk.hbk);
+    if(sd){ const d=daysBetween(eventT0,sd); if(d!=null&&d>=0) sbkDays.push(d); }
+    if(hd){ const d=daysBetween(eventT0,hd); if(d!=null&&d>=0) hbkDays.push(d); }
+  });
+  const ms=median(sbkDays), mh=median(hbkDays);
+  set("sp-sbk", ms!=null? ms+" ngày":"—");
+  set("sp-hbk", mh!=null? mh+" ngày":"—");
+}
+
+// ══════════════ TABS ══════════════
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.querySelectorAll(".tabpane").forEach(p=>p.style.display="none");
+    document.getElementById("t-"+t.dataset.tab).style.display="";
+  };
+});
+
+// ══════════════ INIT ══════════════
+loadEvents().then(loadAll);
+setInterval(loadAll, 5*60*1000);
 </script>
 </body>
 </html>
