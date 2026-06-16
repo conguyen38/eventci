@@ -307,6 +307,12 @@
   .tab.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
   .tab:hover:not(.active) { color: var(--text); }
 
+  /* ── STAT UPDATE TIME ───────────────────── */
+  .stat-update {
+    font-size: 9px; color: var(--muted); margin-top: 3px;
+    font-family: var(--font-mono); opacity: .7;
+  }
+
   /* ── EVENT SELECTOR ─────────────────────── */
   .event-select {
     background: var(--card);
@@ -361,12 +367,45 @@
 
   <!-- ── STAT STRIP ── -->
   <div class="stats" id="statStrip">
-    <div class="stat accent"><div class="stat-label">Tổng đăng ký</div><div class="stat-val" id="st-reg">—</div><div class="stat-sub">Main guests</div></div>
-    <div class="stat green"><div class="stat-label">Đã check-in</div><div class="stat-val" id="st-ci">—</div><div class="stat-sub">Có mặt tại event</div></div>
-    <div class="stat red"><div class="stat-label">Vắng mặt</div><div class="stat-val" id="st-abs">—</div><div class="stat-sub">Đăng ký không đến</div></div>
-    <div class="stat blue"><div class="stat-label">Có tracking</div><div class="stat-val" id="st-trk">—</div><div class="stat-sub">Đã match Sheet</div></div>
-    <div class="stat orange"><div class="stat-label">Opp</div><div class="stat-val" id="st-opp">—</div><div class="stat-sub">Lead status hiện tại</div></div>
-    <div class="stat"><div class="stat-label">SBK</div><div class="stat-val" id="st-sbk" style="color:var(--purple)">—</div><div class="stat-sub">Sổ booking</div></div>
+    <!-- 1. Tổng đăng ký -->
+    <div class="stat accent">
+      <div class="stat-label">Tổng đăng ký</div>
+      <div class="stat-val" id="st-reg">—</div>
+      <div class="stat-sub">Main guests</div>
+    </div>
+    <!-- 2. Check-in -->
+    <div class="stat green">
+      <div class="stat-label">Đã check-in</div>
+      <div class="stat-val" id="st-ci">—</div>
+      <div class="stat-sub" id="st-ci-pct">—% tổng đăng ký</div>
+    </div>
+    <!-- 3. Vắng mặt -->
+    <div class="stat red">
+      <div class="stat-label">Vắng mặt</div>
+      <div class="stat-val" id="st-abs">—</div>
+      <div class="stat-sub" id="st-abs-pct">—% tổng đăng ký</div>
+    </div>
+    <!-- 4. HBK chuyển đổi -->
+    <div class="stat blue">
+      <div class="stat-label">HBK chuyển đổi</div>
+      <div class="stat-val" id="st-hbk">—</div>
+      <div class="stat-sub" id="st-hbk-pct">—% CI · —% ĐK</div>
+      <div class="stat-update" id="st-hbk-time"></div>
+    </div>
+    <!-- 5. SBK -->
+    <div class="stat" style="border-color:var(--purple)">
+      <div class="stat-label">SBK</div>
+      <div class="stat-val" id="st-sbk" style="color:var(--purple)">—</div>
+      <div class="stat-sub" id="st-sbk-pct">—% CI · —% ĐK</div>
+      <div class="stat-update" id="st-sbk-time"></div>
+    </div>
+    <!-- 6. OPP -->
+    <div class="stat orange">
+      <div class="stat-label">Opp</div>
+      <div class="stat-val" id="st-opp">—</div>
+      <div class="stat-sub" id="st-opp-pct">—% CI · —% ĐK</div>
+      <div class="stat-update" id="st-opp-time"></div>
+    </div>
   </div>
 
   <!-- ── TAB: JOURNEY ── -->
@@ -519,23 +558,66 @@ function normName(s) {
 }
 
 // ── STATS ──────────────────────────────────────────────────────
-function updateStats() {
-  const total   = merged.length;
-  const ci      = merged.filter(g => g.checked_in).length;
-  const abs     = total - ci;
-  const hasTrack= merged.filter(g => g._trk).length;
-  const opp     = merged.filter(g => {
-    const s = (g._trk?.status_latest || g._trk?.status_event || "").toLowerCase();
-    return s.includes("opp");
-  }).length;
-  const sbk = merged.filter(g => g._trk?.sbk === "YES" || g._trk?.sbk === "2026" || (g._trk?.sbk && g._trk.sbk !== "NO")).length;
+function pct(n, d) {
+  if (!d) return "0%";
+  return Math.round(n / d * 100) + "%";
+}
 
+function latestSyncTime() {
+  // Lấy synced_at mới nhất từ allTracking
+  if (!allTracking.length) return "";
+  const ts = Math.max(...allTracking.map(t => t.synced_at || 0));
+  if (!ts) return "";
+  return new Date(ts).toLocaleString("vi-VN", { hour:"2-digit", minute:"2-digit", day:"2-digit", month:"2-digit" });
+}
+
+function updateStats() {
+  const total = merged.length;
+  const ci    = merged.filter(g => g.checked_in && !g.cancelled).length;
+  const abs   = merged.filter(g => !g.checked_in && !g.cancelled).length;
+
+  // HBK: có giá trị khác "NO" và không rỗng
+  const hbk = merged.filter(g => {
+    const v = (g._trk?.hbk || "NO").trim();
+    return v !== "NO" && v !== "";
+  }).length;
+
+  // SBK: có giá trị khác "NO" và không rỗng
+  const sbk = merged.filter(g => {
+    const v = (g._trk?.sbk || "NO").trim();
+    return v !== "NO" && v !== "";
+  }).length;
+
+  // OPP: status_label === "Opp" hoặc status_latest chứa "opp"
+  const opp = merged.filter(g => {
+    const lbl = (g._trk?.status_label || "").toLowerCase();
+    const lat = (g._trk?.status_latest || "").toLowerCase();
+    return lbl === "opp" || lat.includes("opp") || lat.startsWith("4.");
+  }).length;
+
+  const syncTime = latestSyncTime();
+  const syncLabel = syncTime ? `Cập nhật ${syncTime}` : "";
+
+  // Set values
   document.getElementById("st-reg").textContent  = total;
+
   document.getElementById("st-ci").textContent   = ci;
+  document.getElementById("st-ci-pct").textContent = pct(ci, total) + " tổng ĐK";
+
   document.getElementById("st-abs").textContent  = abs;
-  document.getElementById("st-trk").textContent  = hasTrack;
-  document.getElementById("st-opp").textContent  = opp;
+  document.getElementById("st-abs-pct").textContent = pct(abs, total) + " tổng ĐK";
+
+  document.getElementById("st-hbk").textContent  = hbk;
+  document.getElementById("st-hbk-pct").textContent = pct(hbk, ci) + " CI · " + pct(hbk, total) + " ĐK";
+  document.getElementById("st-hbk-time").textContent = hbk === 0 ? syncLabel : syncLabel;
+
   document.getElementById("st-sbk").textContent  = sbk;
+  document.getElementById("st-sbk-pct").textContent = pct(sbk, ci) + " CI · " + pct(sbk, total) + " ĐK";
+  document.getElementById("st-sbk-time").textContent = sbk === 0 ? syncLabel : syncLabel;
+
+  document.getElementById("st-opp").textContent  = opp;
+  document.getElementById("st-opp-pct").textContent = pct(opp, ci) + " CI · " + pct(opp, total) + " ĐK";
+  document.getElementById("st-opp-time").textContent = opp === 0 ? syncLabel : syncLabel;
 }
 
 // ── FILTER ─────────────────────────────────────────────────────
