@@ -237,25 +237,62 @@ function normName(s){
   return (s||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/Đ/g,"D").replace(/đ/g,"d");
 }
 
-// ══════════════ CLASSIFY BUCKET ══════════════
-// Lead=1.x | Meet=2.x(trừ 2.1/2.2)+3.x | Drop=2.1/2.2 hoặc drop_flag | Opp=4.x | SBK/HBK theo timestamp
+// ══════════════ MAIN GUEST FILTER ══════════════
+// Performance chỉ tính trên Main, loại Companion
+function isMainGuest(g){
+  const t = String(g.type||"").trim().toLowerCase();
+  // Nếu có cột type rõ ràng → chỉ lấy "main"
+  if(t) return t==="main";
+  // Fallback (record cũ không có type): loại theo tên "đi kèm"
+  return !(g.name||"").toLowerCase().includes("đi kèm");
+}
+
+// ══════════════ CLASSIFY ══════════════
+// Helper: field có timestamp thật (≠ NO/rỗng)
+function hasTs(v){ return v && String(v).trim()!=="" && String(v).trim().toUpperCase()!=="NO"; }
+
+// ── CỜ TÍCH LŨY (cộng dồn, độc lập) — cho stat card & phễu ──
+// Nguồn sự thật: timestamp cột L/M/N, ghi 1 lần từ CRM
+function flagOpp(t){ return !!t && hasTs(t.opp_flag); }   // cột L
+function flagSBK(t){ return !!t && hasTs(t.sbk); }        // cột M
+function flagHBK(t){ return !!t && hasTs(t.hbk); }        // cột N
+function flagDrop(t){
+  if(!t) return false;
+  if(hasTs(t.drop_flag)) return true;                     // cột K
+  const lat=(t.status_latest||t.status_event||"").trim();
+  return /^2\.[12]\b/.test(lat);
+}
+
+// ── STAGE CAO NHẤT (cho Pie/stacked) ──
+// Khác bucket status: nếu có cờ SBK/HBK thì hiển thị ở lát đó (giai đoạn xa nhất đã đạt)
+// Drop vẫn ưu tiên tuyệt đối (lead đã drop thì không tính tiến trình)
+function classifyStage(t){
+  if(!t) return "na";
+  if(flagDrop(t)) return "Drop";
+  if(flagHBK(t)) return "HBK";
+  if(flagSBK(t)) return "SBK";
+  if(flagOpp(t)) return "Opp";
+  // chưa có cờ chuyển đổi → theo status hiện tại
+  const b=classifyBucket(t);
+  return b==="Opp"?"Opp":b; // bucket Opp theo 4.x vẫn là Opp
+}
+// "lead đang ở đâu trên thang status", KHÔNG phụ thuộc cờ SBK/HBK
 function classifyBucket(t){
   if(!t) return "na";
-  const sbk = t.sbk && t.sbk!=="NO";
-  const hbk = t.hbk && t.hbk!=="NO";
-  if(hbk) return "HBK";
-  if(sbk) return "SBK";
-  // Drop
-  const dropFlag = t.drop_flag && t.drop_flag!=="NO";
-  const lat = (t.status_latest || t.status_event || "").trim();
-  if(dropFlag || /^2\.[12]\b/.test(lat)) return "Drop";
-  // Opp
-  const oppFlag = t.opp_flag && t.opp_flag!=="NO";
-  if(oppFlag || /^4\./.test(lat) || (t.status_label||"")==="Opp") return "Opp";
-  // Meet = 2.x (trừ 2.1/2.2) hoặc 3.x
-  if(/^3\./.test(lat) || (/^2\./.test(lat) && !/^2\.[12]\b/.test(lat)) || (t.status_label||"")==="Meet") return "Meet";
-  // Lead
-  if(/^1\./.test(lat) || (t.status_label||"")==="Lead") return "Lead";
+  const lat=(t.status_latest||t.status_event||"").trim();
+  // Drop ưu tiên cao nhất
+  if(flagDrop(t)) return "Drop";
+  // Opp = status hiện tại 4.x
+  if(/^4\./.test(lat)) return "Opp";
+  // Meet = 3.x hoặc 2.x (trừ 2.1/2.2)
+  if(/^3\./.test(lat) || (/^2\./.test(lat) && !/^2\.[12]\b/.test(lat))) return "Meet";
+  // Lead = 1.x
+  if(/^1\./.test(lat)) return "Lead";
+  // Fallback theo label nếu status text trống
+  const lbl=(t.status_label||"").trim();
+  if(lbl==="Opp") return "Opp";
+  if(lbl==="Meet") return "Meet";
+  if(lbl==="Lead") return "Lead";
   return "na";
 }
 
@@ -283,7 +320,7 @@ async function loadAll(){
     const tP = selectedEventId ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc` : "select=*&order=synced_at.desc";
     const [guests,tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
 
-    allGuests = guests.filter(g=>!g.companions || !(g.name||"").includes("Đi kèm"));
+    allGuests = guests.filter(isMainGuest);
     allTracking = tracking;
 
     // tracking lookup
@@ -319,15 +356,17 @@ function renderOverview(){
   const cancel= merged.filter(g=>g.cancelled).length;
   const abs   = merged.filter(isNoShow).length;
 
-  // buckets (toàn bộ)
+  // buckets HIỆN TẠI (stage cao nhất, loại trừ) — cho Pie/stacked
   const bAll={}; BUCKETS.forEach(b=>bAll[b]=0); let na=0;
-  merged.forEach(g=>{ const b=classifyBucket(g._trk); if(bAll[b]!=null)bAll[b]++; else na++; });
-
-  // buckets (chỉ check-in)
+  merged.forEach(g=>{ const b=classifyStage(g._trk); if(bAll[b]!=null)bAll[b]++; else na++; });
   const bCI={}; BUCKETS.forEach(b=>bCI[b]=0);
-  merged.filter(isCheckedIn).forEach(g=>{ const b=classifyBucket(g._trk); if(bCI[b]!=null)bCI[b]++; });
+  merged.filter(isCheckedIn).forEach(g=>{ const b=classifyStage(g._trk); if(bCI[b]!=null)bCI[b]++; });
 
-  const opp = bAll.Opp, sbk=bAll.SBK, hbk=bAll.HBK;
+  // CỜ TÍCH LŨY (cộng dồn) — cho stat card & phễu
+  const opp = merged.filter(g=>flagOpp(g._trk)).length;
+  const sbk = merged.filter(g=>flagSBK(g._trk)).length;
+  const hbk = merged.filter(g=>flagHBK(g._trk)).length;
+
   // GMV tổng
   let gmvTotal=0; merged.forEach(g=>{ if(g._trk) gmvTotal += parseGMV(g._trk.gmv); });
 
@@ -341,12 +380,17 @@ function renderOverview(){
   set("st-hbk",hbk); set("st-hbk-sub",P(hbk,ci)+" trên CI");
   set("st-gmv",fmtTy(gmvTotal)+" tỷ"); set("st-gmv-sub", hbk? "TB "+fmtTy(gmvTotal/hbk)+" tỷ/HBK":"—");
 
-  // ── funnel (Đăng ký→CI→Meet→Opp→SBK→HBK) — cumulative reach ──
-  // Meet+ = đã đạt ít nhất Meet (Meet,Opp,SBK,HBK). Opp+ tương tự
-  const reachMeet = merged.filter(g=>["Meet","Opp","SBK","HBK"].includes(classifyBucket(g._trk))).length;
-  const reachOpp  = merged.filter(g=>["Opp","SBK","HBK"].includes(classifyBucket(g._trk))).length;
-  const reachSBK  = merged.filter(g=>["SBK","HBK"].includes(classifyBucket(g._trk))).length;
-  const reachHBK  = hbk;
+  // ── funnel — cờ tích lũy (cộng dồn) ──
+  // Meet+ = đã đạt ít nhất Meet: bucket hiện tại Meet/Opp HOẶC có cờ Opp/SBK/HBK
+  const reachMeet = merged.filter(g=>{
+    const b=classifyBucket(g._trk);
+    return b==="Meet"||b==="Opp"||flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk);
+  }).length;
+  const reachOpp = merged.filter(g=>{
+    return flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk)||classifyBucket(g._trk)==="Opp";
+  }).length;
+  const reachSBK = merged.filter(g=>flagSBK(g._trk)||flagHBK(g._trk)).length;
+  const reachHBK = hbk;
   renderFunnel([
     {l:"Đăng ký",v:total,c:"#4f9cf9"},
     {l:"Check-in",v:ci,c:"#c9a96e"},
@@ -408,7 +452,7 @@ function renderStackBucket(){
   const ci={}, ns={};
   BUCKETS.forEach(b=>{ci[b]=0;ns[b]=0;});
   merged.forEach(g=>{
-    const b=classifyBucket(g._trk);
+    const b=classifyStage(g._trk);
     if(ci[b]==null) return;
     if(isCheckedIn(g)) ci[b]++; else ns[b]++;
   });
@@ -427,12 +471,13 @@ function renderStackBucket(){
 
 function renderNurture(){
   // tuổi lead = T0 - ngày tạo lead (số ngày trước event)
-  const g3=[], g14=[], gold=[], gnone=[];
+  const g3=[], g14=[], gold=[], gNoTrk=[], gNoDate=[];
   merged.forEach(g=>{
-    const ld = g._trk ? parseVNDate(g._trk.lead_created_date) : null;
-    if(!ld || !eventT0){ gnone.push(g); return; }
-    const age = daysBetween(ld, eventT0); // >0 nếu lead tạo trước event
-    if(age==null){ gnone.push(g); return; }
+    if(!g._trk){ gNoTrk.push(g); return; }          // Main nhưng không match tracking
+    const ld = parseVNDate(g._trk.lead_created_date);
+    if(!ld || !eventT0){ gNoDate.push(g); return; }  // có tracking nhưng thiếu/lỗi ngày
+    const age = daysBetween(ld, eventT0);
+    if(age==null){ gNoDate.push(g); return; }
     if(age<=3) g3.push(g);
     else if(age<=14) g14.push(g);
     else gold.push(g);
@@ -448,7 +493,8 @@ function renderNurture(){
     <div class="nc-val" style="color:${c.c}">${c.n.length}</div>
     <div class="nc-sub">Show-up ${showup(c.n)}% · CI ${c.n.filter(isCheckedIn).length}</div>
   </div>`).join("");
-  if(gnone.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Chưa xác định ngày tạo lead</div><div class="nc-val" style="font-size:16px;color:var(--muted)">${gnone.length} KH</div></div>`;
+  if(gNoTrk.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Main chưa match tracking (chưa có lead trên hệ thống / lệch tên-SĐT)</div><div class="nc-val" style="font-size:16px;color:var(--muted)">${gNoTrk.length} KH</div></div>`;
+  if(gNoDate.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Có tracking nhưng thiếu/lỗi ngày tạo lead</div><div class="nc-val" style="font-size:16px;color:var(--orange)">${gNoDate.length} KH</div></div>`;
   document.getElementById("nurtureCards").innerHTML=h;
 }
 
