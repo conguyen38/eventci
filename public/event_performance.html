@@ -136,11 +136,15 @@
       <div class="stat blue"><div class="stat-label">HBK</div><div class="stat-val" id="st-hbk">—</div><div class="stat-sub" id="st-hbk-sub">—</div></div>
       <div class="stat"><div class="stat-label">GMV tổng</div><div class="stat-val" id="st-gmv" style="font-size:19px;color:var(--accent)">—</div><div class="stat-sub" id="st-gmv-sub">—</div></div>
     </div>
+    <!-- Sync timeline bar — cùng format với sec-note bên dưới -->
+    <div style="display:flex;align-items:center;justify-content:flex-end;margin:6px 0 18px;font-size:11px;color:var(--muted)">
+      Tất cả 7 chỉ số trên cùng timeline: <span id="note-stats" style="margin-left:6px">—</span>
+    </div>
 
-    <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
+    <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note" id="note-funnel">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
     <div class="panel"><div class="funnel-h" id="funnel"><div class="loader"><div class="spinner"></div></div></div></div>
 
-    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · 1 KH đếm 1 lần (Lead/Meet/Drop) hoặc theo cờ (Opp/SBK/HBK)</div></div>
+    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note" id="note-pie">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · 1 KH đếm 1 lần (Lead/Meet/Drop) hoặc theo cờ (Opp/SBK/HBK)</div></div>
     <div class="panel" style="padding:20px 16px">
       <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;">
         <!-- filled by renderPies() -->
@@ -163,7 +167,7 @@
           <div class="speed-item"><div class="sl">Event → SBK</div><div class="sv" style="color:var(--purple)" id="sp-sbk">—</div></div>
           <div class="speed-item"><div class="sl">Event → HBK</div><div class="sv" style="color:var(--green)" id="sp-hbk">—</div></div>
         </div>
-        <div class="sec-note" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK (chỉ tính lead có chuyển đổi).</div>
+        <div class="sec-note" id="note-speed" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK (chỉ tính lead có chuyển đổi).</div>
       </div>
     </div>
   </div>
@@ -441,6 +445,34 @@ function renderOverview(){
 
   // GMV tổng
   let gmvTotal=0; merged.forEach(g=>{ if(g._trk) gmvTotal += parseGMV(g._trk.gmv); });
+
+  // ── TÍNH LAST SYNC & T+ ──────────────────────────────────
+  // lastSync = synced_at lớn nhất trong allTracking (epoch ms)
+  let lastSyncMs = 0;
+  allTracking.forEach(t=>{ if((t.synced_at||0)>lastSyncMs) lastSyncMs=t.synced_at; });
+  const lastSyncDate = lastSyncMs ? new Date(lastSyncMs) : null;
+  const lastSyncLabel = lastSyncDate
+    ? lastSyncDate.toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})
+    : "—";
+  // T+ = số ngày calendar từ T0 đến lastSync
+  const tPlusDays = (lastSyncDate && eventT0)
+    ? daysBetween(eventT0, lastSyncDate)
+    : null;
+  const tPlusLabel = tPlusDays!=null && tPlusDays>=0
+    ? `T+${tPlusDays}`
+    : tPlusDays!=null && tPlusDays<0
+      ? `T${tPlusDays}` // trước event
+      : "—";
+  const syncNote = lastSyncMs
+    ? `<span style="color:var(--accent2);font-weight:700">${tPlusLabel}</span> · cập nhật lúc ${lastSyncLabel}`
+    : "—";
+
+  // Inject vào sec-note của các bảng có data thay đổi theo thời gian
+  const setNote=(id,txt)=>{ const e=document.getElementById(id); if(e) e.innerHTML=txt; };
+  setNote("note-stats",  syncNote);
+  setNote("note-funnel", `% trên tổng đăng ký · mức rơi rớt mỗi tầng · ${syncNote}`);
+  setNote("note-pie",    `Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · ${syncNote}`);
+  setNote("note-speed",  `Trung vị ngày từ T0 → SBK/HBK · ${syncNote}`);
 
   // ── stat cards ──
   const P=(n,d)=> d? Math.round(n/d*100)+"%":"0%";
