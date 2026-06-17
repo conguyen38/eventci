@@ -62,12 +62,10 @@
   /* two col */
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:820px){.two-col{grid-template-columns:1fr;}}
-  .chart-box{position:relative;width:100%;height:230px;}
   /* pie group */
   .pie-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .pie-unit{text-align:center;}
   .pie-unit h4{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;}
-  .pie-box{position:relative;width:100%;height:170px;}
   /* legend */
   .legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:var(--muted);}
   .legend span{display:flex;align-items:center;gap:5px;}
@@ -76,14 +74,17 @@
   .tbl-wrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--border);}
   table{width:100%;border-collapse:collapse;}
   thead th{background:var(--surface);padding:10px 13px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
-  tbody tr{border-bottom:1px solid var(--border);}
+  thead th.num{text-align:center;}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
   tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:rgba(255,255,255,.03);}
   tbody td{padding:9px 13px;font-size:12.5px;}
   td.num{text-align:center;font-family:monospace;font-weight:700;}
   .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;}
   .b-green{background:rgba(62,207,142,.15);color:var(--green);}
   .b-orange{background:rgba(245,166,35,.15);color:var(--orange);}
   .b-red{background:rgba(224,82,82,.15);color:var(--red);}
+  .b-blue{background:rgba(79,156,249,.15);color:var(--accent2);}
   .b-muted{background:rgba(107,117,144,.12);color:var(--muted);}
   /* nurture cards */
   .nurture-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
@@ -101,6 +102,52 @@
   .loader{display:flex;align-items:center;justify-content:center;padding:50px;gap:10px;color:var(--muted);}
   .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ══ TAB 2 DETAIL STYLES ══ */
+  /* Dimension tabs */
+  .dim-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+  .dim-tab{padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;color:var(--muted);background:var(--surface);border:1px solid var(--border);transition:all .15s;}
+  .dim-tab.active{background:var(--accent);color:#0d0f14;border-color:var(--accent);}
+  .dim-tab:hover:not(.active){color:var(--text);border-color:var(--accent2);}
+
+  /* ══ STACKED BAR — status breakdown ══ */
+  .d2-bar-section{margin-bottom:8px;}
+  .d2-bar-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:12px;}
+  .d2-bar-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .d2-bar-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+  .d2-bar-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;justify-content:flex-end;}
+  .d2-bar-leg{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .d2-bar-leg-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
+  .d2-bar-leg-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+  .d2-bar-sep{width:1px;height:14px;background:var(--border);flex-shrink:0;}
+  .d2-bar-filters{display:flex;gap:4px;flex-wrap:wrap;align-items:center;}
+  .d2-bar-btn{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;display:flex;align-items:center;gap:4px;white-space:nowrap;}
+  .d2-bar-btn:hover{color:var(--text);border-color:var(--accent2);}
+  .d2-bar-btn.on{color:#0d0f14;border-color:transparent;}
+  .d2-bar-btn-all{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);border:1px solid var(--border);transition:all .12s;white-space:nowrap;}
+  .d2-bar-btn-all:hover{color:var(--text);}
+  .d2-bar-btn-all.on{background:var(--accent);color:#0d0f14;border-color:var(--accent);}
+  .d2-bar-divider{width:1px;height:14px;background:var(--border);margin:0 1px;flex-shrink:0;}
+  .d2-bar-dot-sm{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  /* Nested pie grid */
+  .d2-pie-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px;}
+  .d2-pie-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;}
+  .d2-stage-lbl{font-size:13px;font-weight:700;}
+  .d2-stage-cnt{font-size:11px;color:var(--muted);margin-top:-4px;}
+  .d2-pie-wrap{position:relative;width:140px;height:140px;flex-shrink:0;}
+  .d2-pie-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;}
+  .d2-pct{font-size:16px;font-weight:800;line-height:1.2;}
+  .d2-pct-lbl{font-size:10px;color:var(--muted);}
+  .d2-br{width:100%;margin-top:4px;}
+  .d2-br-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid rgba(42,48,69,.5);}
+  .d2-br-row:last-child{border-bottom:none;}
+  .d2-br-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .d2-br-lbl{font-size:11px;color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .d2-br-val{font-size:11px;font-weight:700;color:var(--text);width:20px;text-align:right;flex-shrink:0;}
+  .d2-br-pct{font-size:10px;color:var(--muted);width:32px;text-align:right;flex-shrink:0;}
+  .d2-legend{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+  .d2-leg-item{display:flex;align-items:center;gap:5px;}
+  .d2-leg-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -132,14 +179,16 @@
       <button style="width:100%; background:var(--accent); color:#0d0f14; border:none; border-radius:var(--r); padding:10px 15px; font-size:13px; font-weight:700; cursor:pointer;" onclick="checkEventPassword()">Xem báo cáo →</button>
     </div>
   </div>
+
   <div class="tabs">
     <button class="tab active" data-tab="overview">1 · Tổng quan</button>
-    <button class="tab" data-tab="showup">2 · Show-up</button>
+    <button class="tab" data-tab="detail">2 · Detail</button>
     <button class="tab" data-tab="timeline">3 · Timeline T+</button>
     <button class="tab" data-tab="breakdown">4 · Breakdown</button>
     <button class="tab" data-tab="ltv">5 · LTV &amp; GMV</button>
   </div>
 
+  <!-- ══════════════ TAB 1: TỔNG QUAN ══════════════ -->
   <div id="t-overview" class="tabpane">
     <div class="stats" id="statStrip">
       <div class="stat accent"><div class="stat-label">Tổng đăng ký</div><div class="stat-val" id="st-reg">—</div><div class="stat-sub">Main guests</div></div>
@@ -157,10 +206,9 @@
     <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note" id="note-funnel">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
     <div class="panel"><div class="funnel-h" id="funnel"><div class="loader"><div class="spinner"></div></div></div></div>
 
-    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note" id="note-pie">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · 1 KH đếm 1 lần (Lead/Meet/Drop) hoặc theo cờ (Opp/SBK/HBK)</div></div>
+    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note" id="note-pie">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in</div></div>
     <div class="panel" style="padding:20px 16px">
-      <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;">
-        </div>
+      <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;"></div>
       <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted)">
         <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(107,117,144,.9);display:inline-block"></span>Vòng ngoài: % toàn bộ ĐK</span>
         <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(79,156,249,.7);display:inline-block"></span>Vòng trong: % Check-in only</span>
@@ -179,29 +227,102 @@
           <div class="speed-item"><div class="sl">Event → SBK</div><div class="sv" style="color:var(--purple)" id="sp-sbk">—</div></div>
           <div class="speed-item"><div class="sl">Event → HBK</div><div class="sv" style="color:var(--green)" id="sp-hbk">—</div></div>
         </div>
-        <div class="sec-note" id="note-speed" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK (chỉ tính lead có chuyển đổi).</div>
+        <div class="sec-note" id="note-speed" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK.</div>
       </div>
     </div>
   </div>
 
-  <div id="t-showup" class="tabpane" style="display:none"><div class="placeholder"><div class="big">②</div>Tab Show-up — sẽ dựng sau khi Mai duyệt Tab 1</div></div>
+  <!-- ══════════════ TAB 2: DETAIL ══════════════ -->
+  <div id="t-detail" class="tabpane" style="display:none">
+
+    <!-- ── Stacked bar: status breakdown ── -->
+    <div class="d2-bar-section" id="detailBarSection">
+      <div class="d2-bar-card" id="dbc-region">
+        <div class="d2-bar-head">
+          <div class="d2-bar-title">Performance theo Vùng TCB</div>
+          <div class="d2-bar-ctrl">
+            <div class="d2-bar-leg" id="dbleg-region"></div>
+            <div class="d2-bar-sep"></div>
+            <div class="d2-bar-filters" id="dbflt-region"></div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:120px">
+          <canvas id="dbc-cvRegion" role="img" aria-label="Stacked bar vùng TCB theo conversion status"></canvas>
+        </div>
+      </div>
+      <div class="d2-bar-card" id="dbc-branch">
+        <div class="d2-bar-head">
+          <div class="d2-bar-title">Performance theo Chi nhánh TCB</div>
+          <div class="d2-bar-ctrl">
+            <div class="d2-bar-leg" id="dbleg-branch"></div>
+            <div class="d2-bar-sep"></div>
+            <div class="d2-bar-filters" id="dbflt-branch"></div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:320px" id="dbc-branch-wrap">
+          <canvas id="dbc-cvBranch" role="img" aria-label="Stacked bar chi nhánh theo conversion status"></canvas>
+        </div>
+      </div>
+      <div class="d2-bar-card" id="dbc-sih">
+        <div class="d2-bar-head">
+          <div class="d2-bar-title">Performance theo SIH</div>
+          <div class="d2-bar-ctrl">
+            <div class="d2-bar-leg" id="dbleg-sih"></div>
+            <div class="d2-bar-sep"></div>
+            <div class="d2-bar-filters" id="dbflt-sih"></div>
+          </div>
+        </div>
+        <div style="position:relative;width:100%;height:320px" id="dbc-sih-wrap">
+          <canvas id="dbc-cvSih" role="img" aria-label="Stacked bar SIH theo conversion status"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimension selector — controls both bar + pie below -->
+    <div class="sec-head" style="margin-top:20px">
+      <div class="sec-title">Performance theo chiều phân tích</div>
+      <div class="sec-note" id="note-detail">Chọn chiều để cập nhật cả 2 biểu đồ phía trên và nested pie bên dưới</div>
+    </div>
+    <div class="dim-tabs">
+      <button class="dim-tab active" data-dim="region" onclick="switchDim('region',this)">Theo Vùng TCB</button>
+      <button class="dim-tab" data-dim="branch" onclick="switchDim('branch',this)">Theo Chi nhánh TCB</button>
+      <button class="dim-tab" data-dim="sih" onclick="switchDim('sih',this)">Theo SIH</button>
+    </div>
+
+    <!-- ── Section divider ── -->
+    <div class="sec-head" style="margin-top:4px"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note">Nested pie · Layer 1 = % stage / tổng ĐK · Layer 2 = contribution từng nhóm</div></div>
+
+    <!-- Nested pie grid -->
+    <div class="panel" id="detailPiePanel" style="padding:18px 20px 20px">
+      <div id="detailPieGrid" class="d2-pie-grid"></div>
+      <div id="detailLegend" class="d2-legend"></div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ TABS 3-5 PLACEHOLDER ══════════════ -->
   <div id="t-timeline" class="tabpane" style="display:none"><div class="placeholder"><div class="big">③</div>Tab Timeline T+ — sẽ dựng sau</div></div>
   <div id="t-breakdown" class="tabpane" style="display:none"><div class="placeholder"><div class="big">④</div>Tab Breakdown — sẽ dựng sau</div></div>
   <div id="t-ltv" class="tabpane" style="display:none"><div class="placeholder"><div class="big">⑤</div>Tab LTV &amp; GMV — sẽ dựng sau</div></div>
-</div>
+
+</div><!-- /.main -->
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 // ══════════════ CONFIG ══════════════
 const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendtYW5jaWVlbWVmY3ZndGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODQyMTksImV4cCI6MjA5NTk2MDIxOX0.WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
-const HDR = { "apikey": SB_KEY, "Authorization": "Bearer "+SB_KEY };
-const FORCE_T0_LEAD_EVENT = "mpwg4n7kmy0x"; // event quên log T+0 → force Lead
+const HDR = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY };
 
 // ══════════════ STATE ══════════════
 let allGuests=[], allTracking=[], allEvents=[], merged=[], selectedEventId="", eventT0=null;
 let charts={};
-let unlockedEvs = {}; // Thêm dòng này để lưu trạng thái mở khoá
+let unlockedEvs={};
+
+// Column mapping state (persisted in sessionStorage)
+let colMap = { region:"", branch:"", sih:"" };
+let detectedCols = []; // all unique column names from both tables
+let currentDim = "region";
 
 // ══════════════ FETCH ══════════════
 async function sbFetch(table, params=""){
@@ -211,57 +332,31 @@ async function sbFetch(table, params=""){
 }
 
 // ══════════════ DATE PARSING ══════════════
-// App Script fmtDate() output: "dd/MM/yyyy" hoặc "dd/MM/yyyy HH:mm:ss"
-// GG Sheet raw có thể: "MM/dd/yyyy", timestamp ms
-// Guard: nếu value bắt đầu bằng 'M' (dạng lead_id 'M261...') → bị swap cột → return null
 function parseVNDate(s){
   if(!s || s==="NO" || s==="") return null;
   const str = String(s).trim();
-
-  // Guard: lead_id bị swap vào lead_created_date
   if(/^M\d+/i.test(str)) return null;
-
-  // Timestamp ms dạng số
   if(/^\d{10,}$/.test(str)){
     const d = new Date(parseInt(str));
     return isNaN(d.getTime()) ? null : d;
   }
-
-  // ISO date: yyyy-MM-dd
   if(/^\d{4}-\d{2}-\d{2}/.test(str)){
     const d = new Date(str);
     return isNaN(d.getTime()) ? null : d;
   }
-
-  // Match dd/MM/yyyy hoặc MM/dd/yyyy
-  // Dạng: có ít nhất 1 separator / hoặc -
   const m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
   if(!m) return null;
-
   const [_, p1, p2, y, h, mi, se] = m;
   const n1 = parseInt(p1), n2 = parseInt(p2);
-
-  // Phân biệt dd/MM vs MM/dd:
-  // Nếu p1 > 12 → chắc chắn là ngày (dd/MM/yyyy)
-  // Nếu p2 > 12 → chắc chắn là tháng trước (MM/dd/yyyy — nhưng App Script KHÔNG dùng format này)
-  // Nếu cả 2 ≤ 12 → App Script luôn output dd/MM → ưu tiên dd/MM
   let day, month;
-  if(n1 > 12){
-    // p1 là ngày, p2 là tháng: dd/MM/yyyy
-    day = n1; month = n2;
-  } else if(n2 > 12){
-    // p1 là tháng, p2 là ngày: MM/dd/yyyy (GG Sheet raw)
-    month = n1; day = n2;
-  } else {
-    // Ambiguous: App Script output là dd/MM → mặc định dd/MM
-    day = n1; month = n2;
-  }
-
-  if(month < 1 || month > 12 || day < 1 || day > 31) return null;
-  const d = new Date(parseInt(y), month-1, day, +(h||0), +(mi||0), +(se||0));
+  if(n1 > 12){ day=n1; month=n2; }
+  else if(n2 > 12){ month=n1; day=n2; }
+  else { day=n1; month=n2; }
+  if(month<1||month>12||day<1||day>31) return null;
+  const d = new Date(parseInt(y),month-1,day,+(h||0),+(mi||0),+(se||0));
   return isNaN(d.getTime()) ? null : d;
 }
-function daysBetween(a,b){ // b - a, theo calendar day
+function daysBetween(a,b){
   if(!a||!b) return null;
   const A=new Date(a.getFullYear(),a.getMonth(),a.getDate());
   const B=new Date(b.getFullYear(),b.getMonth(),b.getDate());
@@ -273,79 +368,52 @@ function median(arr){
   const m=Math.floor(a.length/2);
   return a.length%2 ? a[m] : Math.round((a[m-1]+a[m])/2);
 }
-
-// ══════════════ GMV PARSING (số tiền) ══════════════
 function parseGMV(v){
   if(!v || v==="NO") return 0;
-  let s = String(v).trim().replace(/[,\s]/g,"");
-  // dạng "12.4" (tỷ) hoặc "12400000000" (đồng)
-  const n = parseFloat(s);
+  let s=String(v).trim().replace(/[,\s]/g,"");
+  const n=parseFloat(s);
   if(isNaN(n)) return 0;
-  // heuristic: >1 triệu coi là đồng → quy ra tỷ; nhỏ hơn coi là đã tính bằng tỷ
-  return n >= 1e6 ? n/1e9 : n;
+  return n>=1e6 ? n/1e9 : n;
 }
-function fmtTy(n){ // format tỷ VND
+function fmtTy(n){
   if(!n) return "0";
   return (Math.round(n*10)/10).toLocaleString("vi-VN");
 }
-
-// ══════════════ NORMALIZE ══════════════
 function normName(s){
   return (s||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/Đ/g,"D").replace(/đ/g,"d");
 }
-
-// ══════════════ MAIN GUEST FILTER ══════════════
-// Performance chỉ tính trên Main, loại Companion
 function isMainGuest(g){
-  const t = String(g.type||"").trim().toLowerCase();
-  // Nếu có cột type rõ ràng → chỉ lấy "main"
+  const t=String(g.type||"").trim().toLowerCase();
   if(t) return t==="main";
-  // Fallback (record cũ không có type): loại theo tên "đi kèm"
   return !(g.name||"").toLowerCase().includes("đi kèm");
 }
 
-// ══════════════ CLASSIFY ══════════════
-// Helper: field có timestamp thật (≠ NO/rỗng)
+// ══════════════ CLASSIFY FLAGS ══════════════
 function hasTs(v){ return v && String(v).trim()!=="" && String(v).trim().toUpperCase()!=="NO"; }
-
-// ── CỜ TÍCH LŨY (cộng dồn, độc lập) — cho stat card & phễu ──
-// Nguồn sự thật: timestamp cột L/M/N, ghi 1 lần từ CRM
-function flagOpp(t){ return !!t && hasTs(t.opp_flag); }   // cột L
-function flagSBK(t){ return !!t && hasTs(t.sbk); }        // cột M
-function flagHBK(t){ return !!t && hasTs(t.hbk); }        // cột N
+function flagOpp(t){ return !!t && hasTs(t.opp_flag); }
+function flagSBK(t){ return !!t && hasTs(t.sbk); }
+function flagHBK(t){ return !!t && hasTs(t.hbk); }
 function flagDrop(t){
   if(!t) return false;
-  if(hasTs(t.drop_flag)) return true;                     // cột K
+  if(hasTs(t.drop_flag)) return true;
   const lat=(t.status_latest||t.status_event||"").trim();
   return /^2\.[12]\b/.test(lat);
 }
-
-// ── STAGE CAO NHẤT (cho Pie/stacked) ──
-// Khác bucket status: nếu có cờ SBK/HBK thì hiển thị ở lát đó (giai đoạn xa nhất đã đạt)
-// Drop vẫn ưu tiên tuyệt đối (lead đã drop thì không tính tiến trình)
 function classifyStage(t){
   if(!t) return "na";
   if(flagDrop(t)) return "Drop";
   if(flagHBK(t)) return "HBK";
   if(flagSBK(t)) return "SBK";
   if(flagOpp(t)) return "Opp";
-  // chưa có cờ chuyển đổi → theo status hiện tại
-  const b=classifyBucket(t);
-  return b==="Opp"?"Opp":b; // bucket Opp theo 4.x vẫn là Opp
+  return classifyBucket(t);
 }
-// "lead đang ở đâu trên thang status", KHÔNG phụ thuộc cờ SBK/HBK
 function classifyBucket(t){
   if(!t) return "na";
   const lat=(t.status_latest||t.status_event||"").trim();
-  // Drop ưu tiên cao nhất
   if(flagDrop(t)) return "Drop";
-  // Opp = status hiện tại 4.x
   if(/^4\./.test(lat)) return "Opp";
-  // Meet = 3.x hoặc 2.x (trừ 2.1/2.2)
-  if(/^3\./.test(lat) || (/^2\./.test(lat) && !/^2\.[12]\b/.test(lat))) return "Meet";
-  // Lead = 1.x
+  if(/^3\./.test(lat)||(/^2\./.test(lat)&&!/^2\.[12]\b/.test(lat))) return "Meet";
   if(/^1\./.test(lat)) return "Lead";
-  // Fallback theo label nếu status text trống
   const lbl=(t.status_label||"").trim();
   if(lbl==="Opp") return "Opp";
   if(lbl==="Meet") return "Meet";
@@ -353,44 +421,491 @@ function classifyBucket(t){
   return "na";
 }
 
-const BUCKETS=["Lead","Meet","Opp","SBK","HBK","Drop"];
-const BUCKET_COLOR={Lead:"#6b7590",Meet:"#9b7fe8",Opp:"#f5a623",SBK:"#c9a96e",HBK:"#3ecf8e",Drop:"#e05252"};
+// ══════════════ COLUMN AUTO-DETECT ══════════════
+// Keywords gợi ý cho từng dimension
+const DIM_KEYWORDS = {
+  region: ["tcb_region","region","vung","area","zone","khu_vuc","khuvuc"],
+  branch: ["unit","branch","chi_nhanh","chinhanh","tcb_branch","phong"],
+  sih:    ["sih_name","prm_name","sih","prm","sale","nhan_vien","consultant","rm","advisor"]
+};
 
-// ══════════════ GATE CHECKIN LOGIC ══════════════
-function checkEventPassword(){
-  const evId = document.getElementById('eventSelect').value;
-  const ev = allEvents.find(e=>e.id===evId);
-  if(!ev) return;
-  const pw = document.getElementById('lockPwInput').value || '';
-  if(pw !== ev.event_pw){
-    document.getElementById('lockErr').textContent = 'Mật khẩu không đúng.';
-    const inp = document.getElementById('lockPwInput');
-    inp.value=''; inp.focus();
+function detectCols(rows){
+  // Lấy tất cả keys từ rows (bỏ qua keys hệ thống)
+  const SYSTEM = new Set(["id","created_at","updated_at","synced_at","event_id","guest_id","checked_in","cancelled","type","phone","email","name","note","qr_code","opp_flag","sbk","hbk","drop_flag","status_latest","status_event","status_label","lead_created_date","gmv","status_history","phone_last4","lead_id"]);
+  const keys = new Set();
+  rows.forEach(r => Object.keys(r).forEach(k => { if(!SYSTEM.has(k)) keys.add(k); }));
+  return Array.from(keys).sort();
+}
+
+function autoMatch(cols){
+  const match = { region:"", branch:"", sih:"" };
+  for(const [dim, kws] of Object.entries(DIM_KEYWORDS)){
+    for(const col of cols){
+      const c = col.toLowerCase().replace(/[\s\-]/g,"_");
+      if(kws.some(k => c.includes(k.replace(/[\s\-]/g,"_")))){
+        match[dim] = col;
+        break;
+      }
+    }
+  }
+  return match;
+}
+
+
+
+// ══════════════ GET FIELD VALUE (guest + tracking) ══════════════
+// Ưu tiên: oh_guests → oh_tracking (fallback)
+function getField(g, col){
+  if(!col) return "";
+  const fromGuest = g[col];
+  if(fromGuest !== undefined && fromGuest !== null && fromGuest !== "") return String(fromGuest).trim();
+  const t = g._trk;
+  if(t){
+    const fromTrk = t[col];
+    if(fromTrk !== undefined && fromTrk !== null && fromTrk !== "") return String(fromTrk).trim();
+  }
+  return "";
+}
+
+// ══════════════ AGGREGATE BY DIMENSION ══════════════
+// aggregateBy: giữ nguyên cho các nơi khác có thể dùng
+function aggregateBy(col){
+  const map = {};
+  merged.forEach(g => {
+    const val = getField(g, col) || "(Chưa có)";
+    if(!map[val]) map[val] = {label:val, reg:0, ci:0, opp:0, sbk:0, hbk:0, drop:0};
+    const row = map[val];
+    row.reg++;
+    if(g.checked_in && !g.cancelled) row.ci++;
+    const t = g._trk;
+    if(flagOpp(t)) row.opp++;
+    if(flagSBK(t)) row.sbk++;
+    if(flagHBK(t)) row.hbk++;
+    if(flagDrop(t)) row.drop++;
+  });
+  return Object.values(map).sort((a,b) => b.reg - a.reg);
+}
+
+// ══════════════ RENDER TAB 2: DETAIL — NESTED PIE ══════════════
+const D2_STAGES = [
+  {key:'meet', label:'Meet',  color:'#9b7fe8'},
+  {key:'opp',  label:'Opp',   color:'#f5a623'},
+  {key:'sbk',  label:'SBK',   color:'#c9a96e'},
+  {key:'hbk',  label:'HBK',   color:'#3ecf8e'},
+  {key:'lead', label:'Lead',  color:'#6b7590'},
+  {key:'drop', label:'Drop',  color:'#e05252'},
+];
+const D2_LAYER1  = '#8896b0';   // màu layer 1 thống nhất
+const D2_EMPTY   = 'rgba(42,48,69,0.55)';
+
+// Tập hợp counts theo stage cho 1 dimension
+function buildStageCounts(colKey){
+  // result: [{groupLabel, color}, ...] và counts[stageKey] = [v0,v1,...]
+  const groups = []; // {label, color}
+  const groupIdx = {};
+  const counts = {};
+  D2_STAGES.forEach(s => counts[s.key] = []);
+
+  merged.forEach(g => {
+    const grp = getField(g, colKey) || "(Chưa có)";
+    if(groupIdx[grp] === undefined){
+      groupIdx[grp] = groups.length;
+      groups.push({label: grp});
+      D2_STAGES.forEach(s => counts[s.key].push(0));
+    }
+    const i = groupIdx[grp];
+    const t = g._trk;
+    if(!t) return; // không có tracking → bỏ
+    const stage = classifyStage(t);
+    const bucket = classifyBucket(t);
+    if(stage==="na"||bucket==="na") return; // status không xác định → bỏ
+    if(stage === "Drop")                          counts.drop[i]++;
+    else if(stage === "HBK")                      counts.hbk[i]++;
+    else if(stage === "SBK")                      counts.sbk[i]++;
+    else if(stage === "Opp" || bucket === "Opp")  counts.opp[i]++;
+    else if(bucket === "Meet")                    counts.meet[i]++;
+    else if(bucket === "Lead")                    counts.lead[i]++;
+  });
+
+  // Assign colors dựa theo thứ tự group
+  const PALETTE = ['#4f9cf9','#f5a623','#3ecf8e','#9b7fe8','#e05252','#c9a96e','#7bb8fb','#f7bc5a','#5dcaa5','#d4a0f7'];
+  groups.forEach((g,i) => { g.color = PALETTE[i % PALETTE.length]; });
+  return {groups, counts};
+}
+
+// ══════════════ STACKED BAR — STATUS BREAKDOWN ══════════════
+const DB_STAGES = [
+  {key:'lead', label:'Lead', color:'#6b7590'},
+  {key:'meet', label:'Meet', color:'#9b7fe8'},
+  {key:'opp',  label:'Opp',  color:'#f5a623'},
+  {key:'sbk',  label:'SBK',  color:'#c9a96e'},
+  {key:'hbk',  label:'HBK',  color:'#3ecf8e'},
+  {key:'drop', label:'Drop', color:'#e05252'},
+];
+
+const DB_CANVAS = {region:'dbc-cvRegion', branch:'dbc-cvBranch', sih:'dbc-cvSih'};
+const dbCharts  = {};
+const dbSelected = {region: new Set(), branch: new Set(), sih: new Set()};
+
+const DB_BAR_LABEL_PLUGIN = {
+  id:'dbBarLabels',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    chart.data.datasets.forEach((ds, di)=>{
+      const meta = chart.getDatasetMeta(di);
+      if(meta.hidden) return;
+      meta.data.forEach((bar, i)=>{
+        const raw = ds._raw ? ds._raw[i] : 0;
+        if(!raw) return;
+        // base = left edge of this segment, x = right edge → center = (base+x)/2
+        const props = bar.getProps(['base','x','y'], true);
+        const segW  = Math.abs(props.x - props.base);
+        if(segW < 20) return;
+        const cx = (props.base + props.x) / 2;
+        ctx.save();
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(raw, cx, props.y);
+        ctx.restore();
+      });
+    });
+  }
+};
+
+function dbActiveStages(dim){
+  const sel = dbSelected[dim];
+  return sel.size === 0 ? DB_STAGES : DB_STAGES.filter(s => sel.has(s.key));
+}
+
+function dbBuildLegend(dim){
+  const el = document.getElementById('dbleg-'+dim);
+  if(!el) return;
+  el.innerHTML = dbActiveStages(dim).map(s =>
+    `<span class="d2-bar-leg-item"><span class="d2-bar-leg-dot" style="background:${s.color}"></span>${s.label}</span>`
+  ).join('');
+}
+
+function dbBuildFilters(dim){
+  const el = document.getElementById('dbflt-'+dim);
+  if(!el) return;
+  const sel = dbSelected[dim];
+  const allOn = sel.size === 0;
+  let h = `<button class="d2-bar-btn-all${allOn?' on':''}" onclick="dbClickAll('${dim}',this)">Tất cả</button>`;
+  h += `<span class="d2-bar-divider"></span>`;
+  DB_STAGES.forEach(s => {
+    const on = sel.has(s.key);
+    h += `<button class="d2-bar-btn${on?' on':''}"
+      style="${on?`background:${s.color};border-color:${s.color};`:''}color:${on?'#0d0f14':'var(--muted)'}"
+      onclick="dbClickStage('${dim}','${s.key}',this)">
+      <span class="d2-bar-dot-sm" style="background:${on?'rgba(255,255,255,.7)':s.color}"></span>${s.label}
+    </button>`;
+  });
+  el.innerHTML = h;
+}
+
+function dbClickAll(dim, btn){
+  dbSelected[dim].clear();
+  dbBuildFilters(dim);
+  dbUpdateChart(dim);
+}
+
+function dbClickStage(dim, key, btn){
+  const sel = dbSelected[dim];
+  if(sel.has(key)) sel.delete(key); else sel.add(key);
+  if(sel.size === DB_STAGES.length) sel.clear();
+  dbBuildFilters(dim);
+  dbUpdateChart(dim);
+}
+
+// Aggregate data from merged for stacked bar
+function dbAggregate(colKey){
+  const groups = [], gIdx = {};
+  const counts = {};
+  DB_STAGES.forEach(s => counts[s.key] = []);
+  const totals = [];
+
+  merged.forEach(g => {
+    const grp = getField(g, colKey) || "(Chưa có)";
+    if(gIdx[grp] === undefined){
+      gIdx[grp] = groups.length;
+      groups.push(grp);
+      DB_STAGES.forEach(s => counts[s.key].push(0));
+      totals.push(0);
+    }
+    const i = gIdx[grp];
+    totals[i]++;
+    const t = g._trk;
+    if(!t){ return; } // KH chưa có tracking → bỏ qua, không tính vào stage nào
+    const stage = classifyStage(t);
+    const bucket = classifyBucket(t);
+    if(stage==="na"||bucket==="na")              return; // không rõ stage → bỏ
+    if(stage==="Drop")                           counts.drop[i]++;
+    else if(stage==="HBK")                       counts.hbk[i]++;
+    else if(stage==="SBK")                       counts.sbk[i]++;
+    else if(stage==="Opp"||bucket==="Opp")       counts.opp[i]++;
+    else if(bucket==="Meet")                     counts.meet[i]++;
+    else if(bucket==="Lead")                     counts.lead[i]++;
+    // else: stage không xác định → bỏ qua
+  });
+
+  // Sort groups by total desc
+  const order = groups.map((_,i)=>i).sort((a,b)=>totals[b]-totals[a]);
+  return {
+    labels:  order.map(i=>groups[i]),
+    totals:  order.map(i=>totals[i]),
+    counts:  Object.fromEntries(DB_STAGES.map(s=>([s.key, order.map(i=>counts[s.key][i])]))),
+  };
+}
+
+function dbBuildDatasets(dim, data){
+  const stages = dbActiveStages(dim);
+  return stages.map(s => ({
+    label: s.label,
+    data:  data.totals.map((tot,i) => tot ? Math.round(data.counts[s.key][i]/tot*100) : 0),
+    backgroundColor: s.color,
+    borderWidth: 0,
+    barPercentage: 0.72,
+    categoryPercentage: 0.85,
+    _raw: data.counts[s.key],
+    _tot: data.totals,
+  }));
+}
+
+function dbUpdateChart(dim){
+  const colKey = {region:colMap.region, branch:colMap.branch, sih:colMap.sih}[dim];
+  if(!colKey || merged.length===0) return;
+  const data = dbAggregate(colKey);
+  const datasets = dbBuildDatasets(dim, data);
+  if(dbCharts[dim]){
+    dbCharts[dim].data.datasets = datasets;
+    dbCharts[dim].update();
+  }
+  dbBuildLegend(dim);
+}
+
+function renderDetailBars(){
+  const DIMS = ['region','branch','sih'];
+  DIMS.forEach(dim => {
+    const colKey = {region:colMap.region, branch:colMap.branch, sih:colMap.sih}[dim];
+    const elId   = DB_CANVAS[dim];
+    const el     = document.getElementById(elId);
+    if(!el || !colKey || merged.length===0) return;
+
+    const data     = dbAggregate(colKey);
+    const nGroups  = data.labels.length;
+    const datasets = dbBuildDatasets(dim, data);
+
+    // Adjust wrap height based on number of groups
+    const wrapId = {region:null, branch:'dbc-branch-wrap', sih:'dbc-sih-wrap'}[dim];
+    if(wrapId){
+      const wrap = document.getElementById(wrapId);
+      if(wrap) wrap.style.height = Math.max(nGroups*44+60, 200)+'px';
+    }
+
+    if(dbCharts[dim]){ dbCharts[dim].destroy(); delete dbCharts[dim]; }
+
+    dbCharts[dim] = new Chart(el, {
+      type: 'bar',
+      data: {labels: data.labels, datasets},
+      options:{
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            label: ctx => {
+              const raw = ctx.dataset._raw[ctx.dataIndex];
+              const tot = ctx.dataset._tot[ctx.dataIndex];
+              const p   = tot ? Math.round(raw/tot*100) : 0;
+              return ` ${ctx.dataset.label}: ${raw} KH (${p}%)`;
+            }
+          }}
+        },
+        scales:{
+          x:{stacked:true, min:0, max:100,
+            ticks:{callback:v=>v+'%', font:{size:11}, color:'#6b7590', maxTicksLimit:11},
+            grid:{color:'rgba(42,48,69,.6)'}, border:{display:false}},
+          y:{stacked:true,
+            ticks:{font:{size:12}, color:'#e8eaf0'},
+            grid:{display:false}, border:{display:false}}
+        },
+        animation:{duration:220},
+      },
+      plugins:[DB_BAR_LABEL_PLUGIN],
+    });
+
+    dbBuildFilters(dim);
+    dbBuildLegend(dim);
+  });
+}
+
+function renderDetailPies(dim){
+  const colKey = {region:colMap.region, branch:colMap.branch, sih:colMap.sih}[dim] || "";
+  const grid   = document.getElementById("detailPieGrid");
+  const legend = document.getElementById("detailLegend");
+
+  if(!colKey){
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted);font-size:12px">Chưa mapping cột cho chiều này.<br>Chọn cột ở ô Mapping bên trên → nhấn <b>Áp dụng</b>.</div>`;
+    legend.innerHTML = "";
     return;
   }
-  // Mở khoá thành công
-  unlockedEvs[evId] = true;
-  
-  // Cập nhật lại dropdown (xoá icon 🔒 của event hiện tại)
-  const sel = document.getElementById('eventSelect');
-  Array.from(sel.options).forEach(opt => {
-    if(opt.value === evId) opt.text = opt.text.replace(' 🔒', '');
+
+  const {groups, counts} = buildStageCounts(colKey);
+  const total = merged.length || 1;
+
+  // Destroy old charts
+  D2_STAGES.forEach(s => {
+    const cid = "d2c_" + s.key;
+    if(charts[cid]){ charts[cid].destroy(); delete charts[cid]; }
   });
-  
-  // Kích hoạt lại việc tải dữ liệu
+
+  // Build cards HTML
+  grid.innerHTML = D2_STAGES.map(s => {
+    const raw        = counts[s.key];
+    const stageTotal = raw.reduce((a,b)=>a+b, 0);
+    const stagePct   = Math.round(stageTotal / total * 100);
+    const brRows     = groups.map((g,i) => ({label:g.label, val:raw[i], color:g.color}))
+                             .filter(r => r.val > 0)
+                             .sort((a,b) => b.val - a.val);
+    return `<div class="d2-pie-card">
+      <div class="d2-stage-lbl" style="color:${s.color}">${s.label}</div>
+      <div class="d2-stage-cnt">${stageTotal} KH · ${stagePct}% ĐK</div>
+      <div class="d2-pie-wrap">
+        <canvas id="d2c_${s.key}" width="140" height="140" role="img"
+          aria-label="Nested pie ${s.label}: ${stageTotal} KH, ${stagePct}%"></canvas>
+        <div class="d2-pie-center">
+          <span class="d2-pct" style="color:${s.color}">${stagePct}%</span>
+          <span class="d2-pct-lbl">/ ĐK</span>
+        </div>
+      </div>
+      <div class="d2-br">
+        ${brRows.length === 0
+          ? `<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px 0;opacity:.5">Không có dữ liệu</div>`
+          : brRows.map(r => {
+              const pct = stageTotal > 0 ? Math.round(r.val/stageTotal*100) : 0;
+              return `<div class="d2-br-row">
+                <span class="d2-br-dot" style="background:${r.color}"></span>
+                <span class="d2-br-lbl" title="${r.label}">${r.label}</span>
+                <span class="d2-br-val">${r.val}</span>
+                <span class="d2-br-pct">${pct}%</span>
+              </div>`;
+            }).join('')
+        }
+      </div>
+    </div>`;
+  }).join('');
+
+  // Legend
+  legend.innerHTML = groups.map(g =>
+    `<span class="d2-leg-item"><span class="d2-leg-dot" style="background:${g.color}"></span>${g.label}</span>`
+  ).join('');
+
+  // Draw charts after DOM ready
+  // Chart.js global: start at 12 o'clock, clockwise
+  Chart.overrides.doughnut.rotation = -90;
+  Chart.overrides.doughnut.circumference = 360;
+
+  requestAnimationFrame(() => {
+    D2_STAGES.forEach(s => {
+      const raw        = counts[s.key];
+      const stageTotal = raw.reduce((a,b)=>a+b, 0);
+      const stageFrac  = stageTotal / total;
+      const el = document.getElementById("d2c_" + s.key);
+      if(!el) return;
+
+      // Layer 1: outer — 1 màu xám thống nhất = stageFrac, phần còn lại empty
+      const outerDs = {
+        data: [stageFrac, 1 - stageFrac],
+        backgroundColor: [D2_LAYER1, D2_EMPTY],
+        borderWidth: 0,
+        weight: 1.6,
+      };
+
+      // Layer 2: inner — mỗi group chiếm (v/total), tổng = stageFrac
+      // phần empty = 1 - stageFrac → 2 vòng align khớp hoàn toàn
+      const innerBgs = [...groups.map(g=>g.color), D2_EMPTY];
+      const innerData = [...raw.map(v => v/total), 1 - stageFrac];
+      const innerDs = {
+        data: innerData,
+        backgroundColor: innerBgs,
+        borderWidth: 0,
+        weight: 1.0,
+      };
+
+      const cid = "d2c_" + s.key;
+      if(charts[cid]){ charts[cid].destroy(); delete charts[cid]; }
+      charts[cid] = new Chart(el, {
+        type: 'doughnut',
+        data: { datasets: [outerDs, innerDs] },
+        options: {
+          responsive: false,
+          cutout: '33%',
+          rotation: -90,
+          circumference: 360,
+          plugins: { legend:{display:false}, tooltip:{enabled:false} },
+          animation: { duration: 280 },
+        }
+      });
+    });
+  });
+}
+
+function renderDetail(){
+  if(merged.length === 0) return;
+
+  const allRows = [...allGuests, ...allTracking];
+  detectedCols = detectCols(allRows);
+
+  // Auto-match: tcb_region→region, unit→branch, sih_name→sih
+  const auto = autoMatch(detectedCols);
+  colMap = auto;
+
+  renderDetailBars();
+  renderDim(currentDim);
+}
+
+function switchDim(dim, btn){
+  currentDim = dim;
+  document.querySelectorAll(".dim-tab").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderDim(dim);
+}
+
+function renderDim(dim){
+  renderDetailPies(dim);
+}
+
+
+// ══════════════ GATE: EVENT PASSWORD ══════════════
+function checkEventPassword(){
+  const evId = document.getElementById("eventSelect").value;
+  const ev = allEvents.find(e=>e.id===evId);
+  if(!ev) return;
+  const pw = document.getElementById("lockPwInput").value || "";
+  if(pw !== ev.event_pw){
+    document.getElementById("lockErr").textContent = "Mật khẩu không đúng.";
+    const inp = document.getElementById("lockPwInput");
+    inp.value=""; inp.focus();
+    return;
+  }
+  unlockedEvs[evId] = true;
+  const sel = document.getElementById("eventSelect");
+  Array.from(sel.options).forEach(opt=>{ if(opt.value===evId) opt.text=opt.text.replace(" 🔒",""); });
   loadAll();
 }
 
 // ══════════════ LOAD EVENTS ══════════════
 async function loadEvents(){
   try{
-    // Đã thêm event_pw vào câu select
     allEvents = await sbFetch("oh_events","select=id,name,date_str,event_pw&order=date_str.desc");
-    const sel=document.getElementById("eventSelect");
-    // Đã thêm logic hiển thị icon 🔒
-    sel.innerHTML = allEvents.map(e=>`<option value="${e.id}">${e.date_str||""} · ${e.name||e.id}${e.event_pw && !unlockedEvs[e.id] ? ' 🔒' : ''}</option>`).join("");
+    const sel = document.getElementById("eventSelect");
+    sel.innerHTML = allEvents.map(e=>`<option value="${e.id}">${e.date_str||""} · ${e.name||e.id}${e.event_pw&&!unlockedEvs[e.id]?" 🔒":""}</option>`).join("");
     if(allEvents.length){ sel.value=allEvents[0].id; selectedEventId=allEvents[0].id; }
-  }catch(e){ console.error("loadEvents:",e); document.getElementById("eventSelect").innerHTML='<option>⚠ Lỗi tải events</option>'; }
+  }catch(e){
+    console.error("loadEvents:",e);
+    document.getElementById("eventSelect").innerHTML='<option>⚠ Lỗi tải events</option>';
+  }
 }
 
 function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(d)?null:d; }
@@ -399,37 +914,28 @@ function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(
 async function loadAll(){
   selectedEventId = document.getElementById("eventSelect")?.value || "";
   const ev = allEvents.find(e=>e.id===selectedEventId);
-  eventT0 = ev ? parseVNDate(ev.date_str) || parseISODate(ev.date_str) : null;
+  eventT0 = ev ? parseVNDate(ev.date_str)||parseISODate(ev.date_str) : null;
 
-  // --- THÊM MỚI: GATE CHECKIN INTERCEPT ---
-  const tabsEl = document.querySelector('.tabs');
-  const lockEl = document.getElementById('lockState');
+  const tabsEl = document.querySelector(".tabs");
+  const lockEl = document.getElementById("lockState");
 
   if(ev?.event_pw && !unlockedEvs[selectedEventId]){
-    document.getElementById('lockEvName').textContent = ev.name;
-    document.getElementById('lockPwInput').value = '';
-    document.getElementById('lockErr').textContent = '';
-    
-    lockEl.style.display = 'block';
-    tabsEl.style.display = 'none'; // Giấu Tabs
-    document.querySelectorAll('.tabpane').forEach(el => el.style.display = 'none'); // Giấu content
-    
-    document.getElementById('lockPwInput').focus();
-    return; // Dừng hoàn toàn việc fetch data bên dưới
+    document.getElementById("lockEvName").textContent = ev.name;
+    document.getElementById("lockPwInput").value="";
+    document.getElementById("lockErr").textContent="";
+    lockEl.style.display="block";
+    tabsEl.style.display="none";
+    document.querySelectorAll(".tabpane").forEach(el=>el.style.display="none");
+    document.getElementById("lockPwInput").focus();
+    return;
   } else {
-    lockEl.style.display = 'none';
-    tabsEl.style.display = 'flex'; // Khôi phục hiển thị Tabs
-    // Khôi phục hiển thị Tabpane đang active
-    const activeTabBtn = document.querySelector('.tab.active');
-    if(activeTabBtn) {
-        document.getElementById('t-' + activeTabBtn.dataset.tab).style.display = '';
-    }
+    lockEl.style.display="none";
+    tabsEl.style.display="flex";
+    const activeTabBtn = document.querySelector(".tab.active");
+    if(activeTabBtn) document.getElementById("t-"+activeTabBtn.dataset.tab).style.display="";
   }
-  // --- END GATE CHECKIN INTERCEPT ---
 
   try{
-    // Pull toàn bộ guests của event → filter Main client-side
-    // (không filter type tại server vì "type" là reserved word trong PostgREST → HTTP 400)
     const gP = selectedEventId
       ? `select=*&event_id=eq.${selectedEventId}&order=created_at.asc`
       : `select=*&order=created_at.asc`;
@@ -437,54 +943,39 @@ async function loadAll(){
       ? `select=*&event_id=eq.${selectedEventId}&order=synced_at.desc`
       : `select=*&order=synced_at.desc`;
 
-    const [guests, tracking] = await Promise.all([ sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP) ]);
+    const [guests, tracking] = await Promise.all([sbFetch("oh_guests",gP), sbFetch("oh_tracking",tP)]);
 
-    // Double-check client side — filter Main, loại Companion
     allGuests   = guests.filter(isMainGuest);
-    // App Script chỉ sync type=Main lên oh_tracking → không cần filter thêm
     allTracking = tracking;
 
-    // ── BUILD TRACKING LOOKUP ──────────────────────────────
-    // Dedup: mỗi KH (name+phone) chỉ giữ record mới nhất (synced_at lớn nhất)
-    // Lý do: UPSERT conflict key lệch → Supabase có thể có 2 records cho cùng 1 KH
-    // Record mới nhất = data đúng sau khi fix swap cột
+    // Dedup tracking
     const trkDedup = {};
-    allTracking.forEach(t => {
+    allTracking.forEach(t=>{
       const nm  = normName(t.name);
       const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
-      const key = nm + "|" + ph4;
+      const key = nm+"|"+ph4;
       const existing = trkDedup[key];
-      // So sánh synced_at — giữ record mới hơn
-      // synced_at là timestamp ms (number)
-      if(!existing || (t.synced_at||0) > (existing.synced_at||0)){
-        trkDedup[key] = t;
-      }
+      if(!existing||(t.synced_at||0)>(existing.synced_at||0)) trkDedup[key]=t;
+    });
+    const trk={};
+    Object.values(trkDedup).forEach(t=>{
+      const ph4=String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
+      const nm=normName(t.name);
+      if(ph4) trk[nm+"|"+ph4]=t;
+      if(!trk[nm]) trk[nm]=t;
     });
 
-    // Build lookup từ deduped records
-    const trk = {};
-    Object.values(trkDedup).forEach(t => {
-      const ph4 = String(t.phone_last4||"").trim().replace(/\D/g,"").slice(-4);
-      const nm  = normName(t.name);
-      if(ph4) trk[nm+"|"+ph4] = t;
-      if(!trk[nm]) trk[nm] = t;
+    merged = allGuests.map(g=>{
+      const ph4=String(g.phone||"").trim().replace(/\D/g,"").slice(-4);
+      const nm=normName(g.name);
+      const k1=nm+"|"+ph4;
+      const t=(ph4&&trk[k1])?trk[k1]:trk[nm]||null;
+      return {...g, _trk:t};
     });
-
-    merged = allGuests.map(g => {
-      const ph4 = String(g.phone||"").trim().replace(/\D/g,"").slice(-4);
-      const nm  = normName(g.name);
-      const k1  = nm + "|" + ph4;
-      const t   = (ph4 && trk[k1]) ? trk[k1] : trk[nm] || null;
-      return { ...g, _trk: t };
-    });
-
-    // ONE-TIME CHECK: xem raw lead_created_date Supabase đang trả về
-    console.table(merged.slice(0,5).map(g=>({
-      name: g.name,
-      lead_created_date: g._trk?.lead_created_date ?? "NO_TRK"
-    })));
 
     renderOverview();
+    // Nếu tab detail đang active thì render luôn
+    if(document.querySelector(".tab.active")?.dataset?.tab === "detail") renderDetail();
     document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
   }catch(e){
     console.error(e);
@@ -492,81 +983,55 @@ async function loadAll(){
   }
 }
 
-// ══════════════ RENDER TAB 1 ══════════════
+// ══════════════ RENDER TAB 1: TỔNG QUAN ══════════════
 function isCheckedIn(g){ return g.checked_in && !g.cancelled; }
-function isNoShow(g){ return !g.checked_in || g.cancelled; } // không đến + cancel
+function isNoShow(g){ return !g.checked_in || g.cancelled; }
 
 function renderOverview(){
-  const total = merged.length;
-  const ci    = merged.filter(isCheckedIn).length;
-  const cancel= merged.filter(g=>g.cancelled).length;
-  const abs   = merged.filter(isNoShow).length;
+  const total=merged.length;
+  const ci=merged.filter(isCheckedIn).length;
+  const cancel=merged.filter(g=>g.cancelled).length;
+  const abs=merged.filter(isNoShow).length;
+  const opp=merged.filter(g=>flagOpp(g._trk)).length;
+  const sbk=merged.filter(g=>flagSBK(g._trk)).length;
+  const hbk=merged.filter(g=>flagHBK(g._trk)).length;
+  let gmvTotal=0; merged.forEach(g=>{ if(g._trk) gmvTotal+=parseGMV(g._trk.gmv); });
 
-  // CỜ TÍCH LŨY (cộng dồn) — cho stat card & phễu
-  const opp = merged.filter(g=>flagOpp(g._trk)).length;
-  const sbk = merged.filter(g=>flagSBK(g._trk)).length;
-  const hbk = merged.filter(g=>flagHBK(g._trk)).length;
-
-  // GMV tổng
-  let gmvTotal=0; merged.forEach(g=>{ if(g._trk) gmvTotal += parseGMV(g._trk.gmv); });
-
-  // ── TÍNH LAST SYNC & T+ ──────────────────────────────────
-  // lastSync = synced_at lớn nhất trong allTracking (epoch ms)
-  let lastSyncMs = 0;
+  let lastSyncMs=0;
   allTracking.forEach(t=>{ if((t.synced_at||0)>lastSyncMs) lastSyncMs=t.synced_at; });
-  const lastSyncDate = lastSyncMs ? new Date(lastSyncMs) : null;
-  const lastSyncLabel = lastSyncDate
-    ? lastSyncDate.toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})
-    : "—";
-  // T+ = số ngày calendar từ T0 đến lastSync
-  const tPlusDays = (lastSyncDate && eventT0)
-    ? daysBetween(eventT0, lastSyncDate)
-    : null;
-  const tPlusLabel = tPlusDays!=null && tPlusDays>=0
-    ? `T+${tPlusDays}`
-    : tPlusDays!=null && tPlusDays<0
-      ? `T${tPlusDays}` // trước event
-      : "—";
-  const syncNote = lastSyncMs
-    ? `<span style="color:var(--accent2);font-weight:700">${tPlusLabel}</span> · cập nhật lúc ${lastSyncLabel}`
-    : "—";
+  const lastSyncDate=lastSyncMs?new Date(lastSyncMs):null;
+  const lastSyncLabel=lastSyncDate?lastSyncDate.toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}):"—";
+  const tPlusDays=(lastSyncDate&&eventT0)?daysBetween(eventT0,lastSyncDate):null;
+  const tPlusLabel=tPlusDays!=null&&tPlusDays>=0?`T+${tPlusDays}`:tPlusDays!=null&&tPlusDays<0?`T${tPlusDays}`:"—";
+  const syncNote=lastSyncMs?`<span style="color:var(--accent2);font-weight:700">${tPlusLabel}</span> · cập nhật lúc ${lastSyncLabel}`:"—";
 
-  // Inject vào sec-note của các bảng có data thay đổi theo thời gian
   const setNote=(id,txt)=>{ const e=document.getElementById(id); if(e) e.innerHTML=txt; };
-  setNote("note-stats",  syncNote);
-  setNote("note-funnel", `% trên tổng đăng ký · mức rơi rớt mỗi tầng · ${syncNote}`);
-  setNote("note-pie",    `Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · ${syncNote}`);
-  setNote("note-speed",  `Trung vị ngày từ T0 → SBK/HBK · ${syncNote}`);
+  setNote("note-stats",syncNote);
+  setNote("note-funnel",`% trên tổng đăng ký · mức rơi rớt mỗi tầng · ${syncNote}`);
+  setNote("note-pie",`Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · ${syncNote}`);
+  setNote("note-speed",`Trung vị ngày từ T0 → SBK/HBK · ${syncNote}`);
+  setNote("note-detail",`Dữ liệu tại ${syncNote}`);
 
-  // ── stat cards ──
-  const P=(n,d)=> d? Math.round(n/d*100)+"%":"0%";
+  const P=(n,d)=>d?Math.round(n/d*100)+"%":"0%";
   set("st-reg",total);
   set("st-ci",ci); set("st-ci-sub",P(ci,total)+" show-up");
   set("st-abs",abs); set("st-abs-sub",P(abs,total)+" · cancel "+cancel);
   set("st-opp",opp); set("st-opp-sub",P(opp,ci)+" trên CI");
   set("st-sbk",sbk); set("st-sbk-sub",P(sbk,ci)+" trên CI");
   set("st-hbk",hbk); set("st-hbk-sub",P(hbk,ci)+" trên CI");
-  set("st-gmv",fmtTy(gmvTotal)+" tỷ"); set("st-gmv-sub", hbk? "TB "+fmtTy(gmvTotal/hbk)+" tỷ/HBK":"—");
+  set("st-gmv",fmtTy(gmvTotal)+" tỷ"); set("st-gmv-sub",hbk?"TB "+fmtTy(gmvTotal/hbk)+" tỷ/HBK":"—");
 
-  // ── funnel — HOÀN TOÀN dùng cờ tích lũy, KHÔNG dùng classifyBucket ──
-  // Opp chuẩn = flagOpp (cột L) ONLY — đã chốt nghiệp vụ
-  // Meet+ = có tracking và status_label/status_latest là Meet/Opp hoặc đã có cờ Opp/SBK/HBK
-  // Không đếm theo classifyBucket để tránh lẫn với fallback 4.x
-  const reachMeet = merged.filter(g=>{
-    const t = g._trk;
-    if(!t) return false;
-    const lbl = (t.status_label||"").trim();
-    const lat = (t.status_latest||t.status_event||"").trim();
-    const isMeetStatus = lbl==="Meet" || /^[23]\./.test(lat) && !/^2\.[12]\b/.test(lat);
-    return isMeetStatus || flagOpp(t) || flagSBK(t) || flagHBK(t);
+  const reachMeet=merged.filter(g=>{
+    const t=g._trk; if(!t) return false;
+    const lbl=(t.status_label||"").trim();
+    const lat=(t.status_latest||t.status_event||"").trim();
+    const isMeetStatus=lbl==="Meet"||/^[23]\./.test(lat)&&!/^2\.[12]\b/.test(lat);
+    return isMeetStatus||flagOpp(t)||flagSBK(t)||flagHBK(t);
   }).length;
+  const reachOpp=merged.filter(g=>flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk)).length;
+  const reachSBK=merged.filter(g=>flagSBK(g._trk)||flagHBK(g._trk)).length;
+  const reachHBK=hbk;
 
-  // reachOpp = flagOpp ONLY (cột L) + đã SBK/HBK (đã qua Opp rồi lên)
-  const reachOpp = merged.filter(g=>flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk)).length;
-
-  // reachSBK = cột M hoặc đã HBK
-  const reachSBK = merged.filter(g=>flagSBK(g._trk)||flagHBK(g._trk)).length;
-  const reachHBK = hbk;
   renderFunnel([
     {l:"Đăng ký",v:total,c:"#4f9cf9"},
     {l:"Check-in",v:ci,c:"#c9a96e"},
@@ -574,15 +1039,10 @@ function renderOverview(){
     {l:"Opp+",v:reachOpp,c:"#f5a623"},
     {l:"SBK+",v:reachSBK,c:"#c9a96e"},
     {l:"HBK",v:reachHBK,c:"#3ecf8e"},
-  ], total);
+  ],total);
 
-  // ── pies ──
   renderPies();
-
-  // ── nurture (tuổi lead) ──
   renderNurture();
-
-  // ── speed ──
   renderSpeed();
 }
 
@@ -609,57 +1069,44 @@ function renderFunnel(steps,total){
 }
 
 function renderPies(){
-  const total = merged.length;
-  const ci    = merged.filter(isCheckedIn).length;
-
-  // ── ĐẾM TỪNG BUCKET ──────────────────────────────────────
+  const total=merged.length;
+  const ci=merged.filter(isCheckedIn).length;
   const stageAll={Lead:0,Meet:0,Drop:0}, stageCI={Lead:0,Meet:0,Drop:0};
   merged.forEach(g=>{
     const b=classifyStage(g._trk);
     if(!["Lead","Meet","Drop"].includes(b)) return;
     stageAll[b]++; if(isCheckedIn(g)) stageCI[b]++;
   });
-
-  const oppAll = merged.filter(g=>flagOpp(g._trk)).length;
-  const oppCI  = merged.filter(g=>flagOpp(g._trk)&&isCheckedIn(g)).length;
-  const sbkAll = merged.filter(g=>flagSBK(g._trk)).length;
-  const sbkCI  = merged.filter(g=>flagSBK(g._trk)&&isCheckedIn(g)).length;
-  const hbkAll = merged.filter(g=>flagHBK(g._trk)).length;
-  const hbkCI  = merged.filter(g=>flagHBK(g._trk)&&isCheckedIn(g)).length;
-
-  // N/A: cột P trống, không có cờ chuyển đổi
-  const isNA = g=>{
-    const t=g._trk;
-    if(!t) return true;
-    if(flagOpp(t)||flagSBK(t)||flagHBK(t)||flagDrop(t)) return false;
-    return !(t.status_latest||t.status_event||t.status_label||"").trim();
-  };
-  const naAll = merged.filter(isNA).length;
-  const naCI  = merged.filter(g=>isCheckedIn(g)&&isNA(g)).length;
+  const oppAll=merged.filter(g=>flagOpp(g._trk)).length;
+  const oppCI=merged.filter(g=>flagOpp(g._trk)&&isCheckedIn(g)).length;
+  const sbkAll=merged.filter(g=>flagSBK(g._trk)).length;
+  const sbkCI=merged.filter(g=>flagSBK(g._trk)&&isCheckedIn(g)).length;
+  const hbkAll=merged.filter(g=>flagHBK(g._trk)).length;
+  const hbkCI=merged.filter(g=>flagHBK(g._trk)&&isCheckedIn(g)).length;
+  const isNA=g=>{ const t=g._trk; if(!t) return true; if(flagOpp(t)||flagSBK(t)||flagHBK(t)||flagDrop(t)) return false; return !(t.status_latest||t.status_event||t.status_label||"").trim(); };
+  const naAll=merged.filter(isNA).length;
+  const naCI=merged.filter(g=>isCheckedIn(g)&&isNA(g)).length;
 
   const PIES=[
-    {id:"cpie_Lead", label:"Lead",  nAll:stageAll.Lead, nCI:stageCI.Lead, color:"#6b7590"},
-    {id:"cpie_Meet", label:"Meet",  nAll:stageAll.Meet, nCI:stageCI.Meet, color:"#9b7fe8"},
-    {id:"cpie_Opp",  label:"Opp",   nAll:oppAll,        nCI:oppCI,        color:"#f5a623"},
-    {id:"cpie_SBK",  label:"SBK",   nAll:sbkAll,        nCI:sbkCI,        color:"#c9a96e"},
-    {id:"cpie_HBK",  label:"HBK",   nAll:hbkAll,        nCI:hbkCI,        color:"#3ecf8e"},
-    {id:"cpie_Drop", label:"Drop",  nAll:stageAll.Drop, nCI:stageCI.Drop, color:"#e05252"},
-    {id:"cpie_NA",   label:"N/A",   nAll:naAll,         nCI:naCI,         color:"#3a3f52"},
+    {id:"cpie_Lead",label:"Lead",nAll:stageAll.Lead,nCI:stageCI.Lead,color:"#6b7590"},
+    {id:"cpie_Meet",label:"Meet",nAll:stageAll.Meet,nCI:stageCI.Meet,color:"#9b7fe8"},
+    {id:"cpie_Opp",label:"Opp",nAll:oppAll,nCI:oppCI,color:"#f5a623"},
+    {id:"cpie_SBK",label:"SBK",nAll:sbkAll,nCI:sbkCI,color:"#c9a96e"},
+    {id:"cpie_HBK",label:"HBK",nAll:hbkAll,nCI:hbkCI,color:"#3ecf8e"},
+    {id:"cpie_Drop",label:"Drop",nAll:stageAll.Drop,nCI:stageCI.Drop,color:"#e05252"},
+    {id:"cpie_NA",label:"N/A",nAll:naAll,nCI:naCI,color:"#3a3f52"},
   ];
 
   const grid=document.getElementById("pieGrid");
   if(!grid) return;
-
-  // STEP 1: Destroy tất cả chart cũ TRƯỚC khi reset DOM
   PIES.forEach(p=>{ if(charts[p.id]){ charts[p.id].destroy(); delete charts[p.id]; } });
 
-  // STEP 2: Build HTML — canvas không có width/height attribute, để Chart.js tự size
   grid.innerHTML=PIES.map(p=>{
     const pctAll=total?Math.round(p.nAll/total*100):0;
-    const pctCI =ci   ?Math.round(p.nCI /ci   *100):0;
+    const pctCI=ci?Math.round(p.nCI/ci*100):0;
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
       <div style="position:relative;width:90px;height:90px;flex-shrink:0">
-        <canvas id="${p.id}" role="img" aria-label="${p.label}: ${pctAll}% ĐK ${pctCI}% CI" style="display:block;width:90px;height:90px"></canvas>
+        <canvas id="${p.id}" style="display:block;width:90px;height:90px"></canvas>
         <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:1px">
           <span style="font-size:11px;font-weight:800;color:${p.color};line-height:1">${pctAll}%</span>
           <span style="font-size:9px;font-weight:700;color:var(--accent2);line-height:1">${pctCI}%</span>
@@ -672,51 +1119,38 @@ function renderPies(){
     </div>`;
   }).join("");
 
-  // STEP 3: Draw sau khi DOM đã sẵn sàng
   const BG="rgba(42,48,69,.55)";
   requestAnimationFrame(()=>{
     PIES.forEach(p=>{
       const el=document.getElementById(p.id);
       if(!el) return;
       const pAll=total?p.nAll/total:0;
-      const pCI =ci   ?p.nCI /ci   :0;
-
-      // Guard: nếu cả 2 đều 0 → vẽ vòng tròn empty (không để trắng)
-      const outerData = pAll>0 ? [pAll,1-pAll] : [0.001,0.999];
-      const innerData = pCI >0 ? [pCI, 1-pCI ] : [0.001,0.999];
-      const outerColors= pAll>0 ? [p.color,BG] : [BG,BG];
-      const innerColors= pCI >0 ? ["#4f9cf9",BG] : [BG,BG];
-
+      const pCI=ci?p.nCI/ci:0;
+      const outerData=pAll>0?[pAll,1-pAll]:[0.001,0.999];
+      const innerData=pCI>0?[pCI,1-pCI]:[0.001,0.999];
+      const outerColors=pAll>0?[p.color,BG]:[BG,BG];
+      const innerColors=pCI>0?["#4f9cf9",BG]:[BG,BG];
       charts[p.id]=new Chart(el,{
         type:"doughnut",
         data:{datasets:[
-          {data:outerData, backgroundColor:outerColors, borderWidth:0, weight:1.5}, // vòng ngoài
-          {data:innerData, backgroundColor:innerColors, borderWidth:0, weight:1.0}, // vòng trong
+          {data:outerData,backgroundColor:outerColors,borderWidth:0,weight:1.5},
+          {data:innerData,backgroundColor:innerColors,borderWidth:0,weight:1.0},
         ]},
-        options:{
-          responsive:false,
-          cutout:"38%",
-          plugins:{legend:{display:false},tooltip:{enabled:false}},
-          animation:{duration:300},
-        }
+        options:{responsive:false,cutout:"38%",plugins:{legend:{display:false},tooltip:{enabled:false}},animation:{duration:300}}
       });
     });
   });
 }
 
-
 function renderNurture(){
-  // tuổi lead = T0 - ngày tạo lead (số ngày trước event)
-  const g3=[], g14=[], gold=[], gNoTrk=[], gNoDate=[];
+  const g3=[],g14=[],gold=[],gNoTrk=[],gNoDate=[];
   merged.forEach(g=>{
-    if(!g._trk){ gNoTrk.push(g); return; }          // Main nhưng không match tracking
-    const ld = parseVNDate(g._trk.lead_created_date);
-    if(!ld || !eventT0){ gNoDate.push(g); return; }  // có tracking nhưng thiếu/lỗi ngày
-    const age = daysBetween(ld, eventT0);
+    if(!g._trk){ gNoTrk.push(g); return; }
+    const ld=parseVNDate(g._trk.lead_created_date);
+    if(!ld||!eventT0){ gNoDate.push(g); return; }
+    const age=daysBetween(ld,eventT0);
     if(age==null){ gNoDate.push(g); return; }
-    if(age<=3) g3.push(g);
-    else if(age<=14) g14.push(g);
-    else gold.push(g);
+    if(age<=3) g3.push(g); else if(age<=14) g14.push(g); else gold.push(g);
   });
   const showup=arr=>arr.length?Math.round(arr.filter(isCheckedIn).length/arr.length*100):0;
   const cards=[
@@ -724,27 +1158,23 @@ function renderNurture(){
     {l:"Mới (4–14 ngày)",n:g14,c:"var(--accent)"},
     {l:"Cũ (>14 ngày)",n:gold,c:"var(--orange)"},
   ];
-  let h=cards.map(c=>`<div class="nc">
-    <div class="nc-label">${c.l}</div>
-    <div class="nc-val" style="color:${c.c}">${c.n.length}</div>
-    <div class="nc-sub">Show-up ${showup(c.n)}% · CI ${c.n.filter(isCheckedIn).length}</div>
-  </div>`).join("");
-  if(gNoTrk.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Main chưa match tracking (chưa có lead trên hệ thống / lệch tên-SĐT)</div><div class="nc-val" style="font-size:16px;color:var(--muted)">${gNoTrk.length} KH</div></div>`;
+  let h=cards.map(c=>`<div class="nc"><div class="nc-label">${c.l}</div><div class="nc-val" style="color:${c.c}">${c.n.length}</div><div class="nc-sub">Show-up ${showup(c.n)}% · CI ${c.n.filter(isCheckedIn).length}</div></div>`).join("");
+  if(gNoTrk.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Main chưa match tracking</div><div class="nc-val" style="font-size:16px;color:var(--muted)">${gNoTrk.length} KH</div></div>`;
   if(gNoDate.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Có tracking nhưng thiếu/lỗi ngày tạo lead</div><div class="nc-val" style="font-size:16px;color:var(--orange)">${gNoDate.length} KH</div></div>`;
   document.getElementById("nurtureCards").innerHTML=h;
 }
 
 function renderSpeed(){
-  const sbkDays=[], hbkDays=[];
+  const sbkDays=[],hbkDays=[];
   merged.forEach(g=>{
-    if(!g._trk || !eventT0) return;
-    const sd=parseVNDate(g._trk.sbk), hd=parseVNDate(g._trk.hbk);
-    if(sd){ const d=daysBetween(eventT0,sd); if(d!=null&&d>=0) sbkDays.push(d); }
-    if(hd){ const d=daysBetween(eventT0,hd); if(d!=null&&d>=0) hbkDays.push(d); }
+    if(!g._trk||!eventT0) return;
+    const sd=parseVNDate(g._trk.sbk),hd=parseVNDate(g._trk.hbk);
+    if(sd){const d=daysBetween(eventT0,sd); if(d!=null&&d>=0) sbkDays.push(d);}
+    if(hd){const d=daysBetween(eventT0,hd); if(d!=null&&d>=0) hbkDays.push(d);}
   });
-  const ms=median(sbkDays), mh=median(hbkDays);
-  set("sp-sbk", ms!=null? ms+" ngày":"—");
-  set("sp-hbk", mh!=null? mh+" ngày":"—");
+  const ms=median(sbkDays),mh=median(hbkDays);
+  set("sp-sbk",ms!=null?ms+" ngày":"—");
+  set("sp-hbk",mh!=null?mh+" ngày":"—");
 }
 
 // ══════════════ TABS ══════════════
@@ -754,6 +1184,8 @@ document.querySelectorAll(".tab").forEach(t=>{
     t.classList.add("active");
     document.querySelectorAll(".tabpane").forEach(p=>p.style.display="none");
     document.getElementById("t-"+t.dataset.tab).style.display="";
+    // Render Detail khi switch sang tab đó
+    if(t.dataset.tab==="detail" && merged.length>0) renderDetail();
   };
 });
 
