@@ -359,7 +359,7 @@
     <div class="tl3-chart-wrap">
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
         <div class="tl3-legend" id="tl3-legend"></div>
-        <div class="tl3-hot-label"><span class="tl3-hot-swatch"></span>Hot zone T+3→T+30</div>
+        <div class="tl3-hot-label" style="color:var(--accent2)"><span style="display:inline-block;width:3px;height:14px;background:#4f9cf9;border-radius:2px;vertical-align:middle;margin-right:4px"></span>Đường dọc = Today · T+<span id="tl3-today-lbl">—</span></div>
       </div>
       <div style="position:relative;width:100%;height:240px">
         <canvas id="tl3-chart" role="img" aria-label="Line chart số KH theo stage từ T0 đến T+60"></canvas>
@@ -587,16 +587,18 @@ function buildStageCounts(colKey){
     }
     const i = groupIdx[grp];
     const t = g._trk;
-    if(!t) return; // không có tracking → bỏ
-    const stage = classifyStage(t);
-    const bucket = classifyBucket(t);
-    if(stage==="na"||bucket==="na") return; // status không xác định → bỏ
-    if(stage === "Drop")                          counts.drop[i]++;
-    else if(stage === "HBK")                      counts.hbk[i]++;
-    else if(stage === "SBK")                      counts.sbk[i]++;
-    else if(stage === "Opp" || bucket === "Opp")  counts.opp[i]++;
-    else if(bucket === "Meet")                    counts.meet[i]++;
-    else if(bucket === "Lead")                    counts.lead[i]++;
+    // ── Cờ tích lũy độc lập (giống Tab 1) ──
+    // Opp/SBK/HBK: cumulative flags, 1 KH có thể vừa Opp vừa SBK vừa HBK
+    if(flagHBK(t)) counts.hbk[i]++;
+    if(flagSBK(t)) counts.sbk[i]++;
+    if(flagOpp(t)) counts.opp[i]++;
+    if(flagDrop(t)){ counts.drop[i]++; return; } // Drop: không tính Meet/Lead
+    // Meet/Lead: dùng bucket hiện tại (chỉ nếu chưa có cờ chuyển đổi cao hơn)
+    if(!flagOpp(t) && !flagSBK(t) && !flagHBK(t)){
+      const bucket = classifyBucket(t);
+      if(bucket === "Meet")  counts.meet[i]++;
+      else if(bucket === "Lead") counts.lead[i]++;
+    }
   });
 
   // Assign colors dựa theo thứ tự group
@@ -709,17 +711,17 @@ function dbAggregate(colKey){
     const i = gIdx[grp];
     totals[i]++;
     const t = g._trk;
-    if(!t){ return; } // KH chưa có tracking → bỏ qua, không tính vào stage nào
-    const stage = classifyStage(t);
-    const bucket = classifyBucket(t);
-    if(stage==="na"||bucket==="na")              return; // không rõ stage → bỏ
-    if(stage==="Drop")                           counts.drop[i]++;
-    else if(stage==="HBK")                       counts.hbk[i]++;
-    else if(stage==="SBK")                       counts.sbk[i]++;
-    else if(stage==="Opp"||bucket==="Opp")       counts.opp[i]++;
-    else if(bucket==="Meet")                     counts.meet[i]++;
-    else if(bucket==="Lead")                     counts.lead[i]++;
-    // else: stage không xác định → bỏ qua
+    // ── Cờ tích lũy độc lập (giống Tab 1) ──
+    // Tổng đếm trên toàn bộ merged (kể cả KH không có tracking)
+    if(flagHBK(t)) counts.hbk[i]++;
+    if(flagSBK(t)) counts.sbk[i]++;
+    if(flagOpp(t)) counts.opp[i]++;
+    if(flagDrop(t)){ counts.drop[i]++; return; }
+    if(!flagOpp(t) && !flagSBK(t) && !flagHBK(t)){
+      const bucket = classifyBucket(t);
+      if(bucket === "Meet")      counts.meet[i]++;
+      else if(bucket === "Lead") counts.lead[i]++;
+    }
   });
 
   // Sort groups by total desc
@@ -887,17 +889,20 @@ function renderDetailPies(dim){
       if(!el) return;
 
       // Layer 1: outer — 1 màu xám thống nhất = stageFrac, phần còn lại empty
+      // stageFrac có thể > 1 khi flags cumulative (Opp+SBK+HBK cộng dồn)
+      // Clamp về 1.0 để pie không bị vỡ; % hiển thị vẫn là số thực
+      const stageFracClamped = Math.min(stageFrac, 1.0);
       const outerDs = {
-        data: [stageFrac, 1 - stageFrac],
+        data: [stageFracClamped, 1 - stageFracClamped],
         backgroundColor: [D2_LAYER1, D2_EMPTY],
         borderWidth: 0,
         weight: 1.6,
       };
 
-      // Layer 2: inner — mỗi group chiếm (v/total), tổng = stageFrac
-      // phần empty = 1 - stageFrac → 2 vòng align khớp hoàn toàn
+      // Layer 2: inner — mỗi group chiếm (v/total), scale trong stageFracClamped
+      const innerScale = stageFracClamped / (stageFrac || 1);
       const innerBgs = [...groups.map(g=>g.color), D2_EMPTY];
-      const innerData = [...raw.map(v => v/total), 1 - stageFrac];
+      const innerData = [...raw.map(v => (v/total)*innerScale), 1 - stageFracClamped];
       const innerDs = {
         data: innerData,
         backgroundColor: innerBgs,
@@ -1254,7 +1259,7 @@ const TL3_SCOL={lead:'#6b7590',meet:'#9b7fe8',opp:'#f5a623',sbk:'#c9a96e',hbk:'#
 const TL3_SLBL={na:'N/A',lead:'Lead',meet:'Meet',opp:'Opp',sbk:'SBK',hbk:'HBK',drop:'Drop'};
 const TL3_SCLS={na:'tl3-s-na',lead:'tl3-s-lead',meet:'tl3-s-meet',opp:'tl3-s-opp',sbk:'tl3-s-sbk',hbk:'tl3-s-hbk',drop:'tl3-s-drop'};
 const TL3_STAGE_KEYS=['lead','meet','opp','sbk','hbk','drop'];
-let tl3Filter='all', tl3Chart=null;
+const tl3Selected=new Set(); let tl3Chart=null;
 
 // Data structure — will be populated from real Supabase data when wired
 // Currently uses fake/demo data structure
@@ -1266,82 +1271,129 @@ const TL3_MILESTONES_FAKE=[
 let tl3Milestones=[];
 
 function tl3BuildFromData(){
-  // Fixed milestone T values: T0, T3, T7, T14, T30, T60
-  const FIXED_T=new Set([0,3,7,14,30,60]);
-  // Hot zone: T3→T30
-  const HOT_T=new Set([3,5,7,10,14,18,21,30]);
+  const FIXED_T = new Set([0,3,7,14,30,60]);
 
   if(!merged.length || !eventT0){
     tl3Milestones=[]; return;
   }
 
-  // Collect all T+ values from status_history across all tracking records
-  const changesByT={};  // t -> [{kh, from, to, note}]
-  const snapByT={};     // t -> {lead,meet,opp,sbk,hbk,drop}
+  // Today cutoff — chỉ xây milestone từ T0 → today
+  const todayDate  = new Date();
+  const todayTplus = daysBetween(eventT0, todayDate) ?? 999;
 
-  merged.forEach(g=>{
-    const t=g._trk;
+  // ── Bước 1: Collect changes từ status_history (Lead / Meet only) ──────────
+  // Opp/SBK/HBK KHÔNG lấy từ history, lấy từ flag timestamps ở Bước 2
+  const changesByT = {};  // tPlus -> [{kh, from, to, note}]
+
+  merged.forEach(g => {
+    const t = g._trk;
     if(!t || !t.status_history) return;
     let hist;
-    try{ hist=typeof t.status_history==='string'?JSON.parse(t.status_history):t.status_history; }
+    try { hist = typeof t.status_history==='string' ? JSON.parse(t.status_history) : t.status_history; }
     catch(e){ return; }
-    if(!Array.isArray(hist)) return;
+    if(!Array.isArray(hist) || !hist.length) return;
 
-    hist.forEach((entry,idx)=>{
-      const prevStatus=idx===0?'na':(hist[idx-1]?.status||'na');
-      const curStatus=entry.status||'na';
-      if(prevStatus===curStatus) return;
+    hist.forEach((entry, idx) => {
+      const curStatus  = entry.status || entry.stage || '';
+      const prevStatus = idx===0 ? 'na' : (hist[idx-1]?.status || hist[idx-1]?.stage || 'na');
+      if(curStatus === prevStatus) return;
 
-      // Calculate T+ from event date
-      const entryDate=new Date(entry.date||entry.ts||entry.timestamp||0);
-      if(isNaN(entryDate.getTime())) return;
-      const tPlus=daysBetween(eventT0,entryDate);
-      if(tPlus==null||tPlus<0) return;
+      const toStage   = mapStatus(curStatus);
+      const fromStage = mapStatus(prevStatus);
+      // Chỉ xử lý Lead / Meet transitions từ history
+      // Opp/SBK/HBK transitions sẽ được inject ở Bước 2
+      if(!['lead','meet','drop','na'].includes(toStage)) return;
 
-      const fromStage=mapStatus(prevStatus);
-      const toStage=mapStatus(curStatus);
-      if(!changesByT[tPlus]) changesByT[tPlus]=[];
+      const rawDate = entry.date || entry.ts || entry.timestamp || entry.updated_at || '';
+      if(!rawDate) return;
+      const asMs = parseInt(rawDate);
+      let entryDate = (!isNaN(asMs) && asMs > 1e10)
+        ? new Date(asMs)
+        : (parseVNDate(String(rawDate)) || new Date(rawDate));
+      if(!entryDate || isNaN(entryDate.getTime())) return;
+
+      const tPlus = daysBetween(eventT0, entryDate);
+      if(tPlus == null || tPlus < 0 || tPlus > todayTplus) return;
+
+      if(!changesByT[tPlus]) changesByT[tPlus] = [];
       changesByT[tPlus].push({
-        kh: g.name||'KH',
+        kh:   g.name || 'KH',
         from: fromStage,
-        to: toStage,
-        note: entry.note||'',
+        to:   toStage,
+        note: entry.note || entry.reason || '',
       });
     });
   });
 
-  // T+0 force-lead for event guests who checked in (if no history)
-  merged.filter(g=>g.checked_in&&!g.cancelled&&g._trk).forEach(g=>{
-    if(!changesByT[0]) changesByT[0]=[];
-    // Only add if not already there
-    const already=changesByT[0].some(c=>c.kh===(g.name||'KH'));
-    if(!already) changesByT[0].push({kh:g.name||'KH',from:'na',to:'lead',note:'Force Lead T+0'});
+  // Force Lead T+0 cho event thiếu history (mpwg4n7kmy0x)
+  if(selectedEventId === 'mpwg4n7kmy0x'){
+    merged.filter(g => g.checked_in && !g.cancelled && g._trk).forEach(g => {
+      if(!changesByT[0]) changesByT[0] = [];
+      const already = changesByT[0].some(c => c.kh === (g.name||'KH'));
+      if(!already) changesByT[0].push({kh: g.name||'KH', from:'na', to:'lead', note:'Force Lead T+0'});
+    });
+  }
+
+  // ── Bước 2: Inject Opp / SBK / HBK từ flag timestamps ────────────────────
+  merged.forEach(g => {
+    const t = g._trk;
+    if(!t) return;
+
+    // Opp flag: cột opp_flag chứa timestamp
+    [
+      { flag: t.opp_flag, stage: 'opp',  from: 'meet' },
+      { flag: t.sbk,      stage: 'sbk',  from: 'opp'  },
+      { flag: t.hbk,      stage: 'hbk',  from: 'sbk'  },
+    ].forEach(({flag, stage, from}) => {
+      if(!hasTs(flag)) return;
+      // Parse flag timestamp
+      const asMs = parseInt(flag);
+      let flagDate = (!isNaN(asMs) && asMs > 1e10)
+        ? new Date(asMs)
+        : (parseVNDate(String(flag)) || new Date(flag));
+      if(!flagDate || isNaN(flagDate.getTime())) return;
+
+      const tPlus = daysBetween(eventT0, flagDate);
+      if(tPlus == null || tPlus < 0 || tPlus > todayTplus) return;
+
+      if(!changesByT[tPlus]) changesByT[tPlus] = [];
+      // Tránh duplicate nếu history đã log rồi
+      const already = changesByT[tPlus].some(c => c.kh===(g.name||'KH') && c.to===stage);
+      if(!already) changesByT[tPlus].push({
+        kh:   g.name || 'KH',
+        from: from,
+        to:   stage,
+        note: '',
+      });
+    });
   });
 
-  // Build sorted list of all T+ values (fixed + dynamic with changes)
-  const allT=new Set([...Object.keys(changesByT).map(Number), ...Array.from(FIXED_T)]);
-  const sortedT=[...allT].sort((a,b)=>a-b).filter(t=>t<=60);
+  // ── Bước 3: Build sorted milestone list ───────────────────────────────────
+  // Chỉ gồm: fixed milestones đã qua (t <= todayTplus) + dynamic milestones có changes
+  const allT = new Set([
+    ...Object.keys(changesByT).map(Number),
+    ...[...FIXED_T].filter(t => t <= todayTplus),
+  ]);
+  const sortedT = [...allT].sort((a,b) => a-b);
 
-  // Build running snapshot
-  const running={lead:0,meet:0,opp:0,sbk:0,hbk:0,drop:0};
+  // ── Bước 4: Build running snapshot ───────────────────────────────────────
+  // Snapshot dùng cumulative flags tại mỗi mốc thay vì chỉ đếm từ changes
+  // → chính xác hơn khi có khoảng trống trong history
+  const running = {lead:0, meet:0, opp:0, sbk:0, hbk:0, drop:0};
 
-  tl3Milestones=sortedT.map(tVal=>{
-    const changes=changesByT[tVal]||[];
-    // Update running snapshot
-    changes.forEach(c=>{
-      if(TL3_STAGE_KEYS.includes(c.from)&&running[c.from]>0) running[c.from]--;
-      if(TL3_STAGE_KEYS.includes(c.to)) running[c.to]=(running[c.to]||0)+1;
+  tl3Milestones = sortedT.map(tVal => {
+    const changes = changesByT[tVal] || [];
+    changes.forEach(c => {
+      if(TL3_STAGE_KEYS.includes(c.from) && running[c.from] > 0) running[c.from]--;
+      if(TL3_STAGE_KEYS.includes(c.to)) running[c.to] = (running[c.to]||0) + 1;
     });
+    const d = new Date(eventT0.getTime() + tVal*86400000);
     return {
-      t:tVal,
-      date: (() => {
-        const d=new Date(eventT0.getTime()+tVal*86400000);
-        return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'});
-      })(),
-      fixed: FIXED_T.has(tVal),
-      hot:   tVal>=3&&tVal<=30,
+      t:       tVal,
+      date:    d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'}),
+      fixed:   FIXED_T.has(tVal),
       changes,
-      snap:{...running},
+      snap:    {...running},
     };
   });
 }
@@ -1362,13 +1414,15 @@ function tl3Badge(stage){
 function tl3BuildFilters(){
   const el=document.getElementById('tl3-filters');
   if(!el) return;
-  const aOn=tl3Filter==='all';
-  let h=`<button class="tl3-fbtn${aOn?' on':''}" style="${aOn?'background:var(--accent);color:#0d0f14;':''}"
-    onclick="tl3SetFilter('all')">Tất cả</button>`;
+  const allOn=tl3Selected.size===0;
+  let h=`<button class="tl3-fbtn${allOn?' on':''}" style="${allOn?'background:var(--accent);color:#0d0f14;':''}"
+    onclick="tl3ClickAll()">Tất cả</button>`;
+  h+=`<span style="width:1px;height:14px;background:var(--border);margin:0 2px;display:inline-block;vertical-align:middle"></span>`;
   TL3_STAGE_KEYS.forEach(k=>{
-    const on=tl3Filter===k;
-    h+=`<button class="tl3-fbtn${on?' on':''}" style="${on?`background:${TL3_SCOL[k]};color:#0d0f14;`:''}"
-      onclick="tl3SetFilter('${k}')">
+    const on=tl3Selected.has(k);
+    h+=`<button class="tl3-fbtn${on?' on':''}"
+      style="${on?`background:${TL3_SCOL[k]};color:#0d0f14;border-color:${TL3_SCOL[k]};`:''}"
+      onclick="tl3ClickStage('${k}')">
       <span class="tl3-fdot" style="background:${on?'rgba(0,0,0,.4)':TL3_SCOL[k]}"></span>
       ${TL3_SLBL[k]}${k==='hbk'?' ★':''}
     </button>`;
@@ -1376,7 +1430,15 @@ function tl3BuildFilters(){
   el.innerHTML=h;
 }
 
-function tl3SetFilter(s){ tl3Filter=s; tl3BuildFilters(); tl3ApplyFilter(); tl3RenderLog(); }
+function tl3ClickAll(){
+  tl3Selected.clear();
+  tl3BuildFilters(); tl3ApplyFilter(); tl3RenderLog();
+}
+function tl3ClickStage(k){
+  if(tl3Selected.has(k)) tl3Selected.delete(k); else tl3Selected.add(k);
+  if(tl3Selected.size===TL3_STAGE_KEYS.length) tl3Selected.clear();
+  tl3BuildFilters(); tl3ApplyFilter(); tl3RenderLog();
+}
 
 function tl3MakeDatasets(){
   const labels=tl3Milestones.map(m=>`T+${m.t}`);
@@ -1400,8 +1462,13 @@ function tl3InitChart(){
   if(!el||!tl3Milestones.length) return;
 
   const labels=tl3Milestones.map(m=>`T+${m.t}`);
-  const hotS=tl3Milestones.findIndex(m=>m.t===3);
-  const hotE=tl3Milestones.findIndex(m=>m.t===30);
+
+  // Today index — vì milestones đã được cutoff tại today, mốc cuối = today
+  const todayTplus = eventT0 ? daysBetween(eventT0, new Date()) : null;
+  // Tìm milestone có t gần nhất với todayTplus (không vượt qua)
+  const todayIdx = tl3Milestones.length > 0
+    ? tl3Milestones.reduce((best,m,i) => m.t <= (todayTplus??0) ? i : best, 0)
+    : -1;
 
   tl3Chart=new Chart(el,{
     type:'line',
@@ -1423,29 +1490,43 @@ function tl3InitChart(){
       animation:{duration:250},
     },
     plugins:[
-      {id:'tl3HotZone',beforeDraw(chart){
-        if(hotS<0||hotE<0) return;
+      // Today line — thay thế hot zone
+      {id:'tl3TodayLine',afterDraw(chart){
+        if(todayIdx<0) return;
         const {ctx,scales:{x,y}}=chart;
-        const x1=x.getPixelForValue(hotS), x2=x.getPixelForValue(hotE);
+        const xp=x.getPixelForValue(todayIdx);
         ctx.save();
-        ctx.fillStyle='rgba(201,169,110,.08)';
-        ctx.fillRect(x1,y.top,x2-x1,y.bottom-y.top);
-        ctx.strokeStyle='rgba(201,169,110,.35)';
-        ctx.lineWidth=1; ctx.setLineDash([4,3]);
-        [x1,x2].forEach(xp=>{ctx.beginPath();ctx.moveTo(xp,y.top);ctx.lineTo(xp,y.bottom);ctx.stroke();});
+        // Vùng tô nhẹ từ Today về bên phải (chưa xảy ra)
+        ctx.fillStyle='rgba(79,156,249,.04)';
+        ctx.fillRect(xp,y.top,x.right-xp,y.bottom-y.top);
+        // Đường dọc Today
+        ctx.strokeStyle='rgba(79,156,249,.85)';
+        ctx.lineWidth=1.5;
         ctx.setLineDash([]);
-        ctx.fillStyle='rgba(201,169,110,.6)';
-        ctx.font='500 9px sans-serif'; ctx.textAlign='center';
-        ctx.fillText('Hot conversion zone',(x1+x2)/2,y.top+11);
+        ctx.beginPath();ctx.moveTo(xp,y.top);ctx.lineTo(xp,y.bottom);ctx.stroke();
+        // Label "Today · T+N"
+        ctx.fillStyle='#4f9cf9';
+        ctx.font='700 10px sans-serif';
+        ctx.textAlign='center';
+        const todayLabel=`Today · T+${tl3Milestones[todayIdx]?.t??''}`;
+        const labelW=ctx.measureText(todayLabel).width+10;
+        // Bg pill
+        ctx.fillStyle='rgba(79,156,249,.15)';
+        ctx.beginPath();
+        ctx.roundRect(xp-labelW/2,y.top+4,labelW,16,4);
+        ctx.fill();
+        ctx.fillStyle='#4f9cf9';
+        ctx.fillText(todayLabel,xp,y.top+14);
         ctx.restore();
       }},
+      // HBK event lines
       {id:'tl3HBKLines',afterDraw(chart){
         const {ctx,scales:{x,y}}=chart;
         tl3Milestones.forEach((m,i)=>{
           if(!m.changes.some(c=>c.to==='hbk')) return;
           const xp=x.getPixelForValue(i);
           ctx.save(); ctx.setLineDash([3,3]);
-          ctx.strokeStyle='rgba(62,207,142,.45)'; ctx.lineWidth=1.5;
+          ctx.strokeStyle='rgba(62,207,142,.5)'; ctx.lineWidth=1.5;
           ctx.beginPath();ctx.moveTo(xp,y.top);ctx.lineTo(xp,y.bottom);ctx.stroke();
           ctx.restore();
         });
@@ -1456,36 +1537,43 @@ function tl3InitChart(){
 
 function tl3ApplyFilter(){
   if(!tl3Chart) return;
-  const f=tl3Filter;
+  const sel=tl3Selected; const allOn=sel.size===0;
   tl3Chart.data.datasets.forEach(ds=>{
-    const k=ds.key;
-    if(f==='all'){ds.hidden=false;ds.borderWidth=k==='hbk'?3:1.5;ds.borderColor=TL3_SCOL[k];}
-    else if(k===f){ds.hidden=false;ds.borderWidth=3;ds.borderColor=TL3_SCOL[k];}
-    else{ds.hidden=false;ds.borderWidth=1;ds.borderColor=TL3_SCOL[k]+'28';}
+    const k=ds.key; const isHBK=k==='hbk';
+    if(allOn){
+      ds.hidden=false; ds.borderWidth=isHBK?3:1.5; ds.borderColor=TL3_SCOL[k];
+    } else if(sel.has(k)){
+      ds.hidden=false; ds.borderWidth=isHBK?3.5:2.5; ds.borderColor=TL3_SCOL[k];
+    } else {
+      ds.hidden=false; ds.borderWidth=1; ds.borderColor=TL3_SCOL[k]+'22';
+    }
   });
-  tl3Chart.update();
-  tl3BuildLegend();
+  tl3Chart.update(); tl3BuildLegend();
 }
 
 function tl3BuildLegend(){
   const el=document.getElementById('tl3-legend');
   if(!el) return;
-  const f=tl3Filter;
-  el.innerHTML=TL3_STAGE_KEYS.map(k=>`
-    <div class="tl3-leg-item${f!=='all'&&k!==f?' dimmed':''}">
+  const allOn=tl3Selected.size===0;
+  el.innerHTML=TL3_STAGE_KEYS.map(k=>{
+    const active=allOn||tl3Selected.has(k);
+    return `<div class="tl3-leg-item${active?'':' dimmed'}">
       <div class="tl3-leg-line" style="background:${TL3_SCOL[k]};height:${k==='hbk'?4:2}px"></div>
       <span>${TL3_SLBL[k]}${k==='hbk'?' ★':''}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function tl3RenderLog(){
   const body=document.getElementById('tl3-body');
   if(!body) return;
-  const f=tl3Filter;
+  const sel=tl3Selected; const allOn=sel.size===0;
   let html='',total=0;
 
   tl3Milestones.forEach((m,idx)=>{
-    const filtered=f==='all'?m.changes:m.changes.filter(c=>c.to===f||c.from===f);
+    const filtered=allOn
+      ? m.changes
+      : m.changes.filter(c=>sel.has(c.to)||sel.has(c.from));
     const hasChange=filtered.length>0;
     const isFix=m.fixed;
     if(!isFix&&!hasChange) return;
@@ -1493,22 +1581,22 @@ function tl3RenderLog(){
     const hasHBK=filtered.some(c=>c.to==='hbk');
     const dotCls=hasHBK?'hbk-dot':(hasChange?'changed':'fixed');
     const fixTag=isFix?`<span class="tl3-tag-fix">fix</span>`:'';
-    const hotTag=m.hot&&isFix?`<span class="tl3-tag-hot">hot</span>`:'';
+    const hotTag=''; // hot zone đã bỏ
     let bodyHtml='';
     if(!hasChange&&isFix){
       bodyHtml=`<div class="tl3-nochange">Không có thay đổi</div>`;
     } else {
       bodyHtml=`<div class="tl3-cards">${filtered.map(c=>{
         const isHBK=c.to==='hbk';
-        const fb=f!=='all'&&c.from===f?`<span class="tl3-badge ${TL3_SCLS[c.from]}" style="box-shadow:0 0 0 2px ${TL3_SCOL[c.from]}">${TL3_SLBL[c.from]}</span>`:tl3Badge(c.from);
-        const tb=f!=='all'&&c.to===f?`<span class="tl3-badge ${TL3_SCLS[c.to]}" style="box-shadow:0 0 0 2px ${TL3_SCOL[c.to]}">${TL3_SLBL[c.to]}</span>`:tl3Badge(c.to);
+        const fb=(!allOn&&sel.has(c.from))?`<span class="tl3-badge ${TL3_SCLS[c.from]}" style="box-shadow:0 0 0 2px ${TL3_SCOL[c.from]}">${TL3_SLBL[c.from]}</span>`:tl3Badge(c.from);
+        const tb=(!allOn&&sel.has(c.to))?`<span class="tl3-badge ${TL3_SCLS[c.to]}" style="box-shadow:0 0 0 2px ${TL3_SCOL[c.to]}">${TL3_SLBL[c.to]}</span>`:tl3Badge(c.to);
         return `<div class="tl3-card${isHBK?' is-hbk':''}">
           <span class="tl3-kh">${c.kh}</span>
           <div class="tl3-arrow">${fb}<span class="tl3-arr">→</span>${tb}</div>
           <span class="tl3-note">${c.note||''}</span>
         </div>`;
       }).join('')}</div>`;
-      const sk=TL3_STAGE_KEYS.filter(k=>(m.snap[k]||0)>0&&(f==='all'||k===f));
+      const sk=TL3_STAGE_KEYS.filter(k=>(m.snap[k]||0)>0&&(allOn||sel.has(k)));
       if(sk.length) bodyHtml+=`<div class="tl3-snap">${sk.map(k=>
         `<span class="tl3-snap-item"><span class="tl3-snap-dot" style="background:${TL3_SCOL[k]}"></span>${TL3_SLBL[k]} ${m.snap[k]}</span>`
       ).join('')}</div>`;
@@ -1525,7 +1613,11 @@ function tl3RenderLog(){
 
   body.innerHTML=html||`<div class="placeholder" style="padding:40px 0"><div style="color:var(--muted);font-size:12px">Chưa có dữ liệu status_history trong tracking.</div></div>`;
   const lc=document.getElementById('tl3-log-count');
-  if(lc) lc.textContent=f==='all'?`${total} thay đổi`:`${total} thay đổi · ${TL3_SLBL[f]}`;
+  if(lc){
+    if(allOn) lc.textContent=`${total} thay đổi`;
+    else if(sel.size===1) lc.textContent=`${total} thay đổi · ${TL3_SLBL[[...sel][0]]}`;
+    else lc.textContent=`${total} thay đổi · ${[...sel].map(k=>TL3_SLBL[k]).join(', ')}`;
+  }
 }
 
 function renderTimeline(){
@@ -1534,6 +1626,12 @@ function renderTimeline(){
   tl3BuildLegend();
   tl3InitChart();
   tl3RenderLog();
+  // Update Today label in header
+  if(eventT0){
+    const tp=daysBetween(eventT0,new Date());
+    const lbl=document.getElementById('tl3-today-lbl');
+    if(lbl) lbl.textContent=tp!=null?tp:'—';
+  }
 }
 
 // ══════════════ TABS ══════════════
