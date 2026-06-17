@@ -103,6 +103,56 @@
   .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
+  /* ══ TAB 3 TIMELINE ══ */
+  .tl3-topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .tl3-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+  .tl3-filters{display:flex;gap:4px;flex-wrap:wrap;}
+  .tl3-fbtn{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  .tl3-fbtn.on{color:#0d0f14;border-color:transparent;}
+  .tl3-fbtn:hover:not(.on){color:var(--text);border-color:var(--accent2);}
+  .tl3-fdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .tl3-chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px 14px;margin-bottom:16px;}
+  .tl3-legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+  .tl3-leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);transition:opacity .15s;}
+  .tl3-leg-item.dimmed{opacity:.2;}
+  .tl3-leg-line{width:20px;border-radius:2px;flex-shrink:0;}
+  .tl3-hot-label{font-size:10px;color:rgba(201,169,110,.8);display:flex;align-items:center;gap:5px;margin-left:auto;}
+  .tl3-hot-swatch{width:22px;height:7px;border-radius:2px;background:rgba(201,169,110,.18);border:0.5px solid rgba(201,169,110,.45);}
+  .tl3-log-head{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+  .tl3-track{position:relative;padding-left:78px;}
+  .tl3-axis{position:absolute;left:70px;top:6px;bottom:0;width:1px;background:var(--border);}
+  .tl3-row{position:relative;display:flex;align-items:flex-start;margin-bottom:2px;min-height:32px;}
+  .tl3-row-label{position:absolute;left:-78px;width:68px;text-align:right;padding-top:7px;}
+  .tl3-t{font-size:12px;font-weight:700;color:var(--text);}
+  .tl3-d{font-size:10px;color:var(--muted);display:block;}
+  .tl3-tag-fix{font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(127,119,221,.18);color:#9b7fe8;margin-left:3px;vertical-align:middle;}
+  .tl3-tag-hot{font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(201,169,110,.18);color:var(--accent);margin-left:2px;vertical-align:middle;}
+  .tl3-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:9px;margin-left:-5px;z-index:1;position:relative;border:1.5px solid var(--border);background:var(--bg);}
+  .tl3-dot.changed{border-color:var(--text);background:var(--text);}
+  .tl3-dot.fixed{border-color:var(--muted);}
+  .tl3-dot.hbk-dot{border-color:var(--green);background:var(--green);box-shadow:0 0 0 3px rgba(62,207,142,.18);}
+  .tl3-body{flex:1;padding:3px 0 8px 14px;}
+  .tl3-nochange{font-size:11px;color:var(--muted);opacity:.4;padding:4px 0;font-style:italic;}
+  .tl3-cards{display:flex;flex-direction:column;gap:3px;}
+  .tl3-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:7px 13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .tl3-card.is-hbk{border-color:var(--green);background:rgba(62,207,142,.05);}
+  .tl3-kh{font-size:12px;font-weight:600;color:var(--text);min-width:130px;flex:1;}
+  .tl3-arrow{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+  .tl3-arr{font-size:12px;color:var(--muted);}
+  .tl3-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;}
+  .tl3-note{font-size:10px;color:var(--muted);margin-left:auto;white-space:nowrap;}
+  .tl3-snap{display:flex;gap:10px;flex-wrap:wrap;padding:4px 0 2px;}
+  .tl3-snap-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+  .tl3-snap-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .tl3-gap{height:4px;}
+  .tl3-s-na{background:#2a2e3a;color:var(--muted);}
+  .tl3-s-lead{background:rgba(107,117,144,.35);color:#b0b8cc;}
+  .tl3-s-meet{background:rgba(155,127,232,.3);color:#c5b5f5;}
+  .tl3-s-opp{background:rgba(245,166,35,.25);color:#f5c97a;}
+  .tl3-s-sbk{background:rgba(201,169,110,.25);color:var(--accent);}
+  .tl3-s-hbk{background:rgba(62,207,142,.2);color:var(--green);}
+  .tl3-s-drop{background:rgba(224,82,82,.25);color:var(--red);}
+
   /* ══ TAB 2 DETAIL STYLES ══ */
   /* Dimension tabs */
   .dim-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
@@ -301,7 +351,29 @@
   </div>
 
   <!-- ══════════════ TABS 3-5 PLACEHOLDER ══════════════ -->
-  <div id="t-timeline" class="tabpane" style="display:none"><div class="placeholder"><div class="big">③</div>Tab Timeline T+ — sẽ dựng sau</div></div>
+  <div id="t-timeline" class="tabpane" style="display:none">
+    <div class="tl3-topbar">
+      <div class="tl3-title">Timeline chuyển đổi · T0 → T+60</div>
+      <div class="tl3-filters" id="tl3-filters"></div>
+    </div>
+    <div class="tl3-chart-wrap">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div class="tl3-legend" id="tl3-legend"></div>
+        <div class="tl3-hot-label"><span class="tl3-hot-swatch"></span>Hot zone T+3→T+30</div>
+      </div>
+      <div style="position:relative;width:100%;height:240px">
+        <canvas id="tl3-chart" role="img" aria-label="Line chart số KH theo stage từ T0 đến T+60"></canvas>
+      </div>
+    </div>
+    <div class="tl3-log-head">
+      <span>Log thay đổi</span>
+      <span id="tl3-log-count" style="font-size:11px;color:var(--muted);font-weight:400"></span>
+    </div>
+    <div class="tl3-track">
+      <div class="tl3-axis"></div>
+      <div id="tl3-body"></div>
+    </div>
+  </div>
   <div id="t-breakdown" class="tabpane" style="display:none"><div class="placeholder"><div class="big">④</div>Tab Breakdown — sẽ dựng sau</div></div>
   <div id="t-ltv" class="tabpane" style="display:none"><div class="placeholder"><div class="big">⑤</div>Tab LTV &amp; GMV — sẽ dựng sau</div></div>
 
@@ -1177,6 +1249,293 @@ function renderSpeed(){
   set("sp-hbk",mh!=null?mh+" ngày":"—");
 }
 
+// ══════════════ TAB 3: TIMELINE ══════════════
+const TL3_SCOL={lead:'#6b7590',meet:'#9b7fe8',opp:'#f5a623',sbk:'#c9a96e',hbk:'#3ecf8e',drop:'#e05252'};
+const TL3_SLBL={na:'N/A',lead:'Lead',meet:'Meet',opp:'Opp',sbk:'SBK',hbk:'HBK',drop:'Drop'};
+const TL3_SCLS={na:'tl3-s-na',lead:'tl3-s-lead',meet:'tl3-s-meet',opp:'tl3-s-opp',sbk:'tl3-s-sbk',hbk:'tl3-s-hbk',drop:'tl3-s-drop'};
+const TL3_STAGE_KEYS=['lead','meet','opp','sbk','hbk','drop'];
+let tl3Filter='all', tl3Chart=null;
+
+// Data structure — will be populated from real Supabase data when wired
+// Currently uses fake/demo data structure
+const TL3_MILESTONES_FAKE=[
+  {t:0, date:'T0',fixed:true, hot:false,changes:[],snap:{lead:0,meet:0,opp:0,sbk:0,hbk:0,drop:0}},
+];
+
+// Real milestones built from merged tracking data
+let tl3Milestones=[];
+
+function tl3BuildFromData(){
+  // Fixed milestone T values: T0, T3, T7, T14, T30, T60
+  const FIXED_T=new Set([0,3,7,14,30,60]);
+  // Hot zone: T3→T30
+  const HOT_T=new Set([3,5,7,10,14,18,21,30]);
+
+  if(!merged.length || !eventT0){
+    tl3Milestones=[]; return;
+  }
+
+  // Collect all T+ values from status_history across all tracking records
+  const changesByT={};  // t -> [{kh, from, to, note}]
+  const snapByT={};     // t -> {lead,meet,opp,sbk,hbk,drop}
+
+  merged.forEach(g=>{
+    const t=g._trk;
+    if(!t || !t.status_history) return;
+    let hist;
+    try{ hist=typeof t.status_history==='string'?JSON.parse(t.status_history):t.status_history; }
+    catch(e){ return; }
+    if(!Array.isArray(hist)) return;
+
+    hist.forEach((entry,idx)=>{
+      const prevStatus=idx===0?'na':(hist[idx-1]?.status||'na');
+      const curStatus=entry.status||'na';
+      if(prevStatus===curStatus) return;
+
+      // Calculate T+ from event date
+      const entryDate=new Date(entry.date||entry.ts||entry.timestamp||0);
+      if(isNaN(entryDate.getTime())) return;
+      const tPlus=daysBetween(eventT0,entryDate);
+      if(tPlus==null||tPlus<0) return;
+
+      const fromStage=mapStatus(prevStatus);
+      const toStage=mapStatus(curStatus);
+      if(!changesByT[tPlus]) changesByT[tPlus]=[];
+      changesByT[tPlus].push({
+        kh: g.name||'KH',
+        from: fromStage,
+        to: toStage,
+        note: entry.note||'',
+      });
+    });
+  });
+
+  // T+0 force-lead for event guests who checked in (if no history)
+  merged.filter(g=>g.checked_in&&!g.cancelled&&g._trk).forEach(g=>{
+    if(!changesByT[0]) changesByT[0]=[];
+    // Only add if not already there
+    const already=changesByT[0].some(c=>c.kh===(g.name||'KH'));
+    if(!already) changesByT[0].push({kh:g.name||'KH',from:'na',to:'lead',note:'Force Lead T+0'});
+  });
+
+  // Build sorted list of all T+ values (fixed + dynamic with changes)
+  const allT=new Set([...Object.keys(changesByT).map(Number), ...Array.from(FIXED_T)]);
+  const sortedT=[...allT].sort((a,b)=>a-b).filter(t=>t<=60);
+
+  // Build running snapshot
+  const running={lead:0,meet:0,opp:0,sbk:0,hbk:0,drop:0};
+
+  tl3Milestones=sortedT.map(tVal=>{
+    const changes=changesByT[tVal]||[];
+    // Update running snapshot
+    changes.forEach(c=>{
+      if(TL3_STAGE_KEYS.includes(c.from)&&running[c.from]>0) running[c.from]--;
+      if(TL3_STAGE_KEYS.includes(c.to)) running[c.to]=(running[c.to]||0)+1;
+    });
+    return {
+      t:tVal,
+      date: (() => {
+        const d=new Date(eventT0.getTime()+tVal*86400000);
+        return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'});
+      })(),
+      fixed: FIXED_T.has(tVal),
+      hot:   tVal>=3&&tVal<=30,
+      changes,
+      snap:{...running},
+    };
+  });
+}
+
+function mapStatus(s){
+  if(!s||s==='na') return 'na';
+  if(/^4\./.test(s)||s==='Opp') return 'opp';
+  if(/^3\./.test(s)||(/^2\./.test(s)&&!/^2\.[12]/.test(s))||s==='Meet') return 'meet';
+  if(/^1\./.test(s)||s==='Lead') return 'lead';
+  if(/^2\.[12]/.test(s)||s==='Drop') return 'drop';
+  return 'na';
+}
+
+function tl3Badge(stage){
+  return `<span class="tl3-badge ${TL3_SCLS[stage]||'tl3-s-na'}">${TL3_SLBL[stage]||stage}</span>`;
+}
+
+function tl3BuildFilters(){
+  const el=document.getElementById('tl3-filters');
+  if(!el) return;
+  const aOn=tl3Filter==='all';
+  let h=`<button class="tl3-fbtn${aOn?' on':''}" style="${aOn?'background:var(--accent);color:#0d0f14;':''}"
+    onclick="tl3SetFilter('all')">Tất cả</button>`;
+  TL3_STAGE_KEYS.forEach(k=>{
+    const on=tl3Filter===k;
+    h+=`<button class="tl3-fbtn${on?' on':''}" style="${on?`background:${TL3_SCOL[k]};color:#0d0f14;`:''}"
+      onclick="tl3SetFilter('${k}')">
+      <span class="tl3-fdot" style="background:${on?'rgba(0,0,0,.4)':TL3_SCOL[k]}"></span>
+      ${TL3_SLBL[k]}${k==='hbk'?' ★':''}
+    </button>`;
+  });
+  el.innerHTML=h;
+}
+
+function tl3SetFilter(s){ tl3Filter=s; tl3BuildFilters(); tl3ApplyFilter(); tl3RenderLog(); }
+
+function tl3MakeDatasets(){
+  const labels=tl3Milestones.map(m=>`T+${m.t}`);
+  return TL3_STAGE_KEYS.map(k=>{
+    const isHBK=k==='hbk';
+    return {
+      key:k, label:TL3_SLBL[k]+(isHBK?' ★':''),
+      data:tl3Milestones.map(m=>m.snap[k]||0),
+      borderColor:TL3_SCOL[k], borderWidth:isHBK?3:1.5,
+      pointRadius:tl3Milestones.map(m=>m.changes.some(c=>c.to===k||c.from===k)?(isHBK?8:5):(isHBK?4:2.5)),
+      pointBackgroundColor:tl3Milestones.map(m=>m.changes.some(c=>c.to===k)?TL3_SCOL[k]:'transparent'),
+      pointBorderColor:TL3_SCOL[k], pointBorderWidth:isHBK?2:1.5,
+      pointHoverRadius:isHBK?9:6, tension:0.3, fill:false,
+    };
+  });
+}
+
+function tl3InitChart(){
+  if(tl3Chart){tl3Chart.destroy();tl3Chart=null;}
+  const el=document.getElementById('tl3-chart');
+  if(!el||!tl3Milestones.length) return;
+
+  const labels=tl3Milestones.map(m=>`T+${m.t}`);
+  const hotS=tl3Milestones.findIndex(m=>m.t===3);
+  const hotE=tl3Milestones.findIndex(m=>m.t===30);
+
+  tl3Chart=new Chart(el,{
+    type:'line',
+    data:{labels, datasets:tl3MakeDatasets()},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:ctx=>`${labels[ctx[0].dataIndex]} · ${tl3Milestones[ctx[0].dataIndex].date}`,
+          label:ctx=>` ${TL3_SLBL[ctx.dataset.key]}: ${ctx.parsed.y} KH`,
+        }}
+      },
+      scales:{
+        x:{ticks:{font:{size:11},color:'#6b7590'},grid:{color:'rgba(42,48,69,.7)'},border:{display:false}},
+        y:{beginAtZero:true,ticks:{stepSize:1,font:{size:11},color:'#6b7590'},grid:{color:'rgba(42,48,69,.5)'},border:{display:false}}
+      },
+      animation:{duration:250},
+    },
+    plugins:[
+      {id:'tl3HotZone',beforeDraw(chart){
+        if(hotS<0||hotE<0) return;
+        const {ctx,scales:{x,y}}=chart;
+        const x1=x.getPixelForValue(hotS), x2=x.getPixelForValue(hotE);
+        ctx.save();
+        ctx.fillStyle='rgba(201,169,110,.08)';
+        ctx.fillRect(x1,y.top,x2-x1,y.bottom-y.top);
+        ctx.strokeStyle='rgba(201,169,110,.35)';
+        ctx.lineWidth=1; ctx.setLineDash([4,3]);
+        [x1,x2].forEach(xp=>{ctx.beginPath();ctx.moveTo(xp,y.top);ctx.lineTo(xp,y.bottom);ctx.stroke();});
+        ctx.setLineDash([]);
+        ctx.fillStyle='rgba(201,169,110,.6)';
+        ctx.font='500 9px sans-serif'; ctx.textAlign='center';
+        ctx.fillText('Hot conversion zone',(x1+x2)/2,y.top+11);
+        ctx.restore();
+      }},
+      {id:'tl3HBKLines',afterDraw(chart){
+        const {ctx,scales:{x,y}}=chart;
+        tl3Milestones.forEach((m,i)=>{
+          if(!m.changes.some(c=>c.to==='hbk')) return;
+          const xp=x.getPixelForValue(i);
+          ctx.save(); ctx.setLineDash([3,3]);
+          ctx.strokeStyle='rgba(62,207,142,.45)'; ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.moveTo(xp,y.top);ctx.lineTo(xp,y.bottom);ctx.stroke();
+          ctx.restore();
+        });
+      }}
+    ]
+  });
+}
+
+function tl3ApplyFilter(){
+  if(!tl3Chart) return;
+  const f=tl3Filter;
+  tl3Chart.data.datasets.forEach(ds=>{
+    const k=ds.key;
+    if(f==='all'){ds.hidden=false;ds.borderWidth=k==='hbk'?3:1.5;ds.borderColor=TL3_SCOL[k];}
+    else if(k===f){ds.hidden=false;ds.borderWidth=3;ds.borderColor=TL3_SCOL[k];}
+    else{ds.hidden=false;ds.borderWidth=1;ds.borderColor=TL3_SCOL[k]+'28';}
+  });
+  tl3Chart.update();
+  tl3BuildLegend();
+}
+
+function tl3BuildLegend(){
+  const el=document.getElementById('tl3-legend');
+  if(!el) return;
+  const f=tl3Filter;
+  el.innerHTML=TL3_STAGE_KEYS.map(k=>`
+    <div class="tl3-leg-item${f!=='all'&&k!==f?' dimmed':''}">
+      <div class="tl3-leg-line" style="background:${TL3_SCOL[k]};height:${k==='hbk'?4:2}px"></div>
+      <span>${TL3_SLBL[k]}${k==='hbk'?' ★':''}</span>
+    </div>`).join('');
+}
+
+function tl3RenderLog(){
+  const body=document.getElementById('tl3-body');
+  if(!body) return;
+  const f=tl3Filter;
+  let html='',total=0;
+
+  tl3Milestones.forEach((m,idx)=>{
+    const filtered=f==='all'?m.changes:m.changes.filter(c=>c.to===f||c.from===f);
+    const hasChange=filtered.length>0;
+    const isFix=m.fixed;
+    if(!isFix&&!hasChange) return;
+    total+=filtered.length;
+    const hasHBK=filtered.some(c=>c.to==='hbk');
+    const dotCls=hasHBK?'hbk-dot':(hasChange?'changed':'fixed');
+    const fixTag=isFix?`<span class="tl3-tag-fix">fix</span>`:'';
+    const hotTag=m.hot&&isFix?`<span class="tl3-tag-hot">hot</span>`:'';
+    let bodyHtml='';
+    if(!hasChange&&isFix){
+      bodyHtml=`<div class="tl3-nochange">Không có thay đổi</div>`;
+    } else {
+      bodyHtml=`<div class="tl3-cards">${filtered.map(c=>{
+        const isHBK=c.to==='hbk';
+        const fb=f!=='all'&&c.from===f?`<span class="tl3-badge ${TL3_SCLS[c.from]}" style="box-shadow:0 0 0 2px ${TL3_SCOL[c.from]}">${TL3_SLBL[c.from]}</span>`:tl3Badge(c.from);
+        const tb=f!=='all'&&c.to===f?`<span class="tl3-badge ${TL3_SCLS[c.to]}" style="box-shadow:0 0 0 2px ${TL3_SCOL[c.to]}">${TL3_SLBL[c.to]}</span>`:tl3Badge(c.to);
+        return `<div class="tl3-card${isHBK?' is-hbk':''}">
+          <span class="tl3-kh">${c.kh}</span>
+          <div class="tl3-arrow">${fb}<span class="tl3-arr">→</span>${tb}</div>
+          <span class="tl3-note">${c.note||''}</span>
+        </div>`;
+      }).join('')}</div>`;
+      const sk=TL3_STAGE_KEYS.filter(k=>(m.snap[k]||0)>0&&(f==='all'||k===f));
+      if(sk.length) bodyHtml+=`<div class="tl3-snap">${sk.map(k=>
+        `<span class="tl3-snap-item"><span class="tl3-snap-dot" style="background:${TL3_SCOL[k]}"></span>${TL3_SLBL[k]} ${m.snap[k]}</span>`
+      ).join('')}</div>`;
+    }
+    html+=`<div class="tl3-row">
+      <div class="tl3-row-label">
+        <span class="tl3-t">T+${m.t}${fixTag}${hotTag}</span>
+        <span class="tl3-d">${m.date}</span>
+      </div>
+      <div class="tl3-dot ${dotCls}"></div>
+      <div class="tl3-body">${bodyHtml}</div>
+    </div>${isFix&&idx<tl3Milestones.length-1?'<div class="tl3-gap"></div>':''}`;
+  });
+
+  body.innerHTML=html||`<div class="placeholder" style="padding:40px 0"><div style="color:var(--muted);font-size:12px">Chưa có dữ liệu status_history trong tracking.</div></div>`;
+  const lc=document.getElementById('tl3-log-count');
+  if(lc) lc.textContent=f==='all'?`${total} thay đổi`:`${total} thay đổi · ${TL3_SLBL[f]}`;
+}
+
+function renderTimeline(){
+  tl3BuildFromData();
+  tl3BuildFilters();
+  tl3BuildLegend();
+  tl3InitChart();
+  tl3RenderLog();
+}
+
 // ══════════════ TABS ══════════════
 document.querySelectorAll(".tab").forEach(t=>{
   t.onclick=()=>{
@@ -1185,7 +1544,8 @@ document.querySelectorAll(".tab").forEach(t=>{
     document.querySelectorAll(".tabpane").forEach(p=>p.style.display="none");
     document.getElementById("t-"+t.dataset.tab).style.display="";
     // Render Detail khi switch sang tab đó
-    if(t.dataset.tab==="detail" && merged.length>0) renderDetail();
+    if(t.dataset.tab==="detail"   && merged.length>0) renderDetail();
+    if(t.dataset.tab==="timeline"  && merged.length>0) renderTimeline();
   };
 });
 
