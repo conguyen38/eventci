@@ -145,7 +145,69 @@
   .tl3-snap-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
   .tl3-snap-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
   .tl3-gap{height:4px;}
-  .tl3-s-na{background:#2a2e3a;color:var(--muted);}
+  .tl3-s-na{background:#2a2e3a;color:var(--muted);}  .tl3-s-na{background:#2a2e3a;color:var(--muted);}
+
+  /* ══ TAB 4 BREAKDOWN ══ */
+  .bk-toolbar{display:flex;flex-direction:column;gap:10px;margin-bottom:16px;}
+  .bk-toolbar-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  /* Filter bar */
+  .bk-filter-bar{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;}
+  .bk-filter-group{display:flex;flex-direction:column;gap:4px;min-width:140px;}
+  .bk-filter-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);}
+  .bk-filter-select{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:6px 10px;font-size:12px;font-family:inherit;cursor:pointer;outline:none;min-width:140px;}
+  .bk-filter-select:focus{border-color:var(--accent2);}
+  /* Stage multi-select pills */
+  .bk-stage-pills{display:flex;gap:4px;flex-wrap:wrap;align-items:center;}
+  .bk-spill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;display:flex;align-items:center;gap:4px;white-space:nowrap;}
+  .bk-spill:hover{color:var(--text);border-color:var(--accent2);}
+  .bk-spill.on{color:#0d0f14;border-color:transparent;}
+  .bk-spill-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .bk-filter-reset{padding:5px 10px;border-radius:var(--r);font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap;}
+  .bk-filter-reset:hover{color:var(--text);border-color:var(--accent);}
+  /* Event status filter */
+  .bk-ev-pills{display:flex;gap:4px;flex-wrap:wrap;}
+  .bk-ev-pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .12s;white-space:nowrap;}
+  .bk-ev-pill:hover{color:var(--text);}
+  .bk-ev-pill.on.showup{background:rgba(62,207,142,.15);color:var(--green);border-color:var(--green);}
+  .bk-ev-pill.on.noshow{background:rgba(245,166,35,.15);color:var(--orange);border-color:var(--orange);}
+  .bk-ev-pill.on.cancel{background:rgba(224,82,82,.15);color:var(--red);border-color:var(--red);}
+  .bk-ev-pill.on.all{background:var(--accent);color:#0d0f14;border-color:var(--accent);}
+  .bk-search{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:7px 12px;font-size:12px;font-family:inherit;outline:none;width:220px;}
+  .bk-search:focus{border-color:var(--accent2);}
+  .bk-count{font-size:11px;color:var(--muted);}
+  .bk-wrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--border);}
+  .bk-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+  .bk-tbl thead th{background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:2;}
+  .bk-tbl thead th:first-child{min-width:160px;}
+  .bk-tbl tbody tr{border-bottom:1px solid rgba(42,48,69,.5);transition:background .1s;}
+  .bk-tbl tbody tr:last-child{border-bottom:none;}
+  .bk-tbl tbody tr:hover{background:rgba(255,255,255,.025);}
+  .bk-tbl tbody td{padding:9px 12px;vertical-align:middle;}
+  .bk-name{font-weight:600;color:var(--text);}
+  .bk-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+  /* Status badges */
+  .bk-showup {display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(62,207,142,.15);color:var(--green);}
+  .bk-noshow {display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(245,166,35,.15);color:var(--orange);}
+  .bk-cancel {display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(224,82,82,.15);color:var(--red);}
+  .bk-stage-badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;}
+  .bk-gmv{font-family:monospace;font-weight:700;color:var(--accent);}
+  .bk-time{font-size:11px;color:var(--muted);white-space:nowrap;}
+  /* Flow tracker */
+  .bk-flow{display:flex;align-items:center;gap:1px;white-space:nowrap;}
+  .bk-step{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:44px;}
+  .bk-step-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+  .bk-step-dot.done   {background:rgba(62,207,142,.2);border:1.5px solid var(--green);color:var(--green);}
+  .bk-step-dot.active {background:rgba(62,207,142,.9);border:1.5px solid var(--green);color:#0d0f14;}
+  .bk-step-dot.bypass {background:rgba(224,82,82,.18);border:1.5px solid var(--red);color:var(--red);}
+  .bk-step-dot.wait   {background:var(--surface);border:1.5px solid var(--border);color:var(--muted);}
+  .bk-step-lbl{font-size:9px;color:var(--muted);text-align:center;line-height:1.2;}
+  .bk-step-lbl.done   {color:var(--green);}
+  .bk-step-lbl.active {color:var(--green);font-weight:700;}
+  .bk-step-lbl.bypass {color:var(--red);}
+  .bk-conn{width:10px;height:1.5px;background:var(--border);margin-bottom:14px;flex-shrink:0;}
+  .bk-conn.done{background:var(--green);opacity:.5;}
+  .bk-sort-btn{cursor:pointer;user-select:none;}
+  .bk-sort-btn:hover{color:var(--text);}
   .tl3-s-lead{background:rgba(107,117,144,.35);color:#b0b8cc;}
   .tl3-s-meet{background:rgba(155,127,232,.3);color:#c5b5f5;}
   .tl3-s-opp{background:rgba(245,166,35,.25);color:#f5c97a;}
@@ -208,7 +270,7 @@
   </div>
   <div class="header-right">
     <select class="event-select" id="eventSelect" onchange="loadAll()"><option>⏳ Đang tải...</option></select>
-    <div class="sync-badge">Sync: <span id="syncTime">—</span></div>
+
     <button id="btnRefresh" onclick="loadAll()">↻ Refresh</button>
   </div>
 </header>
@@ -230,12 +292,18 @@
     </div>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="overview">1 · Tổng quan</button>
-    <button class="tab" data-tab="detail">2 · Detail</button>
-    <button class="tab" data-tab="timeline">3 · Timeline T+</button>
-    <button class="tab" data-tab="breakdown">4 · Breakdown</button>
-    <button class="tab" data-tab="ltv">5 · LTV &amp; GMV</button>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+    <div class="tabs" style="margin-bottom:0">
+      <button class="tab active" data-tab="overview">1 · Tổng quan</button>
+      <button class="tab" data-tab="detail">2 · Detail</button>
+      <button class="tab" data-tab="timeline">3 · Timeline T+</button>
+      <button class="tab" data-tab="breakdown">4 · Breakdown</button>
+
+    </div>
+    <div id="globalSyncBadge" style="font-size:11px;color:var(--muted);background:var(--card);border:1px solid var(--border);padding:5px 12px;border-radius:20px;white-space:nowrap;display:flex;align-items:center;gap:6px">
+      <span style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0"></span>
+      <span id="globalSyncText">Đang tải...</span>
+    </div>
   </div>
 
   <!-- ══════════════ TAB 1: TỔNG QUAN ══════════════ -->
@@ -249,14 +317,12 @@
       <div class="stat blue"><div class="stat-label">HBK</div><div class="stat-val" id="st-hbk">—</div><div class="stat-sub" id="st-hbk-sub">—</div></div>
       <div class="stat"><div class="stat-label">GMV tổng</div><div class="stat-val" id="st-gmv" style="font-size:19px;color:var(--accent)">—</div><div class="stat-sub" id="st-gmv-sub">—</div></div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:flex-end;margin:6px 0 18px;font-size:11px;color:var(--muted)">
-      Tất cả 7 chỉ số trên cùng timeline: <span id="note-stats" style="margin-left:6px">—</span>
-    </div>
 
-    <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note" id="note-funnel">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
+
+    <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
     <div class="panel"><div class="funnel-h" id="funnel"><div class="loader"><div class="spinner"></div></div></div></div>
 
-    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note" id="note-pie">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in</div></div>
+    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in</div></div>
     <div class="panel" style="padding:20px 16px">
       <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;"></div>
       <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted)">
@@ -277,7 +343,7 @@
           <div class="speed-item"><div class="sl">Event → SBK</div><div class="sv" style="color:var(--purple)" id="sp-sbk">—</div></div>
           <div class="speed-item"><div class="sl">Event → HBK</div><div class="sv" style="color:var(--green)" id="sp-hbk">—</div></div>
         </div>
-        <div class="sec-note" id="note-speed" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK.</div>
+        <div class="sec-note" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK.</div>
       </div>
     </div>
   </div>
@@ -331,7 +397,7 @@
     <!-- Dimension selector — controls both bar + pie below -->
     <div class="sec-head" style="margin-top:20px">
       <div class="sec-title">Performance theo chiều phân tích</div>
-      <div class="sec-note" id="note-detail">Chọn chiều để cập nhật cả 2 biểu đồ phía trên và nested pie bên dưới</div>
+      <div class="sec-note">Chọn chiều để cập nhật cả 2 biểu đồ phía trên và nested pie bên dưới</div>
     </div>
     <div class="dim-tabs">
       <button class="dim-tab active" data-dim="region" onclick="switchDim('region',this)">Theo Vùng TCB</button>
@@ -374,8 +440,74 @@
       <div id="tl3-body"></div>
     </div>
   </div>
-  <div id="t-breakdown" class="tabpane" style="display:none"><div class="placeholder"><div class="big">④</div>Tab Breakdown — sẽ dựng sau</div></div>
-  <div id="t-ltv" class="tabpane" style="display:none"><div class="placeholder"><div class="big">⑤</div>Tab LTV &amp; GMV — sẽ dựng sau</div></div>
+  <div id="t-breakdown" class="tabpane" style="display:none">
+    <div class="bk-toolbar">
+      <!-- Row 1: search + sort -->
+      <div class="bk-toolbar-row">
+        <div style="display:flex;align-items:center;gap:10px">
+          <input class="bk-search" id="bkSearch" placeholder="🔍 Tìm tên KH..." oninput="bkRender()">
+          <span class="bk-count" id="bkCount"></span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center">
+          <span>Sắp xếp:</span>
+          <span class="bk-sort-btn" onclick="bkSort('name')">Tên</span>·
+          <span class="bk-sort-btn" onclick="bkSort('status')">Status</span>·
+          <span class="bk-sort-btn" onclick="bkSort('stage')">Stage</span>·
+          <span class="bk-sort-btn" onclick="bkSort('gmv')">GMV</span>
+          <button class="bk-filter-reset" onclick="bkResetFilters()">↺ Reset filter</button>
+        </div>
+      </div>
+      <!-- Row 2: filter bar -->
+      <div class="bk-filter-bar">
+        <!-- Vùng TCB — dropdown single select -->
+        <div class="bk-filter-group">
+          <span class="bk-filter-label">Vùng TCB</span>
+          <select class="bk-filter-select" id="bkFltRegion" onchange="bkOnRegionChange()">
+            <option value="">Tất cả</option>
+          </select>
+        </div>
+        <!-- Chi nhánh — cascade từ Vùng, dropdown single select -->
+        <div class="bk-filter-group">
+          <span class="bk-filter-label">Chi nhánh</span>
+          <select class="bk-filter-select" id="bkFltBranch" onchange="bkRender()">
+            <option value="">Tất cả</option>
+          </select>
+        </div>
+        <!-- Event status -->
+        <div class="bk-filter-group">
+          <span class="bk-filter-label">Trạng thái event</span>
+          <div class="bk-ev-pills" id="bkEvPills">
+            <button class="bk-ev-pill on all" onclick="bkToggleEvAll(this)">Tất cả</button>
+            <button class="bk-ev-pill on showup" data-ev="showup" onclick="bkToggleEv('showup',this)">✓ Show up</button>
+            <button class="bk-ev-pill on noshow" data-ev="noshow" onclick="bkToggleEv('noshow',this)">− No show</button>
+            <button class="bk-ev-pill on cancel" data-ev="cancel" onclick="bkToggleEv('cancel',this)">✕ Cancel</button>
+          </div>
+        </div>
+        <!-- Stage -->
+        <div class="bk-filter-group">
+          <span class="bk-filter-label">Stage chuyển đổi</span>
+          <div class="bk-stage-pills" id="bkStagePills"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bk-wrap">
+      <table class="bk-tbl">
+        <thead>
+          <tr>
+            <th>Họ &amp; tên KH</th>
+            <th>Trạng thái event</th>
+            <th>Giờ check-in</th>
+            <th>Stage hiện tại</th>
+            <th>Ghi nhận stage</th>
+            <th>GMV</th>
+            <th style="min-width:320px">Flow chuyển đổi</th>
+          </tr>
+        </thead>
+        <tbody id="bkTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
 
 </div><!-- /.main -->
 
@@ -930,14 +1062,7 @@ function renderDetailPies(dim){
 
 function renderDetail(){
   if(merged.length === 0) return;
-
-  const allRows = [...allGuests, ...allTracking];
-  detectedCols = detectCols(allRows);
-
-  // Auto-match: tcb_region→region, unit→branch, sih_name→sih
-  const auto = autoMatch(detectedCols);
-  colMap = auto;
-
+  // colMap đã được set trong loadAll — dùng trực tiếp
   renderDetailBars();
   renderDim(currentDim);
 }
@@ -988,10 +1113,30 @@ async function loadEvents(){
 function parseISODate(s){ if(!s) return null; const d=new Date(s); return isNaN(d)?null:d; }
 
 // ══════════════ LOAD ALL ══════════════
+let _lastLoadedEventId = "";
+
 async function loadAll(){
-  selectedEventId = document.getElementById("eventSelect")?.value || "";
+  const newEventId = document.getElementById("eventSelect")?.value || "";
+  const eventChanged = (newEventId !== _lastLoadedEventId);
+  _lastLoadedEventId = newEventId;
+  selectedEventId = newEventId;
+
   const ev = allEvents.find(e=>e.id===selectedEventId);
   eventT0 = ev ? parseVNDate(ev.date_str)||parseISODate(ev.date_str) : null;
+
+  // Reset toàn bộ state phụ thuộc event khi đổi event
+  if(eventChanged){
+    colMap = { region:"", branch:"", sih:"" };
+    detectedCols = [];
+    tl3Milestones = [];
+    tl3Selected.clear();
+    bkStgSel.clear();
+    bkEvSel.clear(); ['showup','noshow','cancel'].forEach(v=>bkEvSel.add(v));
+    const rSel=document.getElementById('bkFltRegion');
+    const bSel=document.getElementById('bkFltBranch');
+    if(rSel) rSel.innerHTML='<option value="">Tất cả</option>';
+    if(bSel) bSel.innerHTML='<option value="">Tất cả</option>';
+  }
 
   const tabsEl = document.querySelector(".tabs");
   const lockEl = document.getElementById("lockState");
@@ -1051,9 +1196,25 @@ async function loadAll(){
     });
 
     renderOverview();
-    // Nếu tab detail đang active thì render luôn
-    if(document.querySelector(".tab.active")?.dataset?.tab === "detail") renderDetail();
-    document.getElementById("syncTime").textContent = new Date().toLocaleTimeString("vi-VN");
+
+    // Luôn re-detect colMap mỗi lần load — đảm bảo đúng với event đang chọn
+    {
+      const allRows = [...allGuests, ...allTracking];
+      detectedCols = detectCols(allRows);
+      const auto = autoMatch(detectedCols);
+      colMap = auto;
+    }
+
+    // Rebuild Tab 4 filters mỗi khi data load mới (dropdown Vùng/CN luôn up-to-date)
+    bkBuildFilters();
+
+    // Render tab đang active nếu cần
+    const activeTab = document.querySelector(".tab.active")?.dataset?.tab;
+    if(activeTab === "detail")    renderDetail();
+    if(activeTab === "timeline")  renderTimeline();
+    if(activeTab === "breakdown") bkRender();
+
+
   }catch(e){
     console.error(e);
     document.getElementById("funnel").innerHTML='<div class="placeholder">❌ Lỗi: '+e.message+'</div>';
@@ -1082,12 +1243,9 @@ function renderOverview(){
   const tPlusLabel=tPlusDays!=null&&tPlusDays>=0?`T+${tPlusDays}`:tPlusDays!=null&&tPlusDays<0?`T${tPlusDays}`:"—";
   const syncNote=lastSyncMs?`<span style="color:var(--accent2);font-weight:700">${tPlusLabel}</span> · cập nhật lúc ${lastSyncLabel}`:"—";
 
-  const setNote=(id,txt)=>{ const e=document.getElementById(id); if(e) e.innerHTML=txt; };
-  setNote("note-stats",syncNote);
-  setNote("note-funnel",`% trên tổng đăng ký · mức rơi rớt mỗi tầng · ${syncNote}`);
-  setNote("note-pie",`Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in · ${syncNote}`);
-  setNote("note-speed",`Trung vị ngày từ T0 → SBK/HBK · ${syncNote}`);
-  setNote("note-detail",`Dữ liệu tại ${syncNote}`);
+  // Update global sync badge (hiển thị cạnh tabs, áp dụng cho toàn bộ dashboard)
+  const gBadge=document.getElementById('globalSyncText');
+  if(gBadge) gBadge.innerHTML=syncNote;
 
   const P=(n,d)=>d?Math.round(n/d*100)+"%":"0%";
   set("st-reg",total);
@@ -1369,31 +1527,119 @@ function tl3BuildFromData(){
   });
 
   // ── Bước 3: Build sorted milestone list ───────────────────────────────────
-  // Chỉ gồm: fixed milestones đã qua (t <= todayTplus) + dynamic milestones có changes
+  // Gồm: fixed milestones đã qua + dynamic milestones có changes + TODAY (luôn luôn)
   const allT = new Set([
-    ...Object.keys(changesByT).map(Number),
-    ...[...FIXED_T].filter(t => t <= todayTplus),
+    ...Object.keys(changesByT).map(Number),   // mốc có thay đổi thực tế
+    ...[...FIXED_T].filter(t => t <= todayTplus), // mốc fix đã qua
+    todayTplus,  // TODAY — luôn thêm dù không có change, không phải fixed
   ]);
   const sortedT = [...allT].sort((a,b) => a-b);
 
-  // ── Bước 4: Build running snapshot ───────────────────────────────────────
-  // Snapshot dùng cumulative flags tại mỗi mốc thay vì chỉ đếm từ changes
-  // → chính xác hơn khi có khoảng trống trong history
-  const running = {lead:0, meet:0, opp:0, sbk:0, hbk:0, drop:0};
+  // ── Bước 4: Build per-KH state timeline ──────────────────────────────────
+  // Với mỗi KH, build danh sách trạng thái theo thời gian từ status_history + flags
+  // → tại mỗi mốc T+, tra cứu trạng thái của KH tại thời điểm đó
+  //    rồi đếm tổng để có snapshot đúng (KH ở Meet giảm khi chuyển → Opp)
+
+  // perKH: [{tPlus, stage}] — sorted by tPlus, replay lấy stage tại mỗi T+
+  const perKH = merged.map(g => {
+    const t = g._trk;
+    const events = []; // {tPlus, stage} — các điểm thay đổi stage
+
+    // Lead/Meet/Drop từ status_history
+    if(t && t.status_history){
+      let hist;
+      try { hist = typeof t.status_history==='string' ? JSON.parse(t.status_history) : t.status_history; }
+      catch(e){ hist = null; }
+      if(Array.isArray(hist)){
+        hist.forEach(entry => {
+          const stage = mapStatus(entry.status||entry.stage||'');
+          if(!stage || stage==='na') return;
+          const rawDate = entry.date||entry.ts||entry.timestamp||entry.updated_at||'';
+          if(!rawDate) return;
+          const asMs = parseInt(rawDate);
+          let d = (!isNaN(asMs)&&asMs>1e10) ? new Date(asMs)
+                : (parseVNDate(String(rawDate))||new Date(rawDate));
+          if(!d||isNaN(d.getTime())) return;
+          const tp = daysBetween(eventT0, d);
+          if(tp==null||tp<0||tp>todayTplus) return;
+          events.push({tp, stage});
+        });
+      }
+    }
+
+    // Opp/SBK/HBK từ flag timestamps — override Meet/Lead khi đạt milestone
+    [
+      {flag: t?.opp_flag, stage:'opp'},
+      {flag: t?.sbk,      stage:'sbk'},
+      {flag: t?.hbk,      stage:'hbk'},
+    ].forEach(({flag, stage}) => {
+      if(!hasTs(flag)) return;
+      const asMs = parseInt(flag);
+      let d = (!isNaN(asMs)&&asMs>1e10) ? new Date(asMs)
+            : (parseVNDate(String(flag))||new Date(flag));
+      if(!d||isNaN(d.getTime())) return;
+      const tp = daysBetween(eventT0, d);
+      if(tp==null||tp<0||tp>todayTplus) return;
+      events.push({tp, stage});
+    });
+
+    // Drop từ flag
+    if(t && hasTs(t.drop_flag)){
+      const asMs = parseInt(t.drop_flag);
+      let d = (!isNaN(asMs)&&asMs>1e10) ? new Date(asMs)
+            : (parseVNDate(String(t.drop_flag))||new Date(t.drop_flag));
+      if(d&&!isNaN(d.getTime())){
+        const tp = daysBetween(eventT0, d);
+        if(tp!=null&&tp>=0&&tp<=todayTplus) events.push({tp, stage:'drop'});
+      }
+    }
+
+    // Sort by tPlus
+    events.sort((a,b) => a.tp - b.tp);
+    return events;
+  });
+
+  // Tại mỗi mốc T+: với mỗi KH, lấy stage mới nhất ≤ tVal
+  // Stage ưu tiên: hbk > sbk > opp > drop > meet > lead > na
+  // (KH đạt HBK vẫn giữ HBK dù sau đó không có event)
+  const STAGE_PRIORITY = {hbk:6, sbk:5, opp:4, drop:3, meet:2, lead:1, na:0};
+
+  function stageAtT(events, tVal){
+    // Lấy tất cả events đã xảy ra đến tVal
+    const past = events.filter(e => e.tp <= tVal);
+    if(!past.length) return 'na';
+    // Stage cao nhất đạt được (cumulative cho opp/sbk/hbk, current cho meet/lead/drop)
+    // Logic: opp/sbk/hbk là milestone không giảm; meet/lead/drop là current state
+    let bestMilestone = 'na'; // opp/sbk/hbk đã đạt
+    let currentState  = 'na'; // meet/lead/drop hiện tại (có thể thay đổi)
+    past.forEach(e => {
+      if(['hbk','sbk','opp'].includes(e.stage)){
+        if(STAGE_PRIORITY[e.stage] > STAGE_PRIORITY[bestMilestone]) bestMilestone = e.stage;
+      } else {
+        currentState = e.stage; // meet/lead/drop → latest wins
+      }
+    });
+    // Kết hợp: nếu đã đạt milestone → stage = milestone; else = currentState
+    return bestMilestone !== 'na' ? bestMilestone : currentState;
+  }
 
   tl3Milestones = sortedT.map(tVal => {
-    const changes = changesByT[tVal] || [];
-    changes.forEach(c => {
-      if(TL3_STAGE_KEYS.includes(c.from) && running[c.from] > 0) running[c.from]--;
-      if(TL3_STAGE_KEYS.includes(c.to)) running[c.to] = (running[c.to]||0) + 1;
+    // Đếm số KH ở mỗi stage tại thời điểm tVal
+    const snap = {lead:0, meet:0, opp:0, sbk:0, hbk:0, drop:0};
+    perKH.forEach(events => {
+      const s = stageAtT(events, tVal);
+      if(TL3_STAGE_KEYS.includes(s)) snap[s]++;
     });
+
     const d = new Date(eventT0.getTime() + tVal*86400000);
+    const isToday = (tVal === todayTplus);
     return {
       t:       tVal,
       date:    d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit'}),
       fixed:   FIXED_T.has(tVal),
-      changes,
-      snap:    {...running},
+      isToday,
+      changes: changesByT[tVal] || [],
+      snap,
     };
   });
 }
@@ -1463,12 +1709,9 @@ function tl3InitChart(){
 
   const labels=tl3Milestones.map(m=>`T+${m.t}`);
 
-  // Today index — vì milestones đã được cutoff tại today, mốc cuối = today
+  // Today index — tìm mốc isToday=true (luôn được inject vào milestones)
   const todayTplus = eventT0 ? daysBetween(eventT0, new Date()) : null;
-  // Tìm milestone có t gần nhất với todayTplus (không vượt qua)
-  const todayIdx = tl3Milestones.length > 0
-    ? tl3Milestones.reduce((best,m,i) => m.t <= (todayTplus??0) ? i : best, 0)
-    : -1;
+  const todayIdx = tl3Milestones.findIndex(m => m.isToday);
 
   tl3Chart=new Chart(el,{
     type:'line',
@@ -1601,14 +1844,15 @@ function tl3RenderLog(){
         `<span class="tl3-snap-item"><span class="tl3-snap-dot" style="background:${TL3_SCOL[k]}"></span>${TL3_SLBL[k]} ${m.snap[k]}</span>`
       ).join('')}</div>`;
     }
-    html+=`<div class="tl3-row">
+    const todayTag = m.isToday ? `<span style="font-size:9px;padding:1px 4px;border-radius:3px;background:rgba(79,156,249,.18);color:var(--accent2);margin-left:3px;vertical-align:middle">today</span>` : '';
+    html+=`<div class="tl3-row"${m.isToday?' style="background:rgba(79,156,249,.04);border-radius:var(--r);margin:0 -6px;padding:0 6px;"':''}>
       <div class="tl3-row-label">
-        <span class="tl3-t">T+${m.t}${fixTag}${hotTag}</span>
+        <span class="tl3-t">T+${m.t}${fixTag}${hotTag}${todayTag}</span>
         <span class="tl3-d">${m.date}</span>
       </div>
       <div class="tl3-dot ${dotCls}"></div>
       <div class="tl3-body">${bodyHtml}</div>
-    </div>${isFix&&idx<tl3Milestones.length-1?'<div class="tl3-gap"></div>':''}`;
+    </div>${(isFix||m.isToday)&&idx<tl3Milestones.length-1?'<div class="tl3-gap"></div>':''}`;
   });
 
   body.innerHTML=html||`<div class="placeholder" style="padding:40px 0"><div style="color:var(--muted);font-size:12px">Chưa có dữ liệu status_history trong tracking.</div></div>`;
@@ -1634,6 +1878,410 @@ function renderTimeline(){
   }
 }
 
+// ══════════════ TAB 4: BREAKDOWN ══════════════
+const BK_STAGE_SCOL = {lead:'#6b7590',meet:'#9b7fe8',opp:'#f5a623',sbk:'#c9a96e',hbk:'#3ecf8e',drop:'#e05252',na:'#3a3f52'};
+const BK_STAGE_SLBL = {lead:'Lead',meet:'Meet',opp:'Opp',sbk:'SBK',hbk:'HBK',drop:'Drop',na:'N/A'};
+const BK_STAGE_SCLS = {lead:'tl3-s-lead',meet:'tl3-s-meet',opp:'tl3-s-opp',sbk:'tl3-s-sbk',hbk:'tl3-s-hbk',drop:'tl3-s-drop',na:'bk-stage-badge'};
+
+// Flow steps — thứ tự pipeline
+// Bypass: nếu đạt HBK mà không có SBK → SBK bị bypass (đỏ)
+const FLOW_STEPS = [
+  {key:'event_reg',   label:'ĐK Event'},
+  {key:'checkin',     label:'Check-in'},
+  {key:'opp',         label:'Opp'},
+  {key:'sbk',         label:'SBK'},
+  {key:'hbk',         label:'HBK'},
+];
+
+let bkSortKey   = 'status';
+let bkSortDir   = 1; // 1=asc -1=desc
+
+function bkSort(key){
+  if(bkSortKey===key) bkSortDir*=-1;
+  else { bkSortKey=key; bkSortDir=1; }
+  bkRender();
+}
+
+function bkGetStage(g){
+  const t=g._trk;
+  if(flagHBK(t)) return 'hbk';
+  if(flagSBK(t)) return 'sbk';
+  if(flagOpp(t)) return 'opp';
+  if(flagDrop(t)) return 'drop';
+  const b=classifyBucket(t);
+  if(b==='Meet') return 'meet';
+  if(b==='Lead') return 'lead';
+  return 'na';
+}
+
+function bkEventStatus(g){
+  if(g.cancelled) return 'cancel';
+  if(g.checked_in) return 'showup';
+  return 'noshow';
+}
+
+function bkCheckinTime(g){
+  if(!g.checked_in||!g.checkin_time) return '—';
+  try{
+    // checkin_time có thể là ISO string hoặc timestamp
+    const d=new Date(g.checkin_time);
+    if(!isNaN(d)) return d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){}
+  return String(g.checkin_time||'—').slice(0,5);
+}
+
+function bkStageDate(g){
+  // Lấy thời điểm ghi nhận stage hiện tại của KH:
+  // HBK → cột hbk; SBK → cột sbk; Opp → cột opp_flag
+  // Lead/Meet → entry cuối trong status_history; Drop → drop_flag
+  const t=g._trk;
+  if(!t) return '—';
+  const stage=bkGetStage(g);
+
+  function parseTs(v){
+    if(!v||v==='NO') return null;
+    const asMs=parseInt(v);
+    const d=(!isNaN(asMs)&&asMs>1e10)?new Date(asMs):(parseVNDate(String(v))||new Date(v));
+    return d&&!isNaN(d.getTime())?d:null;
+  }
+
+  function fmtDate(d){
+    if(!d) return '—';
+    return d.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'})
+      +' '+d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  // Opp/SBK/HBK: lấy từ flag column
+  if(stage==='hbk') return fmtDate(parseTs(t.hbk));
+  if(stage==='sbk') return fmtDate(parseTs(t.sbk));
+  if(stage==='opp') return fmtDate(parseTs(t.opp_flag));
+  if(stage==='drop') return fmtDate(parseTs(t.drop_flag));
+
+  // Lead/Meet: lấy entry cuối cùng trong status_history có stage tương ứng
+  if((stage==='lead'||stage==='meet') && t.status_history){
+    let hist;
+    try{ hist=typeof t.status_history==='string'?JSON.parse(t.status_history):t.status_history; }
+    catch(e){ hist=null; }
+    if(Array.isArray(hist)&&hist.length){
+      // Lấy entry cuối cùng
+      const last=hist[hist.length-1];
+      const rawDate=last.date||last.ts||last.timestamp||last.updated_at||'';
+      if(rawDate) return fmtDate(parseTs(rawDate));
+    }
+  }
+
+  // Fallback: status_latest_date
+  return fmtDate(parseTs(t.status_latest_date));
+}
+
+function bkFlowHtml(g){
+  const evStatus = bkEventStatus(g);
+  const stage    = bkGetStage(g);
+  const t        = g._trk;
+  const hasOpp   = flagOpp(t);
+  const hasSBK   = flagSBK(t);
+  const hasHBK   = flagHBK(t);
+  const hasDrop  = flagDrop(t);
+  const ciOk     = g.checked_in && !g.cancelled;
+
+  // Xác định trạng thái từng bước trong flow
+  // done   = đã qua (highlight xanh nhạt)
+  // active = đang ở đây (highlight xanh đậm)
+  // bypass = bị bỏ qua khi bước sau đã đạt (đỏ)
+  // wait   = chưa tới (xám)
+
+  const stepState = {};
+
+  // ── Rules ──────────────────────────────────────────────────────────────────
+  // done   = bước đã hoàn thành, đã đi qua
+  // active = bước hiện tại của KH (đang ở đây)
+  // bypass = bị bỏ qua vì bước SAU đã đạt nhưng bước này chưa có (đỏ)
+  //          KHÔNG dùng bypass chỉ vì No show/Cancel — đó là việc chưa xảy ra
+  // wait   = chưa đến lượt (xám)
+  //
+  // No show / Cancel → checkin = 'wait' (chưa tới, không phải bypass)
+  // bypass Opp: CHỈ khi hasDrop (KH đã drop — không bao giờ qua Opp)
+  // bypass SBK: CHỈ khi hasHBK && !hasSBK (nhảy thẳng HBK không qua SBK)
+
+  // event_reg: luôn done
+  stepState.event_reg = 'done';
+
+  // checkin
+  if(ciOk){
+    // Đã check-in — nếu còn ở Lead/na thì checkin đang active, else đã done
+    stepState.checkin = (stage==='lead'||stage==='na') ? 'active' : 'done';
+  } else {
+    // No show hoặc Cancel: thời điểm event đã qua → cơ hội checkin không còn → bypass (X)
+    stepState.checkin = 'bypass';
+  }
+
+  // opp: bypass CHỈ khi KH đã Drop (không có cơ hội đi tới Opp)
+  if(hasOpp||hasSBK||hasHBK){
+    stepState.opp = 'done';
+  } else if(stage==='opp'){
+    stepState.opp = 'active';
+  } else if(hasDrop){
+    stepState.opp = 'bypass'; // drop rồi → không qua Opp
+  } else {
+    stepState.opp = 'wait'; // kể cả No show/Cancel — vẫn là wait
+  }
+
+  // sbk: bypass CHỈ khi hasHBK nhưng không có SBK (nhảy level)
+  if(hasSBK||hasHBK){
+    stepState.sbk = (hasSBK) ? 'done' : 'bypass'; // HBK không qua SBK → bypass SBK
+  } else if(stage==='sbk'){
+    stepState.sbk = 'active';
+  } else if(hasDrop){
+    stepState.sbk = 'bypass';
+  } else {
+    stepState.sbk = 'wait';
+  }
+
+  // hbk: active nếu đã đạt (milestone cao nhất)
+  if(hasHBK){
+    stepState.hbk = 'active';
+  } else if(hasDrop){
+    stepState.hbk = 'bypass';
+  } else {
+    stepState.hbk = 'wait';
+  }
+
+  // Icons
+  const ICON={done:'✓',active:'●',bypass:'✕',wait:'○'};
+
+  let html='<div class="bk-flow">';
+  FLOW_STEPS.forEach((step, i)=>{
+    const s=stepState[step.key]||'wait';
+    html+=`<div class="bk-step">
+      <div class="bk-step-dot ${s}">${ICON[s]}</div>
+      <div class="bk-step-lbl ${s}">${step.label}</div>
+    </div>`;
+    if(i<FLOW_STEPS.length-1){
+      const connDone = s==='done' || (s==='active');
+      html+=`<div class="bk-conn${connDone?' done':''}"></div>`;
+    }
+  });
+  html+='</div>';
+  return html;
+}
+
+// ── Filter state ──
+const bkEvSel  = new Set(['showup','noshow','cancel']); // event status
+const bkStgSel = new Set(); // stage — empty = all
+// Vùng + Chi nhánh: single-select string ('' = tất cả)
+function bkGetRegion(){ return document.getElementById('bkFltRegion')?.value||''; }
+function bkGetBranch(){ return document.getElementById('bkFltBranch')?.value||''; }
+
+// ── Generic pill builder (for stage + ev) ──
+function bkBuildPillGroup(containerId, items, selSet, allLabel, onToggle, colorFn){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  const allOn=selSet.size===0;
+  let h=`<button class="bk-spill${allOn?' on':''}"
+    style="${allOn?'background:var(--accent);color:#0d0f14;border-color:var(--accent);':''}"
+    onclick="${onToggle}('__all__',this)">${allLabel}</button>`;
+  items.forEach(item=>{
+    const active=selSet.has(item.value);
+    const col=colorFn?colorFn(item.value):'#6b7590';
+    h+=`<button class="bk-spill${active?' on':''}"
+      style="background:${active?col:'transparent'};color:${active?'#0d0f14':'var(--muted)'};border-color:${active?col:'var(--border)'};"
+      onclick="${onToggle}('${item.value}',this)">
+      <span class="bk-spill-dot" style="background:${active?'rgba(0,0,0,.4)':col}"></span>${item.label}
+    </button>`;
+  });
+  el.innerHTML=h;
+}
+
+function bkBuildFilters(){
+  if(!merged.length) return;
+
+  // Populate Vùng dropdown
+  const regions=[...new Set(merged.map(g=>getField(g,colMap.region)||'').filter(Boolean))].sort();
+  const rSel=document.getElementById('bkFltRegion');
+  if(rSel){
+    const cur=rSel.value;
+    rSel.innerHTML='<option value="">Tất cả</option>'
+      +regions.map(r=>`<option value="${r}"${r===cur?' selected':''}>${r}</option>`).join('');
+  }
+
+  // Populate Chi nhánh (cascade)
+  bkBuildBranchDropdown();
+
+  // Stage + ev pills
+  bkBuildStagePills();
+  bkSyncEvAllPill();
+}
+
+function bkBuildBranchDropdown(){
+  const region=bkGetRegion();
+  const branches=[...new Set(
+    merged
+      .filter(g=>!region||getField(g,colMap.region)===region)
+      .map(g=>getField(g,colMap.branch)||'').filter(Boolean)
+  )].sort();
+  const bSel=document.getElementById('bkFltBranch');
+  if(!bSel) return;
+  const cur=bSel.value;
+  // Keep current selection if still valid
+  const keepCur=branches.includes(cur);
+  bSel.innerHTML='<option value="">Tất cả</option>'
+    +branches.map(b=>`<option value="${b}"${b===cur&&keepCur?' selected':''}>${b}</option>`).join('');
+}
+
+function bkOnRegionChange(){
+  // Reset chi nhánh khi đổi vùng
+  const bSel=document.getElementById('bkFltBranch');
+  if(bSel) bSel.value='';
+  bkBuildBranchDropdown();
+  bkRender();
+}
+
+function bkToggleRegion(val,btn){} // unused but kept for safety
+function bkToggleBranch(val,btn){} // unused
+
+function bkBuildStagePills(){
+  const SCOL={lead:'#6b7590',meet:'#9b7fe8',opp:'#f5a623',sbk:'#c9a96e',hbk:'#3ecf8e',drop:'#e05252'};
+  const SLBL={lead:'Lead',meet:'Meet',opp:'Opp',sbk:'SBK',hbk:'HBK',drop:'Drop'};
+  bkBuildPillGroup('bkStagePills',
+    ['lead','meet','opp','sbk','hbk','drop'].map(k=>({value:k,label:SLBL[k]})),
+    bkStgSel,'Tất cả stage','bkToggleStage',k=>SCOL[k]);
+}
+
+function bkToggleEvAll(btn){
+  // Select all
+  ['showup','noshow','cancel'].forEach(v=>bkEvSel.add(v));
+  bkSyncEvAllPill();
+  bkRender();
+}
+function bkToggleEv(key, btn){
+  if(bkEvSel.has(key)) bkEvSel.delete(key); else bkEvSel.add(key);
+  // Keep at least 1 selected
+  if(bkEvSel.size===0) bkEvSel.add(key);
+  bkSyncEvAllPill();
+  bkRender();
+}
+function bkSyncEvAllPill(){
+  const ALL=['showup','noshow','cancel'];
+  const allOn=ALL.every(v=>bkEvSel.has(v));
+  document.querySelectorAll('.bk-ev-pill').forEach(b=>{
+    const ev=b.dataset.ev;
+    if(!ev){ // "Tất cả" button (no data-ev)
+      b.classList.toggle('on',allOn);
+    } else {
+      b.classList.toggle('on',bkEvSel.has(ev));
+    }
+  });
+}
+
+function bkToggleStage(k, btn){
+  if(k==='__all__'){ bkStgSel.clear(); }
+  else {
+    if(bkStgSel.has(k)) bkStgSel.delete(k); else bkStgSel.add(k);
+    const ALL=['lead','meet','opp','sbk','hbk','drop'];
+    if(bkStgSel.size===ALL.length) bkStgSel.clear();
+  }
+  bkBuildStagePills();
+  bkRender();
+}
+
+function bkResetFilters(){
+  const rSel=document.getElementById('bkFltRegion');
+  const bSel=document.getElementById('bkFltBranch');
+  if(rSel) rSel.value='';
+  if(bSel) bSel.value='';
+  bkEvSel.clear(); ['showup','noshow','cancel'].forEach(v=>bkEvSel.add(v));
+  bkStgSel.clear();
+  bkBuildFilters();
+  bkRender();
+}
+
+function bkRender(){
+  const tbody=document.getElementById('bkTbody');
+  if(!tbody||!merged.length){ return; }
+
+  const q=(document.getElementById('bkSearch')?.value||'').toLowerCase().trim();
+
+  const region=bkGetRegion();
+  const branch=bkGetBranch();
+  // Filter
+  let rows=merged.filter(g=>{
+    // Search
+    if(q && !(g.name||'').toLowerCase().includes(q) && !(g.phone||'').includes(q)) return false;
+    // Vùng (single-select, '' = tất cả)
+    if(region && getField(g,colMap.region)!==region) return false;
+    // Chi nhánh (single-select, cascade)
+    if(branch && getField(g,colMap.branch)!==branch) return false;
+    // Event status
+    if(!bkEvSel.has(bkEventStatus(g))) return false;
+    // Stage
+    if(bkStgSel.size>0 && !bkStgSel.has(bkGetStage(g))) return false;
+    return true;
+  });
+
+  // Sort
+  rows.sort((a,b)=>{
+    let va,vb;
+    if(bkSortKey==='name')   { va=(a.name||''); vb=(b.name||''); }
+    else if(bkSortKey==='status'){ va=bkEventStatus(a); vb=bkEventStatus(b); }
+    else if(bkSortKey==='stage') { va=bkGetStage(a);    vb=bkGetStage(b);    }
+    else if(bkSortKey==='gmv'){
+      va=parseGMV(a._trk?.gmv); vb=parseGMV(b._trk?.gmv);
+      return (vb-va)*bkSortDir;
+    }
+    return va<vb?-bkSortDir:va>vb?bkSortDir:0;
+  });
+
+  // Default sort: showup → noshow → cancel
+  if(bkSortKey==='status'){
+    const ORDER={showup:0,noshow:1,cancel:2};
+    rows.sort((a,b)=>(ORDER[bkEventStatus(a)]-ORDER[bkEventStatus(b)])*bkSortDir);
+  }
+
+  // Count
+  const cEl=document.getElementById('bkCount');
+  if(cEl) cEl.textContent=`${rows.length} / ${merged.length} KH`;
+
+  // Render rows
+  const STAGE_ORDER={hbk:6,sbk:5,opp:4,meet:3,lead:2,drop:1,na:0};
+  tbody.innerHTML=rows.map(g=>{
+    const evSt=bkEventStatus(g);
+    const stage=bkGetStage(g);
+    const gmv=parseGMV(g._trk?.gmv);
+    const ciTime=bkCheckinTime(g);
+    const lastUpd=bkStageDate(g);
+    const flowHtml=bkFlowHtml(g);
+
+    const evBadge = evSt==='showup'
+      ? `<span class="bk-showup">✓ Show up</span>`
+      : evSt==='cancel'
+      ? `<span class="bk-cancel">✕ Cancel</span>`
+      : `<span class="bk-noshow">− No show</span>`;
+
+    const stageBadge = `<span class="bk-stage-badge" style="background:${BK_STAGE_SCOL[stage]||'#3a3f52'}22;color:${BK_STAGE_SCOL[stage]||'var(--muted)'};border:1px solid ${BK_STAGE_SCOL[stage]||'var(--border)'}44">${BK_STAGE_SLBL[stage]||stage}</span>`;
+
+    const gmvCell = gmv>0
+      ? `<span class="bk-gmv">${fmtTy(gmv)} tỷ</span>`
+      : `<span style="color:var(--muted);font-size:11px">—</span>`;
+
+    const unit=(g.unit||g._trk?.unit||'');
+    const region=(g.tcb_region||g._trk?.tcb_region||'');
+    const sub=[region,unit].filter(Boolean).join(' · ');
+
+    return `<tr>
+      <td>
+        <div class="bk-name">${g.name||'—'}</div>
+        ${sub?`<div class="bk-sub">${sub}</div>`:''}
+      </td>
+      <td>${evBadge}</td>
+      <td class="bk-time">${ciTime}</td>
+      <td>${stageBadge}</td>
+      <td class="bk-time">${lastUpd}</td>
+      <td>${gmvCell}</td>
+      <td>${flowHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
 // ══════════════ TABS ══════════════
 document.querySelectorAll(".tab").forEach(t=>{
   t.onclick=()=>{
@@ -1642,8 +2290,9 @@ document.querySelectorAll(".tab").forEach(t=>{
     document.querySelectorAll(".tabpane").forEach(p=>p.style.display="none");
     document.getElementById("t-"+t.dataset.tab).style.display="";
     // Render Detail khi switch sang tab đó
-    if(t.dataset.tab==="detail"   && merged.length>0) renderDetail();
-    if(t.dataset.tab==="timeline"  && merged.length>0) renderTimeline();
+    if(t.dataset.tab==="detail"    && merged.length>0) renderDetail();
+    if(t.dataset.tab==="timeline"   && merged.length>0) renderTimeline();
+    if(t.dataset.tab==="breakdown"  && merged.length>0) bkRender();
   };
 });
 
