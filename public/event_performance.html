@@ -30,46 +30,72 @@
   .tab{padding:9px 16px;border-radius:var(--r);font-size:12.5px;font-weight:600;cursor:pointer;color:var(--muted);background:transparent;border:1px solid transparent;transition:all .15s;}
   .tab.active{background:var(--card);color:var(--text);border-color:var(--border);}
   .tab:hover:not(.active){color:var(--text);}
-  /* STATS */
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:12px;margin-bottom:8px;}
-  .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:15px 16px;}
-  .stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;}
-  .stat-val{font-size:25px;font-weight:800;line-height:1;}
-  .stat-sub{font-size:11px;color:var(--muted);margin-top:5px;}
-  .stat.accent .stat-val{color:var(--accent);}
-  .stat.green .stat-val{color:var(--green);}
-  .stat.blue .stat-val{color:var(--accent2);}
-  .stat.orange .stat-val{color:var(--orange);}
-  .stat.red .stat-val{color:var(--red);}
-  .stat.purple .stat-val{color:var(--purple);}
-  /* SECTION */
+  /* ══ TAB 1: TỔNG QUAN — CSS ══ */
+  /* Conclusion */
+  .ov-conclusion{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--r);background:var(--card);padding:11px 16px;margin-bottom:14px;font-size:12.5px;color:var(--text);line-height:1.65;}
+  .ov-conclusion .c-acc{color:var(--accent);font-weight:700;}
+  .ov-conclusion .c-hi{color:var(--green);font-weight:700;}
+  .ov-conclusion .c-warn{color:var(--orange);font-weight:700;}
+  /* KPI strip */
+  .ov-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+  @media(max-width:700px){.ov-kpi-row{grid-template-columns:repeat(2,1fr);}}
+  .ov-kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;}
+  .ov-kpi-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px;}
+  .ov-kpi-val{font-size:26px;font-weight:800;line-height:1;}
+  .ov-kpi-sub{font-size:11px;color:var(--muted);margin-top:5px;}
+  /* Two-col main */
+  .ov-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:820px){.ov-cols{grid-template-columns:1fr;}}
+  /* Panel shared */
+  .ov-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:16px 18px;}
+  .ov-sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+  .ov-sec::before{content:'';width:3px;height:11px;background:var(--accent);border-radius:2px;flex-shrink:0;}
+  .ov-sec-note{font-size:10px;color:var(--muted);margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0;}
+  .ov-sub-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;margin-top:13px;}
+  .ov-divider{height:1px;background:var(--border);margin:12px 0;}
+  /* Funnel rows */
+  .ov-frow{display:flex;align-items:center;gap:10px;margin-bottom:2px;}
+  .ov-frow-num{width:16px;flex-shrink:0;font-size:10px;color:var(--muted);text-align:right;}
+  .ov-frow-lbl{width:66px;flex-shrink:0;font-size:11px;font-weight:600;text-align:right;color:var(--text);}
+  .ov-frow-track{flex:1;height:28px;background:var(--surface);border-radius:5px;overflow:hidden;}
+  .ov-frow-fill{height:100%;border-radius:5px;display:flex;align-items:center;padding-left:9px;font-size:12px;font-weight:800;color:#0d0f14;transition:width .5s;min-width:32px;}
+  .ov-frow-pct{width:80px;flex-shrink:0;text-align:right;}
+  .ov-frow-pct b{font-size:12px;color:var(--text);}
+  .ov-frow-pct small{font-size:10px;color:var(--muted);}
+  .ov-fdrop{display:flex;align-items:center;gap:4px;padding:1px 0 1px 94px;height:14px;}
+  .ov-fdrop .keep{font-size:10px;color:var(--green);}
+  .ov-fdrop .loss{font-size:10px;color:var(--muted);}
+  .ov-fdrop .flag{font-size:9px;background:rgba(224,82,82,.15);color:var(--red);padding:1px 6px;border-radius:3px;font-weight:700;margin-left:2px;}
+  /* Progression rows */
+  .ov-prow{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+  .ov-prow-lbl{width:78px;flex-shrink:0;font-size:11px;color:var(--muted);}
+  .ov-prow-track{flex:1;height:22px;background:var(--surface);border-radius:4px;overflow:hidden;}
+  .ov-prow-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:#0d0f14;min-width:26px;}
+  .ov-prow-meta{width:90px;flex-shrink:0;font-size:10px;color:var(--muted);text-align:right;line-height:1.4;}
+  .ov-prow-meta b{color:var(--text);}
+  /* Velocity */
+  .ov-vel-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .ov-vel-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;}
+  .ov-vel-lbl{font-size:10px;color:var(--muted);margin-bottom:3px;}
+  .ov-vel-val{font-size:20px;font-weight:800;}
+  .ov-vel-unit{font-size:11px;font-weight:400;color:var(--muted);}
+  /* HBK bar chart */
+  .ov-hbk-bars{display:flex;align-items:flex-end;gap:10px;padding-top:4px;}
+  .ov-hbk-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .ov-hbk-num{font-size:16px;font-weight:800;}
+  .ov-hbk-bar-wrap{width:100%;border-radius:4px;overflow:hidden;background:rgba(201,169,110,.15);}
+  .ov-hbk-bar-inner{width:100%;background:var(--accent);border-radius:4px 4px 0 0;}
+  .ov-hbk-t{font-size:10px;color:var(--muted);margin-top:2px;}
+
+  /* SECTION (kept for other tabs) */
   .sec-head{display:flex;align-items:center;justify-content:space-between;margin:26px 0 14px;gap:12px;flex-wrap:wrap;}
   .sec-title{font-size:13px;font-weight:700;letter-spacing:.3px;display:flex;align-items:center;gap:8px;}
   .sec-title::before{content:'';width:3px;height:14px;background:var(--accent);border-radius:2px;}
   .sec-note{font-size:11px;color:var(--muted);}
   .panel{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:8px;}
-  /* FUNNEL — horizontal clean */
-  .funnel-h{display:flex;flex-direction:column;gap:2px;}
-  .frow{display:flex;align-items:center;gap:12px;}
-  .frow-label{width:90px;flex-shrink:0;font-size:12px;font-weight:600;text-align:right;}
-  .frow-track{flex:1;height:34px;background:var(--surface);border-radius:6px;position:relative;overflow:hidden;}
-  .frow-fill{height:100%;border-radius:6px;display:flex;align-items:center;padding-left:12px;font-size:13px;font-weight:800;color:#0d0f14;transition:width .5s;min-width:42px;}
-  .frow-pct{width:120px;flex-shrink:0;font-size:11px;color:var(--muted);}
-  .frow-pct b{color:var(--text);font-size:12px;}
-  .fdrop{display:flex;align-items:center;gap:6px;padding:1px 0 1px 102px;height:16px;}
-  .fdrop span{font-size:10px;color:var(--red);}
-  .fdrop .keep{color:var(--green);}
-  /* two col */
+  /* two col (kept for other tabs) */
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media(max-width:820px){.two-col{grid-template-columns:1fr;}}
-  /* pie group */
-  .pie-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  .pie-unit{text-align:center;}
-  .pie-unit h4{font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;}
-  /* legend */
-  .legend{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:var(--muted);}
-  .legend span{display:flex;align-items:center;gap:5px;}
-  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
   /* table */
   .tbl-wrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--border);}
   table{width:100%;border-collapse:collapse;}
@@ -86,17 +112,6 @@
   .b-red{background:rgba(224,82,82,.15);color:var(--red);}
   .b-blue{background:rgba(79,156,249,.15);color:var(--accent2);}
   .b-muted{background:rgba(107,117,144,.12);color:var(--muted);}
-  /* nurture cards */
-  .nurture-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-  @media(max-width:680px){.nurture-grid{grid-template-columns:1fr;}}
-  .nc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;}
-  .nc-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
-  .nc-val{font-size:24px;font-weight:800;}
-  .nc-sub{font-size:11px;color:var(--muted);margin-top:4px;}
-  .speed-row{display:flex;gap:24px;flex-wrap:wrap;}
-  .speed-item{flex:1;min-width:120px;}
-  .speed-item .sl{font-size:11px;color:var(--muted);}
-  .speed-item .sv{font-size:22px;font-weight:800;}
   .placeholder{text-align:center;padding:80px 20px;color:var(--muted);}
   .placeholder .big{font-size:40px;opacity:.2;margin-bottom:12px;}
   .loader{display:flex;align-items:center;justify-content:center;padding:50px;gap:10px;color:var(--muted);}
@@ -308,43 +323,77 @@
 
   <!-- ══════════════ TAB 1: TỔNG QUAN ══════════════ -->
   <div id="t-overview" class="tabpane">
-    <div class="stats" id="statStrip">
-      <div class="stat accent"><div class="stat-label">Tổng đăng ký</div><div class="stat-val" id="st-reg">—</div><div class="stat-sub">Main guests</div></div>
-      <div class="stat green"><div class="stat-label">Check-in</div><div class="stat-val" id="st-ci">—</div><div class="stat-sub" id="st-ci-sub">—</div></div>
-      <div class="stat red"><div class="stat-label">Không đến</div><div class="stat-val" id="st-abs">—</div><div class="stat-sub" id="st-abs-sub">—</div></div>
-      <div class="stat orange"><div class="stat-label">Opp</div><div class="stat-val" id="st-opp">—</div><div class="stat-sub" id="st-opp-sub">—</div></div>
-      <div class="stat purple"><div class="stat-label">SBK</div><div class="stat-val" id="st-sbk">—</div><div class="stat-sub" id="st-sbk-sub">—</div></div>
-      <div class="stat blue"><div class="stat-label">HBK</div><div class="stat-val" id="st-hbk">—</div><div class="stat-sub" id="st-hbk-sub">—</div></div>
-      <div class="stat"><div class="stat-label">GMV tổng</div><div class="stat-val" id="st-gmv" style="font-size:19px;color:var(--accent)">—</div><div class="stat-sub" id="st-gmv-sub">—</div></div>
+
+    <!-- Conclusion 1 dòng -->
+    <div class="ov-conclusion" id="ov-conclusion">
+      <div class="loader"><div class="spinner"></div></div>
     </div>
 
-
-    <div class="sec-head"><div class="sec-title">Phễu chuyển đổi sự kiện</div><div class="sec-note">% trên tổng đăng ký · mức rơi rớt mỗi tầng</div></div>
-    <div class="panel"><div class="funnel-h" id="funnel"><div class="loader"><div class="spinner"></div></div></div></div>
-
-    <div class="sec-head"><div class="sec-title">Phân bổ trạng thái chuyển đổi</div><div class="sec-note">Vòng ngoài = % / tổng ĐK · Vòng trong = % / Check-in</div></div>
-    <div class="panel" style="padding:20px 16px">
-      <div id="pieGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 12px;"></div>
-      <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center;font-size:11px;color:var(--muted)">
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(107,117,144,.9);display:inline-block"></span>Vòng ngoài: % toàn bộ ĐK</span>
-        <span style="display:flex;align-items:center;gap:5px"><span style="width:28px;height:4px;border-radius:2px;background:rgba(79,156,249,.7);display:inline-block"></span>Vòng trong: % Check-in only</span>
+    <!-- 4 KPI: Đăng ký · Show-up rate · HBK · GMV chốt -->
+    <div class="ov-kpi-row">
+      <div class="ov-kpi">
+        <div class="ov-kpi-label">Đăng ký</div>
+        <div class="ov-kpi-val" id="kpi-reg" style="color:var(--text)">—</div>
+        <div class="ov-kpi-sub" id="kpi-reg-sub">Main guests</div>
+      </div>
+      <div class="ov-kpi">
+        <div class="ov-kpi-label">Show-up rate</div>
+        <div class="ov-kpi-val" id="kpi-showup" style="color:var(--accent)">—</div>
+        <div class="ov-kpi-sub" id="kpi-showup-sub">—</div>
+      </div>
+      <div class="ov-kpi">
+        <div class="ov-kpi-label">HBK</div>
+        <div class="ov-kpi-val" id="kpi-hbk" style="color:var(--green)">—</div>
+        <div class="ov-kpi-sub" id="kpi-hbk-sub">—</div>
+      </div>
+      <div class="ov-kpi">
+        <div class="ov-kpi-label">GMV chốt</div>
+        <div class="ov-kpi-val" id="kpi-gmv" style="color:var(--accent);font-size:20px;padding-top:3px">—</div>
+        <div class="ov-kpi-sub" id="kpi-gmv-sub">—</div>
       </div>
     </div>
 
-    <div class="two-col" style="margin-top:8px">
-      <div class="panel">
-        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Thời gian nuôi dưỡng lead trước event</div>
-        <div class="nurture-grid" id="nurtureCards"></div>
-        <div class="sec-note" style="margin-top:12px;line-height:1.5">Mốc tính từ ngày tổ chức (T0). Event thường kickoff trước 14 ngày.</div>
+    <!-- Funnel + Progression side-by-side -->
+    <div class="ov-cols">
+
+      <!-- LEFT: Phễu chuyển đổi -->
+      <div class="ov-panel">
+        <div class="ov-sec">Phễu chuyển đổi <span class="ov-sec-note">% / tổng ĐK</span></div>
+        <div id="ov-funnel"><div class="loader"><div class="spinner"></div></div></div>
       </div>
-      <div class="panel">
-        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Tốc độ chuyển đổi sau event (trung vị)</div>
-        <div class="speed-row">
-          <div class="speed-item"><div class="sl">Event → SBK</div><div class="sv" style="color:var(--purple)" id="sp-sbk">—</div></div>
-          <div class="speed-item"><div class="sl">Event → HBK</div><div class="sv" style="color:var(--green)" id="sp-hbk">—</div></div>
+
+      <!-- RIGHT: Progression -->
+      <div class="ov-panel">
+        <div class="ov-sec">Progression</div>
+
+        <!-- Lead age -->
+        <div class="ov-sub-label" style="margin-top:0">Tuổi lead khi vào event</div>
+        <div id="ov-leadage"><div class="loader"><div class="spinner"></div></div></div>
+
+        <div class="ov-divider"></div>
+
+        <!-- Velocity -->
+        <div class="ov-sub-label">Tốc độ chuyển đổi sau event (trung vị)</div>
+        <div class="ov-vel-row">
+          <div class="ov-vel-item">
+            <div class="ov-vel-lbl">Event → SBK</div>
+            <div class="ov-vel-val" style="color:var(--purple)"><span id="ov-sp-sbk">—</span> <span class="ov-vel-unit">ngày</span></div>
+          </div>
+          <div class="ov-vel-item">
+            <div class="ov-vel-lbl">Event → HBK</div>
+            <div class="ov-vel-val" style="color:var(--green)"><span id="ov-sp-hbk">—</span> <span class="ov-vel-unit">ngày</span></div>
+          </div>
         </div>
-        <div class="sec-note" style="margin-top:16px;line-height:1.5">Số ngày trung vị từ ngày tổ chức đến khi lead chuyển sang SBK / HBK.</div>
+
+        <div class="ov-divider"></div>
+
+        <!-- HBK tích lũy T+ -->
+        <div class="ov-sub-label">HBK tích lũy theo mốc T+</div>
+        <div class="ov-hbk-bars" id="ov-hbk-bars">
+          <div style="font-size:11px;color:var(--muted)">Đang tính...</div>
+        </div>
       </div>
+
     </div>
   </div>
 
@@ -1225,16 +1274,75 @@ async function loadAll(){
 function isCheckedIn(g){ return g.checked_in && !g.cancelled; }
 function isNoShow(g){ return !g.checked_in || g.cancelled; }
 
+/* ── helpers ── */
+function P(n,d){ return d?Math.round(n/d*100)+"%":"0%"; }
+function Pn(n,d){ return d?Math.round(n/d*100):0; }
+function setHTML(id,v){ const e=document.getElementById(id); if(e)e.innerHTML=v; }
+
+/* ── Conclusion line — tự generate từ data thật ── */
+function buildConclusion(total,ci,hbk,sbk,opp,gmvTotal,msHBK,reachOpp,reachSBK){
+  if(!total){ return '<span style="color:var(--muted)">Chưa có dữ liệu.</span>'; }
+  const showupPct=Pn(ci,total);
+  const benchmark=showupPct>=70;
+  const showupLabel=benchmark
+    ?`Show-up <span class="c-acc">${showupPct}%</span> — đạt benchmark`
+    :`Show-up <span class="c-warn">${showupPct}%</span> — thấp hơn benchmark (70%)`;
+
+  // Điểm rơi nặng nhất trong funnel
+  const drops=[
+    {label:"Đăng ký → Check-in", keep:Pn(ci,total)},
+    {label:"Check-in → Meet+",   keep:reachOpp>0?Pn(reachOpp,ci):null},
+    {label:"Opp+ → SBK+",        keep:reachOpp>0?Pn(reachSBK,reachOpp):null},
+    {label:"SBK+ → HBK",         keep:reachSBK>0?Pn(hbk,reachSBK):null},
+  ].filter(d=>d.keep!==null);
+  const worst=drops.reduce((a,b)=>a.keep<b.keep?a:b,drops[0]);
+  const dropNote=worst?` · Rơi nặng nhất: <span class="c-warn">${worst.label}</span> (giữ ${worst.keep}%)`:"";
+
+  const hbkNote=hbk>0
+    ?` · HBK <span class="c-hi">${hbk} deals</span> · GMV ${fmtTy(gmvTotal)} tỷ`
+    :` · Chưa có HBK`;
+
+  const velNote=(msHBK!=null&&msHBK>0)
+    ?` · Velocity trung vị ${msHBK} ngày/HBK.`
+    :"";
+
+  return showupLabel+dropNote+hbkNote+velNote;
+}
+
+/* ── HBK milestones T+ — dùng flag hbk timestamp ── */
+function buildHBKMilestones(){
+  if(!eventT0||!merged.length) return [];
+  const HBK_T=[7,14,30,60];
+  const todayTplus=daysBetween(eventT0,new Date())??0;
+  const counts={};
+  HBK_T.forEach(t=>counts[t]=0);
+  merged.forEach(g=>{
+    const t=g._trk; if(!t||!hasTs(t.hbk)) return;
+    const asMs=parseInt(t.hbk);
+    let d=(!isNaN(asMs)&&asMs>1e10)?new Date(asMs):(parseVNDate(String(t.hbk))||new Date(t.hbk));
+    if(!d||isNaN(d.getTime())) return;
+    const tp=daysBetween(eventT0,d);
+    if(tp==null||tp<0) return;
+    HBK_T.forEach(mt=>{ if(tp<=mt) counts[mt]++; });
+  });
+  // Hiển thị: mốc đã qua (<=todayTplus) + mốc tiếp theo gần nhất chưa đến
+  const passed=HBK_T.filter(t=>t<=todayTplus);
+  const nextT=HBK_T.find(t=>t>todayTplus);
+  const toShow=[...passed,...(nextT!=null?[nextT]:[])];
+  return toShow.map(t=>({t,n:counts[t],isPast:t<=todayTplus}));
+}
+
 function renderOverview(){
   const total=merged.length;
   const ci=merged.filter(isCheckedIn).length;
   const cancel=merged.filter(g=>g.cancelled).length;
-  const abs=merged.filter(isNoShow).length;
+  const abs=total-ci;
   const opp=merged.filter(g=>flagOpp(g._trk)).length;
   const sbk=merged.filter(g=>flagSBK(g._trk)).length;
   const hbk=merged.filter(g=>flagHBK(g._trk)).length;
   let gmvTotal=0; merged.forEach(g=>{ if(g._trk) gmvTotal+=parseGMV(g._trk.gmv); });
 
+  // Sync badge
   let lastSyncMs=0;
   allTracking.forEach(t=>{ if((t.synced_at||0)>lastSyncMs) lastSyncMs=t.synced_at; });
   const lastSyncDate=lastSyncMs?new Date(lastSyncMs):null;
@@ -1242,20 +1350,10 @@ function renderOverview(){
   const tPlusDays=(lastSyncDate&&eventT0)?daysBetween(eventT0,lastSyncDate):null;
   const tPlusLabel=tPlusDays!=null&&tPlusDays>=0?`T+${tPlusDays}`:tPlusDays!=null&&tPlusDays<0?`T${tPlusDays}`:"—";
   const syncNote=lastSyncMs?`<span style="color:var(--accent2);font-weight:700">${tPlusLabel}</span> · cập nhật lúc ${lastSyncLabel}`:"—";
-
-  // Update global sync badge (hiển thị cạnh tabs, áp dụng cho toàn bộ dashboard)
   const gBadge=document.getElementById('globalSyncText');
   if(gBadge) gBadge.innerHTML=syncNote;
 
-  const P=(n,d)=>d?Math.round(n/d*100)+"%":"0%";
-  set("st-reg",total);
-  set("st-ci",ci); set("st-ci-sub",P(ci,total)+" show-up");
-  set("st-abs",abs); set("st-abs-sub",P(abs,total)+" · cancel "+cancel);
-  set("st-opp",opp); set("st-opp-sub",P(opp,ci)+" trên CI");
-  set("st-sbk",sbk); set("st-sbk-sub",P(sbk,ci)+" trên CI");
-  set("st-hbk",hbk); set("st-hbk-sub",P(hbk,ci)+" trên CI");
-  set("st-gmv",fmtTy(gmvTotal)+" tỷ"); set("st-gmv-sub",hbk?"TB "+fmtTy(gmvTotal/hbk)+" tỷ/HBK":"—");
-
+  // Funnel reach counts
   const reachMeet=merged.filter(g=>{
     const t=g._trk; if(!t) return false;
     const lbl=(t.status_label||"").trim();
@@ -1265,141 +1363,8 @@ function renderOverview(){
   }).length;
   const reachOpp=merged.filter(g=>flagOpp(g._trk)||flagSBK(g._trk)||flagHBK(g._trk)).length;
   const reachSBK=merged.filter(g=>flagSBK(g._trk)||flagHBK(g._trk)).length;
-  const reachHBK=hbk;
 
-  renderFunnel([
-    {l:"Đăng ký",v:total,c:"#4f9cf9"},
-    {l:"Check-in",v:ci,c:"#c9a96e"},
-    {l:"Meet+",v:reachMeet,c:"#9b7fe8"},
-    {l:"Opp+",v:reachOpp,c:"#f5a623"},
-    {l:"SBK+",v:reachSBK,c:"#c9a96e"},
-    {l:"HBK",v:reachHBK,c:"#3ecf8e"},
-  ],total);
-
-  renderPies();
-  renderNurture();
-  renderSpeed();
-}
-
-function set(id,v){ const e=document.getElementById(id); if(e)e.textContent=v; }
-
-function renderFunnel(steps,total){
-  const max=total||1;
-  let h="";
-  steps.forEach((s,i)=>{
-    const w=Math.max(s.v/max*100,4);
-    const pc=total?Math.round(s.v/total*100):0;
-    h+=`<div class="frow">
-      <div class="frow-label">${s.l}</div>
-      <div class="frow-track"><div class="frow-fill" style="width:${w}%;background:${s.c}">${s.v}</div></div>
-      <div class="frow-pct"><b>${pc}%</b> trên ĐK</div>
-    </div>`;
-    if(i<steps.length-1){
-      const next=steps[i+1].v;
-      const keepPct=s.v?Math.round(next/s.v*100):0;
-      h+=`<div class="fdrop"><span class="keep">↓ giữ ${keepPct}%</span><span>· rơi ${100-keepPct}%</span></div>`;
-    }
-  });
-  document.getElementById("funnel").innerHTML=h;
-}
-
-function renderPies(){
-  const total=merged.length;
-  const ci=merged.filter(isCheckedIn).length;
-  const stageAll={Lead:0,Meet:0,Drop:0}, stageCI={Lead:0,Meet:0,Drop:0};
-  merged.forEach(g=>{
-    const b=classifyStage(g._trk);
-    if(!["Lead","Meet","Drop"].includes(b)) return;
-    stageAll[b]++; if(isCheckedIn(g)) stageCI[b]++;
-  });
-  const oppAll=merged.filter(g=>flagOpp(g._trk)).length;
-  const oppCI=merged.filter(g=>flagOpp(g._trk)&&isCheckedIn(g)).length;
-  const sbkAll=merged.filter(g=>flagSBK(g._trk)).length;
-  const sbkCI=merged.filter(g=>flagSBK(g._trk)&&isCheckedIn(g)).length;
-  const hbkAll=merged.filter(g=>flagHBK(g._trk)).length;
-  const hbkCI=merged.filter(g=>flagHBK(g._trk)&&isCheckedIn(g)).length;
-  const isNA=g=>{ const t=g._trk; if(!t) return true; if(flagOpp(t)||flagSBK(t)||flagHBK(t)||flagDrop(t)) return false; return !(t.status_latest||t.status_event||t.status_label||"").trim(); };
-  const naAll=merged.filter(isNA).length;
-  const naCI=merged.filter(g=>isCheckedIn(g)&&isNA(g)).length;
-
-  const PIES=[
-    {id:"cpie_Lead",label:"Lead",nAll:stageAll.Lead,nCI:stageCI.Lead,color:"#6b7590"},
-    {id:"cpie_Meet",label:"Meet",nAll:stageAll.Meet,nCI:stageCI.Meet,color:"#9b7fe8"},
-    {id:"cpie_Opp",label:"Opp",nAll:oppAll,nCI:oppCI,color:"#f5a623"},
-    {id:"cpie_SBK",label:"SBK",nAll:sbkAll,nCI:sbkCI,color:"#c9a96e"},
-    {id:"cpie_HBK",label:"HBK",nAll:hbkAll,nCI:hbkCI,color:"#3ecf8e"},
-    {id:"cpie_Drop",label:"Drop",nAll:stageAll.Drop,nCI:stageCI.Drop,color:"#e05252"},
-    {id:"cpie_NA",label:"N/A",nAll:naAll,nCI:naCI,color:"#3a3f52"},
-  ];
-
-  const grid=document.getElementById("pieGrid");
-  if(!grid) return;
-  PIES.forEach(p=>{ if(charts[p.id]){ charts[p.id].destroy(); delete charts[p.id]; } });
-
-  grid.innerHTML=PIES.map(p=>{
-    const pctAll=total?Math.round(p.nAll/total*100):0;
-    const pctCI=ci?Math.round(p.nCI/ci*100):0;
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
-      <div style="position:relative;width:90px;height:90px;flex-shrink:0">
-        <canvas id="${p.id}" style="display:block;width:90px;height:90px"></canvas>
-        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;gap:1px">
-          <span style="font-size:11px;font-weight:800;color:${p.color};line-height:1">${pctAll}%</span>
-          <span style="font-size:9px;font-weight:700;color:var(--accent2);line-height:1">${pctCI}%</span>
-        </div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;font-weight:700;color:${p.color}">${p.label}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">${p.nAll} ĐK · ${p.nCI} CI</div>
-      </div>
-    </div>`;
-  }).join("");
-
-  const BG="rgba(42,48,69,.55)";
-  requestAnimationFrame(()=>{
-    PIES.forEach(p=>{
-      const el=document.getElementById(p.id);
-      if(!el) return;
-      const pAll=total?p.nAll/total:0;
-      const pCI=ci?p.nCI/ci:0;
-      const outerData=pAll>0?[pAll,1-pAll]:[0.001,0.999];
-      const innerData=pCI>0?[pCI,1-pCI]:[0.001,0.999];
-      const outerColors=pAll>0?[p.color,BG]:[BG,BG];
-      const innerColors=pCI>0?["#4f9cf9",BG]:[BG,BG];
-      charts[p.id]=new Chart(el,{
-        type:"doughnut",
-        data:{datasets:[
-          {data:outerData,backgroundColor:outerColors,borderWidth:0,weight:1.5},
-          {data:innerData,backgroundColor:innerColors,borderWidth:0,weight:1.0},
-        ]},
-        options:{responsive:false,cutout:"38%",plugins:{legend:{display:false},tooltip:{enabled:false}},animation:{duration:300}}
-      });
-    });
-  });
-}
-
-function renderNurture(){
-  const g3=[],g14=[],gold=[],gNoTrk=[],gNoDate=[];
-  merged.forEach(g=>{
-    if(!g._trk){ gNoTrk.push(g); return; }
-    const ld=parseVNDate(g._trk.lead_created_date);
-    if(!ld||!eventT0){ gNoDate.push(g); return; }
-    const age=daysBetween(ld,eventT0);
-    if(age==null){ gNoDate.push(g); return; }
-    if(age<=3) g3.push(g); else if(age<=14) g14.push(g); else gold.push(g);
-  });
-  const showup=arr=>arr.length?Math.round(arr.filter(isCheckedIn).length/arr.length*100):0;
-  const cards=[
-    {l:"Mới toanh (≤3 ngày)",n:g3,c:"var(--green)"},
-    {l:"Mới (4–14 ngày)",n:g14,c:"var(--accent)"},
-    {l:"Cũ (>14 ngày)",n:gold,c:"var(--orange)"},
-  ];
-  let h=cards.map(c=>`<div class="nc"><div class="nc-label">${c.l}</div><div class="nc-val" style="color:${c.c}">${c.n.length}</div><div class="nc-sub">Show-up ${showup(c.n)}% · CI ${c.n.filter(isCheckedIn).length}</div></div>`).join("");
-  if(gNoTrk.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Main chưa match tracking</div><div class="nc-val" style="font-size:16px;color:var(--muted)">${gNoTrk.length} KH</div></div>`;
-  if(gNoDate.length) h+=`<div class="nc" style="grid-column:1/-1"><div class="nc-label">Có tracking nhưng thiếu/lỗi ngày tạo lead</div><div class="nc-val" style="font-size:16px;color:var(--orange)">${gNoDate.length} KH</div></div>`;
-  document.getElementById("nurtureCards").innerHTML=h;
-}
-
-function renderSpeed(){
+  // Velocity
   const sbkDays=[],hbkDays=[];
   merged.forEach(g=>{
     if(!g._trk||!eventT0) return;
@@ -1407,9 +1372,138 @@ function renderSpeed(){
     if(sd){const d=daysBetween(eventT0,sd); if(d!=null&&d>=0) sbkDays.push(d);}
     if(hd){const d=daysBetween(eventT0,hd); if(d!=null&&d>=0) hbkDays.push(d);}
   });
-  const ms=median(sbkDays),mh=median(hbkDays);
-  set("sp-sbk",ms!=null?ms+" ngày":"—");
-  set("sp-hbk",mh!=null?mh+" ngày":"—");
+  const msSBK=median(sbkDays), msHBK=median(hbkDays);
+
+  // ── KPI strip ──
+  set("kpi-reg",total);
+  const showupPct=Pn(ci,total);
+  set("kpi-showup",showupPct+"%");
+  set("kpi-showup-sub",`${ci} check-in · ${abs} no-show`+(cancel>0?` · ${cancel} cancel`:""));
+  const hbkPctDK=P(hbk,total);
+  const hbkPctCI=P(hbk,ci);
+  set("kpi-hbk",hbk||"—");
+  set("kpi-hbk-sub",hbk?`${hbkPctDK} / ĐK · ${hbkPctCI} / CI`:"Chưa có HBK");
+  const gmvFmt=fmtTy(gmvTotal);
+  setHTML("kpi-gmv",gmvTotal>0?`${gmvFmt} <span style="font-size:13px;font-weight:400;color:var(--muted)">tỷ</span>`:"—");
+  set("kpi-gmv-sub",hbk&&gmvTotal>0?`TB ${fmtTy(gmvTotal/hbk)} tỷ/HBK`:gmvTotal>0?`${gmvFmt} tỷ total`:"—");
+
+  // ── Conclusion ──
+  setHTML("ov-conclusion", buildConclusion(total,ci,hbk,sbk,opp,gmvTotal,msHBK,reachOpp,reachSBK));
+
+  // ── Funnel ──
+  renderOvFunnel([
+    {n:1,l:"Đăng ký", v:total,    c:"#4f9cf9"},
+    {n:2,l:"Show-up", v:ci,       c:"#c9a96e"},
+    {n:3,l:"Meet+",   v:reachMeet,c:"#9b7fe8"},
+    {n:4,l:"Opp+",    v:reachOpp, c:"#f5a623"},
+    {n:5,l:"SBK+",    v:reachSBK, c:"#c9a96e"},
+    {n:6,l:"HBK",     v:hbk,      c:"#3ecf8e"},
+  ],total);
+
+  // ── Lead age ──
+  renderOvLeadAge();
+
+  // ── Velocity ──
+  set("ov-sp-sbk",msSBK!=null?msSBK:"—");
+  set("ov-sp-hbk",msHBK!=null?msHBK:"—");
+
+  // ── HBK bars ──
+  renderOvHBKBars();
+}
+
+function set(id,v){ const e=document.getElementById(id); if(e)e.textContent=v; }
+
+/* ── Funnel render ── */
+function renderOvFunnel(steps,total){
+  if(!total){ document.getElementById("ov-funnel").innerHTML='<div style="font-size:11px;color:var(--muted)">Chưa có dữ liệu.</div>'; return; }
+  const max=total||1;
+  // Tìm điểm rơi nặng nhất (step index trong funnel)
+  let worstIdx=-1, worstKeep=101;
+  for(let i=0;i<steps.length-1;i++){
+    const keep=steps[i].v?Math.round(steps[i+1].v/steps[i].v*100):100;
+    if(keep<worstKeep){worstKeep=keep;worstIdx=i;}
+  }
+  let h="";
+  steps.forEach((s,i)=>{
+    const w=Math.max(s.v/max*100,3);
+    const pc=total?Math.round(s.v/total*100):0;
+    h+=`<div class="ov-frow">
+      <div class="ov-frow-num">${s.n}</div>
+      <div class="ov-frow-lbl">${s.l}</div>
+      <div class="ov-frow-track"><div class="ov-frow-fill" style="width:${w}%;background:${s.c}">${s.v}</div></div>
+      <div class="ov-frow-pct"><b>${pc}%</b> <small>/ ĐK</small></div>
+    </div>`;
+    if(i<steps.length-1){
+      const keep=steps[i].v?Math.round(steps[i+1].v/steps[i].v*100):0;
+      const isWorst=(i===worstIdx);
+      h+=`<div class="ov-fdrop"><span class="keep">↓ giữ ${keep}%</span><span class="loss">&nbsp;· rơi ${100-keep}%</span>${isWorst?'<span class="flag">rơi nặng nhất</span>':''}</div>`;
+    }
+  });
+  document.getElementById("ov-funnel").innerHTML=h;
+}
+
+/* ── Lead age render ── */
+function renderOvLeadAge(){
+  const g3=[],g14=[],gOld=[],gNoTrk=[],gNoDate=[];
+  merged.forEach(g=>{
+    if(!g._trk){ gNoTrk.push(g); return; }
+    const ld=parseVNDate(g._trk.lead_created_date);
+    if(!ld||!eventT0){ gNoDate.push(g); return; }
+    const age=daysBetween(ld,eventT0);
+    if(age==null){ gNoDate.push(g); return; }
+    if(age<=3) g3.push(g); else if(age<=14) g14.push(g); else gOld.push(g);
+  });
+  const total=merged.length||1;
+  const cntHBK=arr=>arr.filter(g=>flagHBK(g._trk)).length;
+  const pctCI=arr=>arr.length?Math.round(arr.filter(isCheckedIn).length/arr.length*100):0;
+  const BUCKETS=[
+    {l:"≤ 3 ngày",  arr:g3,   c:"#3ecf8e"},
+    {l:"4–14 ngày", arr:g14,  c:"#c9a96e"},
+    {l:"> 14 ngày", arr:gOld, c:"#9b7fe8"},
+  ];
+  let h="";
+  BUCKETS.forEach(b=>{
+    const n=b.arr.length;
+    const w=Math.max(Math.round(n/total*100),3);
+    const hbkN=cntHBK(b.arr);
+    h+=`<div class="ov-prow">
+      <div class="ov-prow-lbl">${b.l}</div>
+      <div class="ov-prow-track"><div class="ov-prow-fill" style="width:${w}%;background:${b.c}">${n}</div></div>
+      <div class="ov-prow-meta">CI <b>${pctCI(b.arr)}%</b>${hbkN>0?` · <b style="color:var(--green)">${hbkN} HBK</b>`:""}</div>
+    </div>`;
+  });
+  if(gNoTrk.length) h+=`<div style="font-size:10px;color:var(--muted);margin-top:6px">${gNoTrk.length} main chưa match tracking</div>`;
+  if(gNoDate.length) h+=`<div style="font-size:10px;color:var(--orange);margin-top:3px">${gNoDate.length} KH thiếu ngày tạo lead</div>`;
+  const el=document.getElementById("ov-leadage");
+  if(el) el.innerHTML=h||'<div style="font-size:11px;color:var(--muted)">Chưa đủ dữ liệu ngày tạo lead.</div>';
+}
+
+/* ── HBK bars T+ ── */
+function renderOvHBKBars(){
+  const milestones=buildHBKMilestones();
+  const el=document.getElementById("ov-hbk-bars");
+  if(!el) return;
+  if(!milestones.length){
+    el.innerHTML='<div style="font-size:11px;color:var(--muted)">Chưa có HBK hoặc chưa có dữ liệu T0.</div>'; return;
+  }
+  const maxN=Math.max(...milestones.map(m=>m.n),1);
+  const todayTplus=eventT0?daysBetween(eventT0,new Date()):null;
+  const BAR_MAX_H=80;
+  el.innerHTML=milestones.map(m=>{
+    const h=Math.max(Math.round(m.n/maxN*BAR_MAX_H),4);
+    // isNow = mốc đã qua gần today nhất (isPast=true) và là cuối cùng trong danh sách passed
+    const isNow=m.isPast&&(milestones.indexOf(m)===milestones.length-1||!milestones[milestones.indexOf(m)+1].isPast);
+    const numColor=m.n>0?(isNow?"var(--green)":"var(--accent)"):"var(--muted)";
+    const tLabel=isNow?`T+${m.t} · hiện tại (T+${todayTplus})`:`T+${m.t}`;
+    const tColor=isNow?"var(--green)":"var(--muted)";
+    return `<div class="ov-hbk-col">
+      <div class="ov-hbk-num" style="color:${numColor}">${m.n}</div>
+      <div class="ov-hbk-bar-wrap" style="height:${BAR_MAX_H}px">
+        <div class="ov-hbk-bar-inner" style="height:${h}px;margin-top:${BAR_MAX_H-h}px;background:${m.n>0?(isNow?"var(--green)":"var(--accent)"):"rgba(42,48,69,.6)"}"></div>
+      </div>
+      <div class="ov-hbk-t" style="color:${tColor};font-weight:${isNow?700:400}">${tLabel}</div>
+    </div>`;
+  }).join("");
 }
 
 // ══════════════ TAB 3: TIMELINE ══════════════
