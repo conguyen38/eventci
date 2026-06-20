@@ -61,10 +61,10 @@
   .donut-center .pct{font-size:28px;font-weight:800;color:var(--green)}
   .donut-center .lbl{font-size:11px;color:#aaa;margin-top:2px}
 
-  .donut-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-  .donut-item{display:flex;flex-direction:column}
-  .donut-title{font-size:12px;font-weight:600;color:var(--sub);margin-bottom:8px;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center}
-  .donut-item .legend{justify-content:center;font-size:11px;gap:6px 12px;min-height:54px;align-content:flex-start}
+  .donut-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:auto auto auto;gap:18px}
+  .donut-item{display:grid;grid-template-rows:subgrid;grid-row:span 3}
+  .donut-title{font-size:12px;font-weight:600;color:var(--sub);text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center}
+  .donut-item .legend{justify-content:center;align-content:start;font-size:11px;gap:6px 12px;min-height:24px}
   @media(max-width:1100px){
     .donut-grid{grid-template-columns:repeat(2,1fr)}
   }
@@ -156,10 +156,10 @@
       <h2>Cơ cấu Khách hàng (Main)</h2>
       <div class="donut-grid">
         <div class="donut-item">
-          <div class="donut-title">Theo Chi nhánh — % tổng KH</div>
+          <div class="donut-title" id="donutBranchAllTitle">Theo Chi nhánh — % tổng KH</div>
           <div class="legend" id="donutBranchAllLegend"></div>
           <div class="chart-box" style="height:220px">
-            <canvas id="donutBranchAllChart" role="img" aria-label="Donut chart cơ cấu tổng khách hàng Main theo chi nhánh"></canvas>
+            <canvas id="donutBranchAllChart" role="img" aria-label="Donut chart cơ cấu tổng khách hàng Main theo chi nhánh hoặc vùng"></canvas>
           </div>
         </div>
         <div class="donut-item">
@@ -179,7 +179,7 @@
           </div>
         </div>
         <div class="donut-item">
-          <div class="donut-title">Theo Chi nhánh — % trong nhóm Show up</div>
+          <div class="donut-title" id="donutBranchShowupTitle">Theo Chi nhánh — % trong nhóm Show up</div>
           <div class="legend" id="donutBranchShowupLegend"></div>
           <div class="chart-box" style="height:220px">
             <canvas id="donutBranchShowupChart" role="img" aria-label="Donut chart cơ cấu khách hàng Main đã show up theo chi nhánh"></canvas>
@@ -405,14 +405,33 @@ function render(){
 
   // ---- Donut: cơ cấu theo Chi nhánh (tổng Main / showup only) ----
   const branchGroups = groupBy(gs, g=>g.unit || 'Không xác định');
-  drawBranchDonut('donutBranchAllChart', 'donutBranchAllLegend', branchGroups, totalMain);
 
-  const branchGroupsShowup = {};
-  Object.entries(branchGroups).forEach(([k,arr])=>{
-    const su = arr.filter(g=>g.checked_in && !g.cancelled);
-    if(su.length) branchGroupsShowup[k]=su;
-  });
-  drawBranchDonut('donutBranchShowupChart', 'donutBranchShowupLegend', branchGroupsShowup, ciMain);
+  // Chart 1 (tổng KH): nếu event có >=3 vùng TCB, bóc tách theo Vùng thay vì Chi nhánh
+  // để tránh quá nhiều lát cắt khó đọc. 1-2 vùng vẫn giữ bóc tách theo Chi nhánh như cũ.
+  const regionCountMain = new Set(gs.map(g=>g.tcb_region || 'Không xác định')).size;
+  const useBranchForChart1 = regionCountMain <= 2;
+  const chart1Groups = useBranchForChart1
+    ? branchGroups
+    : groupBy(gs, g=>g.tcb_region || 'Không xác định');
+
+  document.getElementById('donutBranchAllTitle').textContent = useBranchForChart1
+    ? 'Theo Chi nhánh — % tổng KH'
+    : 'Theo Vùng — % tổng KH';
+
+  drawBranchDonut('donutBranchAllChart', 'donutBranchAllLegend', chart1Groups, totalMain);
+
+  // Chart 4 (Show up): áp dụng logic tương tự chart 1 — cùng ngưỡng số vùng (useBranchForChart1),
+  // chỉ khác là lọc trên tập khách đã show up (checked_in && !cancelled).
+  const showupGuests = gs.filter(g=>g.checked_in && !g.cancelled);
+  const chart4Groups = useBranchForChart1
+    ? groupBy(showupGuests, g=>g.unit || 'Không xác định')
+    : groupBy(showupGuests, g=>g.tcb_region || 'Không xác định');
+
+  document.getElementById('donutBranchShowupTitle').textContent = useBranchForChart1
+    ? 'Theo Chi nhánh — % trong nhóm Show up'
+    : 'Theo Vùng — % trong nhóm Show up';
+
+  drawBranchDonut('donutBranchShowupChart', 'donutBranchShowupLegend', chart4Groups, ciMain);
 
   currentGuests = gs;
   ['region','branch','sih'].forEach(k=>{ renderToggle(k); renderLegend(k); });
