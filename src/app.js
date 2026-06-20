@@ -17,6 +17,13 @@ const SB_HDR = {
 };
 const SB_ON = true;
 
+// Khởi tạo Supabase Client cho tính năng Realtime — lắng nghe thay đổi từ thiết bị khác qua WebSocket
+// LƯU Ý: cần thêm thẻ <script src="https://unpkg.com/@supabase/supabase-js@2"></script> vào file HTML
+// (TRƯỚC thẻ <script src="app.js">), nếu chưa có thì biến này sẽ là null và Realtime tự động bỏ qua.
+const supabaseClient = (typeof supabase !== 'undefined' && supabase.createClient)
+  ? supabase.createClient(SB_URL, SB_KEY)
+  : null;
+
 /* ============================================================
    BASE URL — URL GitHub Pages sau khi deploy
    ============================================================ */
@@ -48,6 +55,14 @@ async function sbLoad(){
   return false;
 }
 
+/* ⚠️ LEGACY — save()/sbSync() POST NGUYÊN MẢNG db.events + db.guests lên Supabase mỗi lần gọi.
+   Đây chính là nguồn gốc gây mất/đè check-in khi nhiều thiết bị thao tác đồng thời (last-write-wins
+   trên toàn bộ tập dữ liệu — thiết bị A check-in xong, thiết bị B sync đè bằng bản local cũ của B,
+   xoá mất check-in của A). Sau bản cập nhật Mục tiêu 1 (tách saveLocalOnly/sync theo phạm vi hẹp),
+   toàn bộ thao tác sửa/xoá/thêm khách & sự kiện đã chuyển sang dùng saveLocalOnly() kết hợp
+   sbPatchGuest() / sbPatchEvent() / sbUpsertOne() / sbUpsertMany() — chỉ ghi đúng (các) dòng bị đổi.
+   Hai hàm dưới đây KHÔNG còn được gọi ở bất kỳ đâu trong code nữa — giữ lại để dự phòng/tham khảo,
+   KHÔNG dùng lại cho thao tác mới trừ khi đã hiểu rõ rủi ro full-array overwrite nêu trên. */
 let _syncT=null;
 function save(){
   try{localStorage.setItem(SK,JSON.stringify(db))}catch(e){}
@@ -74,6 +89,13 @@ async function sbSync(){
       });
     }
   }catch(e){console.warn('Supabase sync lỗi:',e)}
+}
+
+// HÀM MỚI: chỉ ghi local (localStorage), KHÔNG kích hoạt sync nguyên mảng — dùng cho mọi thao tác
+// sửa/xoá/check-in để tránh đè dữ liệu chéo. Phần đồng bộ thật lên Supabase đi qua sbPatchGuest/
+// sbPatchEvent/sbUpsertOne/sbUpsertMany ngay sau lệnh gọi hàm này tại từng nơi gọi.
+function saveLocalOnly() {
+  try{localStorage.setItem(SK,JSON.stringify(db))}catch(e){}
 }
 
 async function sbDel(table,id){
@@ -103,6 +125,64 @@ async function sbPatchGuest(guestId, fields, retries=3){
   return false;
 }
 
+/* PATCH 1 record duy nhất lên bảng oh_events theo id — anh em sinh đôi của sbPatchGuest.
+   Dùng cho saveEv() (chỉnh sửa sự kiện) thay vì save() cũ vốn POST nguyên cả 2 mảng
+   db.events + db.guests mỗi lần đổi 1 sự kiện (kéo theo rủi ro đè check-in không liên quan). */
+async function sbPatchEvent(eventId, fields, retries=3){
+  if(!SB_ON)return true;
+  for(let attempt=1;attempt<=retries;attempt++){
+    try{
+      const res=await fetch(`${SB_URL}/rest/v1/oh_events?id=eq.${eventId}`,{
+        method:'PATCH',
+        headers:{...SB_HDR,'Prefer':'return=minimal'},
+        body:JSON.stringify(fields)
+      });
+      if(res.ok)return true;
+      console.warn('sbPatchEvent lỗi HTTP',res.status);
+    }catch(e){console.warn('sbPatchEvent lỗi mạng:',e)}
+    if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
+  }
+  return false;
+}
+
+/* UPSERT đúng 1 record mới (sự kiện hoặc khách mới tạo) — KHÔNG đụng tới các row khác.
+   Thay thế việc gọi sbSync() (POST nguyên mảng) mỗi khi tạo mới 1 sự kiện/1 khách. */
+async function sbUpsertOne(table, row, retries=3){
+  if(!SB_ON)return true;
+  for(let attempt=1;attempt<=retries;attempt++){
+    try{
+      const res=await fetch(`${SB_URL}/rest/v1/${table}`,{
+        method:'POST',
+        headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify([row])
+      });
+      if(res.ok)return true;
+      console.warn('sbUpsertOne lỗi HTTP',res.status);
+    }catch(e){console.warn('sbUpsertOne lỗi mạng:',e)}
+    if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
+  }
+  return false;
+}
+
+/* UPSERT nhiều record cùng lúc, nhưng CHỈ gồm các row được truyền vào (vd: danh sách khách vừa
+   import từ Excel) — không kéo theo toàn bộ db.guests như sbSync() cũ. */
+async function sbUpsertMany(table, rows, retries=3){
+  if(!SB_ON || !rows.length)return true;
+  for(let attempt=1;attempt<=retries;attempt++){
+    try{
+      const res=await fetch(`${SB_URL}/rest/v1/${table}`,{
+        method:'POST',
+        headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(rows)
+      });
+      if(res.ok)return true;
+      console.warn('sbUpsertMany lỗi HTTP',res.status);
+    }catch(e){console.warn('sbUpsertMany lỗi mạng:',e)}
+    if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
+  }
+  return false;
+}
+
 let db={events:[],guests:[]};
 
 function qrUrl(code){return BASE_URL+'/?code='+encodeURIComponent(code)}
@@ -119,6 +199,9 @@ function isEvLocked(ev){
 }
 function getEvById(id){return db.events.find(e=>e.id===id)}
 
+/* ⚠️ LEGACY — polling 15s. Mục tiêu 2 thay cơ chế này bằng Realtime (initSupabaseRealtime bên dưới).
+   Giữ lại định nghĩa hàm để dự phòng (vd: nếu cần bật lại polling làm lưới an toàn thì gọi startAutoRefresh()
+   thủ công), nhưng KHÔNG còn được gọi tự động trong init() nữa. */
 let _autoRefresh=null;
 function startAutoRefresh(){
   if(_autoRefresh)clearInterval(_autoRefresh);
@@ -128,7 +211,8 @@ function startAutoRefresh(){
   },15000);
 }
 
-/* Tránh việc auto-refresh ghi đè dữ liệu đang nhập hoặc làm mất focus/con trỏ:
+/* Tránh việc auto-refresh (hoặc Realtime reconnect bên dưới) ghi đè dữ liệu đang nhập hoặc làm mất
+   focus/con trỏ:
    - Có modal (form thêm/sửa/import...) đang mở -> chắc chắn có dữ liệu chưa lưu, bỏ qua.
    - Đang gõ vào 1 input/textarea/select bất kỳ (kể cả ngoài modal, ví dụ ô search) -> bỏ qua. */
 function shouldSkipAutoRefresh(){
@@ -146,14 +230,87 @@ async function doRefresh(){
   await loadData();R();
 }
 
+/* MỤC TIÊU 2 — Đồng bộ Realtime qua WebSocket thay cho polling 15s. Lắng nghe cả UPDATE, INSERT, DELETE
+   trên bảng oh_guests (bản trước chỉ có UPDATE — khách mới thêm/khách bị xoá ở thiết bị khác không tự
+   thấy, phải đợi bấm "Làm mới" tay). Có cơ chế tự kết nối lại khi rớt kênh (wifi venue chập chờn),
+   vì polling dự phòng đã tắt nên nếu không tự hồi phục thì máy sẽ "đứng hình" mà không có cảnh báo gì. */
+let _realtimeChannel = null;
+let _realtimeRetryCount = 0;
+let _realtimeReconnectT = null;
+
+function initSupabaseRealtime() {
+  if (!supabaseClient || !SB_ON) {
+    console.warn("⚠️ Không khởi tạo được Realtime — thiếu supabaseClient (kiểm tra lại thẻ <script> supabase-js trong HTML).");
+    return;
+  }
+  console.log("Bắt đầu kết nối Realtime từ Supabase...");
+
+  _realtimeChannel = supabaseClient
+    .channel('public:oh_guests')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'oh_guests' }, payload => {
+      const updatedGuest = dbToG(payload.new);
+      const index = db.guests.findIndex(g => g.id === updatedGuest.id);
+      if (index !== -1) {
+        db.guests[index] = updatedGuest;
+        saveLocalOnly();
+        if (typeof R === 'function') R();
+        console.log(`📡 Realtime cập nhật trạng thái khách: ${updatedGuest.name}`);
+      }
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'oh_guests' }, payload => {
+      const newGuest = dbToG(payload.new);
+      if (!db.guests.some(g => g.id === newGuest.id)) {
+        db.guests.push(newGuest);
+        saveLocalOnly();
+        if (typeof R === 'function') R();
+        console.log(`📡 Realtime: khách mới từ thiết bị khác — ${newGuest.name}`);
+      }
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'oh_guests' }, payload => {
+      const deletedId = payload.old?.id;
+      if (deletedId) {
+        db.guests = db.guests.filter(g => g.id !== deletedId);
+        saveLocalOnly();
+        if (typeof R === 'function') R();
+        console.log(`📡 Realtime: khách đã bị xoá từ thiết bị khác — ${deletedId}`);
+      }
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log("✅ Kết nối Realtime thành công! Đang lắng nghe thay đổi...");
+        _realtimeRetryCount = 0;
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        console.warn(`⚠️ Realtime mất kết nối (${status}). Sẽ thử kết nối lại...`);
+        scheduleRealtimeReconnect();
+      }
+    });
+}
+
+function scheduleRealtimeReconnect(){
+  if (_realtimeReconnectT) return; // đã có lịch reconnect đang chờ, không chồng thêm lịch khác
+  _realtimeRetryCount++;
+  const delay = Math.min(30000, 2000 * _realtimeRetryCount); // tăng dần theo số lần thử, tối đa 30s
+  _realtimeReconnectT = setTimeout(async () => {
+    _realtimeReconnectT = null;
+    console.log(`🔄 Đang thử kết nối lại Realtime (lần ${_realtimeRetryCount})...`);
+    if (_realtimeChannel) {
+      try { await supabaseClient.removeChannel(_realtimeChannel); } catch(e) {}
+      _realtimeChannel = null;
+    }
+    // Làm mới toàn bộ dữ liệu 1 lần để bắt kịp các thay đổi đã xảy ra trong lúc mất kết nối
+    if (!shouldSkipAutoRefresh()) { await loadData(); R(); }
+    initSupabaseRealtime();
+  }, delay);
+}
+
 async function init(){
   const urlCode=new URLSearchParams(window.location.search).get('code');
   const root=document.getElementById('root');
   root.innerHTML=`<div style="max-width:360px;margin:80px auto;text-align:center;font-family:'Be Vietnam Pro',sans-serif"><div style="font-size:40px;margin-bottom:12px">⏳</div><div style="font-size:14px;color:#aaa;margin-top:8px">Đang tải...</div></div>`;
   await loadData();
+  if(SB_ON) initSupabaseRealtime(); // thay cho startAutoRefresh() cũ
   if(urlCode){S.urlCode=decodeURIComponent(urlCode);S.view='url_ci';R();return;}
   R();
-  if(!urlCode)startAutoRefresh();
 }
 
 init();
@@ -1227,7 +1384,7 @@ async function doUrlCI(){
   const now=new Date().toISOString();
   if(found.type==='guest'){g.checkedIn=true;g.checkinTime=now;g.checkinBy=btcInput}
   else{p.checkedIn=true;p.checkinTime=now;p.checkinBy=btcInput}
-  save(); // ghi local ngay (localStorage) — không mất dữ liệu nếu mất mạng/đóng tab
+  saveLocalOnly(); // ghi local ngay (localStorage) — không mất dữ liệu nếu mất mạng/đóng tab
 
   // Ghi atomic 1 record lên Supabase, có retry — đây là nguồn xác nhận "thật"
   const patchFields = found.type==='guest'
@@ -1403,29 +1560,41 @@ function openCpDel(gid,cpId){S.cpDel={gid,cpId};S.modal='cp_del';R()}
 function openAddComp(gid){S.cpAdd=gid;S.modal='cp_add';R()}
 
 function openCancel(gid,type,cpId){S.cancelTarget={gid,type,cpId:cpId||null};S.modal='cancel';R()}
-function doCancel(){
+async function doCancel(){
   const {gid,type,cpId}=S.cancelTarget||{};
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
   if(isEvLocked(getEvById(g.eventId))){alert('Sự kiện đã kết thúc. Không thể thay đổi.');closeM();return;}
   const note=(document.getElementById('cancel_note')?.value||'').trim();
+  let patchFields;
   if(type==='c'){
     const c=(g.companions||[]).find(x=>x.id===cpId);
     if(c){c.cancelled=true;c.cancelNote=note;c.checkedIn=false;c.checkinTime=null}
+    patchFields={companions:g.companions};
   } else {
     g.cancelled=true;g.cancelNote=note;g.checkedIn=false;g.checkinTime=null;
     (g.companions||[]).forEach(c=>{c.cancelled=true;c.cancelNote=note?`[Theo KH chính] ${note}`:'Theo KH chính';c.checkedIn=false;c.checkinTime=null});
+    patchFields={cancelled:true,cancel_note:note,checked_in:false,checkin_time:null,companions:g.companions};
   }
-  save();S.modal=null;S.cancelTarget=null;R();}
-function undoCancel(gid,type,cpId){
+  saveLocalOnly();S.modal=null;S.cancelTarget=null;R();
+  const ok=await sbPatchGuest(g.id,patchFields);
+  if(!ok)alert('⚠️ Đã ghi nhận Cancel trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+}
+async function undoCancel(gid,type,cpId){
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
+  let patchFields;
   if(type==='c'){
     const c=(g.companions||[]).find(x=>x.id===cpId);
     if(c){c.cancelled=false;c.cancelNote=''}
+    patchFields={companions:g.companions};
   } else {
     g.cancelled=false;g.cancelNote='';
     (g.companions||[]).forEach(c=>{c.cancelled=false;c.cancelNote=''});
+    patchFields={cancelled:false,cancel_note:'',companions:g.companions};
   }
-  save();R();}
+  saveLocalOnly();R();
+  const ok=await sbPatchGuest(g.id,patchFields);
+  if(!ok)alert('⚠️ Đã khôi phục (Huỷ Cancel) trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+}
 function goCI(){S.view='checkin';S.ciOk=false;S.ciEv=null;S.ciOp=null;S.ciState=null;R()}
 function backAdmin(){S.view='admin';S.ciOk=false;S.ciState=null;R()}
 function lockOut(){S.ciOk=false;S.ciOp=null;S.ciState=null;R()}
@@ -1465,7 +1634,7 @@ function getComps(mode){
   return cs;
 }
 
-function saveEv(){
+async function saveEv(){
   const isEdit=S.modal==='edit_ev';
   const name=document.getElementById('ev_n')?.value?.trim();
   const date=document.getElementById('ev_d')?.value;
@@ -1486,22 +1655,30 @@ function saveEv(){
     const eventPw=pwNew||existing.eventPw;
     db.events[idx]={...existing,name,date,team,venue,eventPw,btcMembers:bms};
     if(pwNew)S.unlockedEvs[S.editEvId]=true;
-    save();S.modal=null;S.editEvId=null;R();
+    const editedId=S.editEvId;
+    saveLocalOnly();S.modal=null;S.editEvId=null;R();
+    // Trước đây: save() POST nguyên cả mảng db.events LẪN db.guests mỗi khi sửa 1 sự kiện — nghĩa là
+    // sửa tên/venue 1 sự kiện cũng có thể kéo theo nguy cơ đè check-in đang có ở sự kiện khác. Giờ chỉ
+    // PATCH đúng 1 dòng oh_events.
+    const ok=await sbPatchEvent(editedId,{name,date_str:date||null,team:team||null,venue:venue||null,event_pw:eventPw,btc_members:bms});
+    if(!ok)alert('⚠️ Đã lưu sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
   } else {
     if(!pwNew){if(errEl)errEl.textContent='⚠️ Vui lòng đặt mật khẩu cho sự kiện';return}
     if(pwNew!==pwNew2){if(errEl)errEl.textContent='⚠️ Mật khẩu nhập lại không khớp';return}
     const newEv={id:uid(),name,date,team,venue,eventPw:pwNew,btcMembers:bms,createdAt:Date.now()};
     db.events.push(newEv);
     S.unlockedEvs[newEv.id]=true;
-    S.selEv=newEv.id;save();S.modal=null;S.tab='guests';R();
+    S.selEv=newEv.id;saveLocalOnly();S.modal=null;S.tab='guests';R();
+    const ok=await sbUpsertOne('oh_events',evToDb(newEv));
+    if(!ok)alert('⚠️ Đã tạo sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại trước khi gửi link cho người khác.');
   }
 }
 
 function delEv(id){if(!confirm('Xoá sự kiện này? Toàn bộ khách cũng bị xoá.'))return;
   db.events=db.events.filter(e=>e.id!==id);db.guests=db.guests.filter(g=>g.eventId!==id);
-  if(S.selEv===id)S.selEv=null;save();sbDel('oh_events',id);R()}
+  if(S.selEv===id)S.selEv=null;saveLocalOnly();sbDel('oh_events',id);R()}
 
-function saveG(){
+async function saveG(){
   const eventId=document.getElementById('g_ev')?.value;
   const name=document.getElementById('g_n')?.value?.trim();
   const phone=document.getElementById('g_ph')?.value?.trim();
@@ -1516,6 +1693,8 @@ function saveG(){
   if(isEvLocked(getEvById(eventId))){alert('Sự kiện đã kết thúc. Không thể thêm/sửa khách.');closeM();return;}
   const rawComps=getComps('add');
 
+  let isEditMode=false,editedFields=null,newGuestRow=null;
+
   if(S.modal==='edit_g'&&S.editGid){
     const idx=db.guests.findIndex(g=>g.id===S.editGid);
     if(idx>-1){
@@ -1526,6 +1705,8 @@ function saveG(){
         return{id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}});
       db.guests[idx]={...ex,eventId,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,companions:newComps};
       S.ticketGid=S.editGid;
+      isEditMode=true;
+      editedFields={name,phone,system_code:systemCode,prm_name:prmName,tcb_region:tcbRegion,unit,sih_name:sihName,note,companions:newComps};
     }
   } else {
     const guestCode=genCode(eventId);
@@ -1533,8 +1714,18 @@ function saveG(){
     const ng={id:uid(),eventId,guestCode,systemCode,name,phone,prmName,tcbRegion,unit,sihName,note,companions,checkedIn:false,checkinTime:null,checkinBy:null,createdAt:Date.now()};
     db.guests.push(ng);
     S.ticketGid=ng.id;
+    newGuestRow=ng;
   }
-  S.selEv=eventId;save();S.editGid=null;S.modal='tickets';R();
+  S.selEv=eventId;saveLocalOnly();S.editGid=null;S.modal='tickets';R();
+
+  // Trước đây: save() POST nguyên cả mảng db.guests mỗi lần thêm/sửa 1 khách — kéo theo rủi ro đè
+  // check-in của các khách khác nếu local state của thiết bị này đang cũ hơn server. Giờ chỉ ghi
+  // đúng 1 dòng vừa tạo/sửa.
+  const ticketGid=S.ticketGid;
+  const ok=isEditMode
+    ? await sbPatchGuest(ticketGid,editedFields)
+    : await sbUpsertOne('oh_guests',gToDb(newGuestRow));
+  if(!ok)alert('⚠️ Đã lưu khách trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại trước khi phát vé.');
 }
 
 function chkEditPw(){
@@ -1542,7 +1733,7 @@ function chkEditPw(){
   if(pw===ADMIN_PW){S.modal='edit_form';R()}
   else{const el=document.getElementById('epw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.'}}
 
-function doEdit(){
+async function doEdit(){
   const g=db.guests.find(x=>x.id===S.editGid);if(!g)return;
   const idx=db.guests.indexOf(g);
   const name=document.getElementById('eg_n')?.value?.trim()||g.name;
@@ -1559,15 +1750,18 @@ function doEdit(){
     phone:document.getElementById('ecp_'+i)?.value?.trim()||c.phone
   }));
   db.guests[idx]={...g,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,companions:updComps};
-  save();S.modal=null;S.editGid=null;R()}
+  saveLocalOnly();S.modal=null;S.editGid=null;R();
+  const ok=await sbPatchGuest(g.id,{name,phone,system_code:systemCode,prm_name:prmName,tcb_region:tcbRegion,unit,sih_name:sihName,note,companions:updComps});
+  if(!ok)alert('⚠️ Đã lưu thay đổi trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+}
 
 function doDel(){
   const pw=document.getElementById('dpw')?.value||'';
   if(pw!==ADMIN_PW){const el=document.getElementById('dpw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.';return}
   const gid=S.delGid;
-  db.guests=db.guests.filter(g=>g.id!==gid);save();sbDel('oh_guests',gid);S.modal=null;S.delGid=null;R()}
+  db.guests=db.guests.filter(g=>g.id!==gid);saveLocalOnly();sbDel('oh_guests',gid);S.modal=null;S.delGid=null;R()}
 
-function doCpEdit(){
+async function doCpEdit(){
   const {gid,cpId}=S.cpEdit||{};
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
   const idx=db.guests.indexOf(g);
@@ -1576,17 +1770,23 @@ function doCpEdit(){
   const phone=document.getElementById('cpe_ph')?.value?.trim();
   if(!name){alert('Vui lòng nhập họ tên');return}
   db.guests[idx].companions[cpIdx]={...db.guests[idx].companions[cpIdx],name,phone};
-  save();S.modal=null;S.cpEdit=null;R()}
+  saveLocalOnly();S.modal=null;S.cpEdit=null;R();
+  const ok=await sbPatchGuest(g.id,{companions:db.guests[idx].companions});
+  if(!ok)alert('⚠️ Đã sửa người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+}
 
-function doCpDel(){
+async function doCpDel(){
   const pw=document.getElementById('cpdpw')?.value||'';
   if(pw!==ADMIN_PW){const el=document.getElementById('cpdpw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.';return}
   const {gid,cpId}=S.cpDel||{};
   const gIdx=db.guests.findIndex(x=>x.id===gid);if(gIdx<0)return;
   db.guests[gIdx].companions=(db.guests[gIdx].companions||[]).filter(x=>x.id!==cpId);
-  save();S.modal=null;S.cpDel=null;R()}
+  saveLocalOnly();S.modal=null;S.cpDel=null;R();
+  const ok=await sbPatchGuest(db.guests[gIdx].id,{companions:db.guests[gIdx].companions});
+  if(!ok)alert('⚠️ Đã xoá người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+}
 
-function doCpAdd(){
+async function doCpAdd(){
   const gid=S.cpAdd;
   const gIdx=db.guests.findIndex(x=>x.id===gid);if(gIdx<0)return;
   const name=document.getElementById('cpa_n')?.value?.trim();
@@ -1595,9 +1795,12 @@ function doCpAdd(){
   const newCp={id:uid(),name,phone,code:genCode(db.guests[gIdx].eventId),checkedIn:false,checkinTime:null,checkinBy:null};
   if(!db.guests[gIdx].companions)db.guests[gIdx].companions=[];
   db.guests[gIdx].companions.push(newCp);
-  save();
+  saveLocalOnly();
   S.cpTicket={gid,cpId:newCp.id};S.cpAdd=null;S.modal='cp_ticket';R();
-  setTimeout(()=>mkCpQR(),120)}
+  setTimeout(()=>mkCpQR(),120);
+  const ok=await sbPatchGuest(db.guests[gIdx].id,{companions:db.guests[gIdx].companions});
+  if(!ok)alert('⚠️ Đã thêm người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+}
 
 function mkCpQR(){
   const {gid,cpId}=S.cpTicket||{};
@@ -1641,7 +1844,7 @@ function dlCpTicket(){
     <script>setTimeout(()=>new QRCode(document.getElementById('qr'),{text:'${BASE_URL}/?code='+encodeURIComponent('${cp.code}'),width:160,height:160,correctLevel:QRCode.CorrectLevel.M}),100)<\/script>
   </body></html>`);}
 
-function togCI(gid,type,cid){
+async function togCI(gid,type,cid){
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
   const ev=getEvById(g.eventId);
   if(isEvLocked(ev)){alert('Sự kiện đã kết thúc. Không thể thay đổi trạng thái check-in.');return;}
@@ -1650,14 +1853,23 @@ function togCI(gid,type,cid){
   if(person.cancelled){alert('Khách đã cancel. Vui lòng nhấn " Huỷ Cancel" trước khi check-in.');return;}
   if(person.checkedIn){
     if(!confirm(`Huỷ check-in của ${person.name}?`))return;
+    const personName=person.name;
     person.checkedIn=false;person.checkinTime=null;person.checkinBy=null;
-    save();R();return;
+    saveLocalOnly();R();
+    // Trước đây bước này KHÔNG đồng bộ lên Supabase — chỉ ghi local rồi gọi save() (full-array sync
+    // debounce 600ms), dễ bị đè bởi thiết bị khác trước khi kịp chạy. Giờ ghi atomic + có cảnh báo.
+    const patchFields = type==='g'
+      ? {checked_in:false,checkin_time:null,checkin_by:null}
+      : {companions:(g.companions||[])};
+    const ok = await sbPatchGuest(g.id, patchFields);
+    if(!ok)alert(`⚠️ Đã huỷ check-in của "${personName}" trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.`);
+    return;
   }
   S.adminCI={gid,type,cpId:cid||null};S.modal='admin_ci';R();
   setTimeout(()=>{const el=document.getElementById('aci_ph');if(el)el.focus()},80);
 }
 
-function doAdminCI(){
+async function doAdminCI(){
   const {gid,type,cpId}=S.adminCI||{};
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
   if(isEvLocked(getEvById(g.eventId))){alert('Sự kiện đã kết thúc. Không thể check-in.');closeM();return;}
@@ -1673,8 +1885,18 @@ function doAdminCI(){
       return;
     }
   }
-  person.checkedIn=true;person.checkinTime=new Date().toISOString();person.checkinBy='admin';
-  save();S.modal=null;S.adminCI=null;R();
+  const now=new Date().toISOString();
+  const personName=person.name;
+  person.checkedIn=true;person.checkinTime=now;person.checkinBy='admin';
+  saveLocalOnly();S.modal=null;S.adminCI=null;R();
+  // Trước đây bước này chỉ gọi save() (full-array sync debounce), KHÔNG có patch atomic và KHÔNG
+  // cảnh báo khi thất bại — đây là nguyên nhân chính của hiện tượng "tick check-in xong rồi biến mất"
+  // khi có người bấm "Làm mới" sau đó. Giờ ghi atomic ngay + cảnh báo rõ nếu không thành công.
+  const patchFields = type==='g'
+    ? {checked_in:true,checkin_time:now,checkin_by:'admin'}
+    : {companions:(g.companions||[])};
+  const ok = await sbPatchGuest(g.id, patchFields);
+  if(!ok)alert(`⚠️ Đã ghi nhận check-in cho "${personName}" trên thiết bị này, nhưng CHƯA đồng bộ được lên hệ thống trung tâm (có thể do mất mạng hoặc lỗi Supabase).\n\nVui lòng bấm "Làm mới" ngay để kiểm tra lại — nếu không, trạng thái check-in này có thể bị mất khi làm mới dữ liệu.`);
 }
 
 function mkQRs(){
@@ -1782,7 +2004,7 @@ async function startCI(){
   if(person.checkedIn){document.getElementById('ci_err').textContent='⚠️ Đã check-in lúc '+fmtDT(person.checkinTime);return}
   if(!person.phone){
     const now=new Date().toISOString();
-    person.checkedIn=true;person.checkinTime=now;person.checkinBy=S.ciOp?.code||'btc';save();
+    person.checkedIn=true;person.checkinTime=now;person.checkinBy=S.ciOp?.code||'btc';saveLocalOnly();
     const patchFields = found.type==='guest'
       ? {checked_in:true,checkin_time:now,checkin_by:person.checkinBy}
       : {companions:(found.guest.companions||[])};
@@ -1807,7 +2029,7 @@ async function finishCI(){
   const checkinBy=S.ciOp?.code||'btc';
   if(st.type==='guest'){g.checkedIn=true;g.checkinTime=now;g.checkinBy=checkinBy}
   else{const c=(g.companions||[]).find(x=>x.id===st.person.id);if(c){c.checkedIn=true;c.checkinTime=now;c.checkinBy=checkinBy}}
-  save();
+  saveLocalOnly();
   const patchFields = st.type==='guest'
     ? {checked_in:true,checkin_time:now,checkin_by:checkinBy}
     : {companions:(g.companions||[])};
@@ -1910,12 +2132,13 @@ function handleExcelImport(event) {
 }
 
 /* 4. Lưu dữ liệu đã duyệt từ Excel vào cơ sở dữ liệu (Có logic gom nhóm Companion dưới Main liền trước) */
-function commitExcelImport() {
+async function commitExcelImport() {
   if (!S.selEv) return;
   const eventId = S.selEv;
   const rawList = S.importData || [];
   
   let currentMainGuest = null;
+  const createdGuests = []; // chỉ các khách MỚI tạo trong lượt import này — để đồng bộ đúng phạm vi
 
   rawList.forEach(item => {
     if (item.type === 'Main') {
@@ -1939,6 +2162,7 @@ function commitExcelImport() {
         createdAt: Date.now()
       };
       db.guests.push(currentMainGuest);
+      createdGuests.push(currentMainGuest);
     } else {
       // Nếu dòng là Companion, tự động gom vào nhóm của KH Main xuất hiện liền trước nó
       const companionObj = {
@@ -1975,13 +2199,22 @@ function commitExcelImport() {
           createdAt: Date.now()
         };
         db.guests.push(currentMainGuest);
+        createdGuests.push(currentMainGuest);
       }
     }
   });
 
-  save();
-  alert(`🎉 Đã import thành công danh sách khách mời từ Excel vào hệ thống!`);
+  saveLocalOnly();
   closeM();
+  // Trước đây: save() POST nguyên cả mảng db.guests (gồm cả những khách đã có sẵn từ trước) — với
+  // sự kiện đã có sẵn vài trăm khách thì 1 lượt import vài chục dòng vẫn kéo theo re-upload toàn bộ,
+  // tăng rủi ro đè check-in nếu local đang cũ hơn server. Giờ chỉ upsert đúng các dòng vừa tạo.
+  const ok = await sbUpsertMany('oh_guests', createdGuests.map(gToDb));
+  if (ok) {
+    alert(`🎉 Đã import thành công ${createdGuests.length} khách mời từ Excel vào hệ thống!`);
+  } else {
+    alert(`⚠️ Đã lưu ${createdGuests.length} khách trên thiết bị này nhưng CHƯA đồng bộ đầy đủ lên hệ thống trung tâm Supabase (có thể do lỗi mạng). Vui lòng bấm "Làm mới" để kiểm tra và đồng bộ lại trước khi rời sự kiện.`);
+  }
 }
 
 /* 5. Tạo và Tải xuống Toàn bộ QR Code dưới dạng file nén .ZIP hàng loạt bằng JSZip */
