@@ -1007,6 +1007,17 @@ function rAddGM(){
       <div class="fg"><label>Tên SIH (Sales OneHousing)</label><input id="g_sih" placeholder="Tên SIH" value="${g?.sihName||''}"/></div>
       <div class="fg"><label>Note / Lưu ý</label><input id="g_note" placeholder="VVIP, ưu tiên bàn đầu..." value="${g?.note||''}"/></div>
     </div>
+    ${S.modal==='edit_g'?`
+    <div style="margin:10px 0 4px">
+      <label id="g_walkin_lbl" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;padding:10px 14px;background:${g?.walkin?'#EDE9FE':'#f8fafc'};border:1.5px solid ${g?.walkin?'#7C3AED':'#e0e4ef'};border-radius:10px">
+        <input type="checkbox" id="g_walkin" ${g?.walkin?'checked':''} style="width:16px;height:16px;accent-color:#7C3AED;cursor:pointer"
+          onchange="document.getElementById('g_walkin_lbl').style.background=this.checked?'#EDE9FE':'#f8fafc';document.getElementById('g_walkin_lbl').style.borderColor=this.checked?'#7C3AED':'#e0e4ef'"/>
+        <div>
+          <span style="font-size:13px;font-weight:600;color:#5B21B6">🚶 Khách Walk-in</span>
+          <div style="font-size:11px;color:#aaa;margin-top:2px">Tích nếu KH đến trực tiếp tại sự kiện, không đăng ký trước</div>
+        </div>
+      </label>
+    </div>`:''}
     <div class="mf">
       <button class="btn" onclick="closeM()">Huỷ</button>
       <button class="btn ${S.modal==='edit_g'?'green':'blue'}" onclick="saveG()">✅ ${S.modal==='edit_g'?'Lưu thay đổi':'Thêm khách & Tạo vé'}</button>
@@ -1102,6 +1113,16 @@ function rEditFormM(){
     <div class="g2">
       <div class="fg"><label>SIH</label><input id="eg_sih" value="${g.sihName||''}"/></div>
       <div class="fg"><label>Note</label><input id="eg_note" value="${g.note||''}"/></div>
+    </div>
+    <div style="margin:10px 0 4px">
+      <label id="eg_walkin_lbl" style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;padding:10px 14px;background:${g.walkin?'#EDE9FE':'#f8fafc'};border:1.5px solid ${g.walkin?'#7C3AED':'#e0e4ef'};border-radius:10px">
+        <input type="checkbox" id="eg_walkin" ${g.walkin?'checked':''} style="width:16px;height:16px;accent-color:#7C3AED;cursor:pointer"
+          onchange="document.getElementById('eg_walkin_lbl').style.background=this.checked?'#EDE9FE':'#f8fafc';document.getElementById('eg_walkin_lbl').style.borderColor=this.checked?'#7C3AED':'#e0e4ef'"/>
+        <div>
+          <span style="font-size:13px;font-weight:600;color:#5B21B6">🚶 Khách Walk-in</span>
+          <div style="font-size:11px;color:#aaa;margin-top:2px">Tích nếu KH đến trực tiếp tại sự kiện, không đăng ký trước</div>
+        </div>
+      </label>
     </div>
     <div class="mf">
       <button class="btn" onclick="closeM()">Huỷ</button>
@@ -1793,10 +1814,11 @@ async function saveG(){
       const newComps=rawComps.map(rc=>{const match=oldComps.find(oc=>oc.name===rc.name&&oc.code);
         if(match)return{...match,phone:rc.phone};
         return{id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}});
-      db.guests[idx]={...ex,eventId,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,companions:newComps};
+      const walkinEdit=!!(document.getElementById('g_walkin')?.checked??ex?.walkin);
+      db.guests[idx]={...ex,eventId,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,walkin:walkinEdit,companions:newComps};
       S.ticketGid=S.editGid;
       isEditMode=true;
-      editedFields={name,phone,system_code:systemCode,prm_name:prmName,tcb_region:tcbRegion,unit,sih_name:sihName,note,companions:newComps};
+      editedFields={name,phone,system_code:systemCode,prm_name:prmName,tcb_region:tcbRegion,unit,sih_name:sihName,note,walkin:walkinEdit,companions:newComps};
     }
   } else {
     const guestCode=genCode(eventId);
@@ -1839,9 +1861,10 @@ async function doEdit(){
     name:document.getElementById('ecn_'+i)?.value?.trim()||c.name,
     phone:document.getElementById('ecp_'+i)?.value?.trim()||c.phone
   }));
-  db.guests[idx]={...g,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,companions:updComps};
+  const walkin=!!(document.getElementById('eg_walkin')?.checked);
+  db.guests[idx]={...g,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,walkin,companions:updComps};
   saveLocalOnly();S.modal=null;S.editGid=null;R();
-  const ok=await sbPatchGuest(g.id,{name,phone,system_code:systemCode,prm_name:prmName,tcb_region:tcbRegion,unit,sih_name:sihName,note,companions:updComps});
+  const ok=await sbPatchGuest(g.id,{name,phone,system_code:systemCode,prm_name:prmName,tcb_region:tcbRegion,unit,sih_name:sihName,note,walkin,companions:updComps});
   if(!ok)alert('⚠️ Đã lưu thay đổi trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
 }
 
