@@ -200,13 +200,16 @@ function isEvLocked(ev){
   return today>ev.date;
 }
 
-/* isWalkinDay — true nếu hôm nay đúng ngày tổ chức sự kiện.
-   Chỉ trong ngày này mới cho phép tạo Walk-in guest (gắn flag walkin=true). */
-function isWalkinDay(ev){
+/* isWalkinAllowed — true khi hôm nay >= ngày tổ chức sự kiện (trong ngày + sau ngày).
+   Không cho phép tạo Walk-in trước ngày event.
+   Walk-in vẫn khả dụng sau ngày event để hậu kiểm / bổ sung KH đến muộn. */
+function isWalkinAllowed(ev){
   if(!ev?.date)return false;
   const today=new Date().toISOString().slice(0,10);
-  return today===ev.date;
+  return today>=ev.date;
 }
+// Alias cũ giữ lại để không cần sửa nhiều chỗ
+function isWalkinDay(ev){ return isWalkinAllowed(ev); }
 
 function getEvById(id){return db.events.find(e=>e.id===id)}
 
@@ -730,14 +733,67 @@ function rRTab(){
   const ciAllComp=ciAll-ciAllMain;
   const avgCompPerMain=ciAllMain>0?Math.round((ciAllComp/ciAllMain)*100)/100:0;
 
-  const walkinM=mainGuests.filter(g=>g.walkin).length;
+  // --- Walk-in vs Pre-registered ---
+  const preregG = mainGuests.filter(g=>!g.walkin);
+  const walkinG  = mainGuests.filter(g=>!!g.walkin);
+  const prTotal=preregG.length, prCi=preregG.filter(g=>g.checkedIn).length, prCn=preregG.filter(g=>g.cancelled).length, prPd=prTotal-prCi-prCn, prPct=prTotal>0?Math.round(prCi/prTotal*100):0;
+  const wiTotal=walkinG.length, wiCi=walkinG.filter(g=>g.checkedIn).length, wiCn=walkinG.filter(g=>g.cancelled).length, wiPd=wiTotal-wiCi-wiCn, wiPct=wiTotal>0?Math.round(wiCi/wiTotal*100):0;
+
+  function wiCell(val, color, sub){
+    if(wiTotal===0)return '<td style="padding:8px 12px;text-align:center;color:#ccc;font-size:12px">—</td>';
+    return '<td style="padding:8px 12px;text-align:center;background:#FAFAFF">'
+      +'<div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div>'
+      +(sub?'<div style="font-size:10px;color:#aaa;margin-top:1px">'+sub+'</div>':'')
+      +'</td>';
+  }
+  function prCell(val, color, sub){
+    return '<td style="padding:8px 12px;text-align:center">'
+      +'<div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div>'
+      +(sub?'<div style="font-size:10px;color:#aaa;margin-top:1px">'+sub+'</div>':'')
+      +'</td>';
+  }
+
+  const walkinTableHtml=`
+  <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin:0 0 8px;text-transform:uppercase">📊 Pre-registered vs Walk-in (Main)</div>
+  <div style="background:#fff;border-radius:12px;border:1px solid #eaecf0;margin-bottom:14px;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="background:#f8fafc">
+        <th style="padding:10px 12px;text-align:left;font-size:11px;color:#aaa;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #eaecf0"></th>
+        <th style="padding:10px 12px;text-align:center;font-size:12px;font-weight:700;color:#185FA5;border-bottom:1px solid #eaecf0">📋 Pre-registered</th>
+        <th style="padding:10px 12px;text-align:center;font-size:12px;font-weight:700;color:#7C3AED;border-bottom:1px solid #eaecf0;background:${wiTotal>0?'#F5F3FF':'#f8fafc'}">🚶 Walk-in</th>
+      </tr></thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:8px 12px;font-size:12px;color:#555;font-weight:600">Tổng KH</td>
+          ${prCell(prTotal,'#185FA5','')}
+          ${wiCell(wiTotal,'#7C3AED','')}
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:8px 12px;font-size:12px;color:#3B6D11;font-weight:600">✅ Đã vào</td>
+          ${prCell(prCi,'#3B6D11',prPct+'% turnout')}
+          ${wiCell(wiCi,'#3B6D11',wiPct+'% turnout')}
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:8px 12px;font-size:12px;color:#888;font-weight:600">⏳ Chưa tới</td>
+          ${prCell(prPd,'#aaa','')}
+          ${wiCell(wiPd,'#aaa','')}
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;font-size:12px;color:#B91C1C;font-weight:600">🚫 Cancel</td>
+          ${prCell(prCn>0?prCn:'—',prCn>0?'#B91C1C':'#ccc','')}
+          ${wiCell(wiCn>0?wiCn:'—',wiCn>0?'#B91C1C':'#ccc','')}
+        </tr>
+      </tbody>
+    </table>
+    ${wiTotal===0?'<div style="padding:8px 14px;font-size:11px;color:#bbb;text-align:center;border-top:1px solid #f0f0f0">Sự kiện này chưa có khách Walk-in</div>':''}
+  </div>`;
+
   const statsHtml=`<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng quan (Khách hàng - Main)</div>
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     ${statCard('Tổng KH mời (Main)','#185FA5',totalM,'')}
     ${statCard('✅ KH đã tới','#3B6D11',ciM,pctM+'% turnout')}
     ${statCard('⏳ KH chưa tới','#888',pdM,'')}
     ${statCard('🚫 KH cancel','#B91C1C',cnM,'')}
-    ${walkinM>0?statCard('🚶 Walk-in','#7C3AED',walkinM,'trong tổng số Main'):''}
   </div>
   <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;border:1px solid #eaecf0">
     <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
@@ -748,6 +804,7 @@ function rRTab(){
       <div style="width:${pctM}%;background:linear-gradient(90deg,#185FA5,#3B6D11);height:100%;border-radius:99px;transition:width .4s"></div>
     </div>
   </div>
+  ${walkinTableHtml}
   <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng lượt tham dự thực tế (Main + Companion)</div>
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     ${statCard('Tổng lượt đăng ký','#185FA5',totalAll,totalAllMain+' Main + '+totalAllComp+' Companion')}
@@ -1575,7 +1632,7 @@ function closeM(){S.modal=null;S.editGid=null;S.delGid=null;S.cpTicket=null;S.cp
    ============================================================ */
 function openWalkin(){
   const ev=getEvById(S.selEv);
-  if(!isWalkinDay(ev)){alert('Walk-in chỉ khả dụng đúng ngày tổ chức sự kiện ('+fmtD(ev?.date)+').');return;}
+  if(!isWalkinAllowed(ev)){alert('Walk-in chỉ khả dụng từ ngày tổ chức sự kiện ('+fmtD(ev?.date)+') trở đi.');return;}
   S.modal='walkin';R();
 }
 
@@ -2153,7 +2210,7 @@ function getWiComps(){
 async function saveWalkin(){
   const eventId=S.selEv;
   const ev=getEvById(eventId);
-  if(!isWalkinDay(ev)){alert('Walk-in chỉ khả dụng đúng ngày tổ chức sự kiện.');closeM();return;}
+  if(!isWalkinAllowed(ev)){alert('Walk-in chỉ khả dụng từ ngày tổ chức sự kiện trở đi.');closeM();return;}
   const name=(document.getElementById('wi_n')?.value||'').trim();
   if(!name){alert('Vui lòng nhập họ tên khách Walk-in');return;}
   const phone=(document.getElementById('wi_ph')?.value||'').trim();
