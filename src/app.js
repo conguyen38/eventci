@@ -707,7 +707,8 @@ function rRTab(){
   // Danh sách Khách hàng (Main) — đối tượng dùng cho mọi breakdown & đánh giá tỷ lệ
   const mainGuests=egs(S.rptEv).map(g=>({
     name:g.name,code:g.guestCode,phone:g.phone,prmName:g.prmName,tcbRegion:g.tcbRegion,unit:g.unit,sihName:g.sihName,note:g.note,
-    checkedIn:g.checkedIn,cancelled:g.cancelled,checkinTime:g.checkinTime,companions:g.companions||[]
+    checkedIn:g.checkedIn,cancelled:g.cancelled,checkinTime:g.checkinTime,companions:g.companions||[],
+    walkin:!!g.walkin
   }));
 
   // Danh sách đầy đủ Main + Companion — chỉ dùng cho thống kê "tổng lượt tham dự thực tế"
