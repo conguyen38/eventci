@@ -33,9 +33,9 @@ const BASE_URL = "https://lemaitranmedia.github.io/eventoh-checkin";
    DATA LAYER
    ============================================================ */
 function dbToEv(r){return{id:r.id,name:r.name,date:r.date_str,team:r.team,venue:r.venue,eventPw:r.event_pw,btcMembers:r.btc_members||[],createdAt:r.created_at}}
-function dbToG(r){return{id:r.id,eventId:r.event_id,guestCode:r.guest_code,systemCode:r.system_code,name:r.name,phone:r.phone,prmName:r.prm_name,tcbRegion:r.tcb_region,unit:r.unit,sihName:r.sih_name,note:r.note,companions:r.companions||[],checkedIn:!!r.checked_in,checkinTime:r.checkin_time,checkinBy:r.checkin_by,cancelled:!!r.cancelled,cancelNote:r.cancel_note,createdAt:r.created_at}}
+function dbToG(r){return{id:r.id,eventId:r.event_id,guestCode:r.guest_code,systemCode:r.system_code,name:r.name,phone:r.phone,prmName:r.prm_name,tcbRegion:r.tcb_region,unit:r.unit,sihName:r.sih_name,note:r.note,companions:r.companions||[],checkedIn:!!r.checked_in,checkinTime:r.checkin_time,checkinBy:r.checkin_by,cancelled:!!r.cancelled,cancelNote:r.cancel_note,walkin:!!r.walkin,createdAt:r.created_at}}
 function evToDb(e){return{id:e.id,name:e.name,date_str:e.date||null,team:e.team||null,venue:e.venue||null,event_pw:e.eventPw||null,btc_members:e.btcMembers||[],created_at:e.createdAt||Date.now()}}
-function gToDb(g){return{id:g.id,event_id:g.eventId,guest_code:g.guestCode,system_code:g.systemCode||null,name:g.name,phone:g.phone||null,prm_name:g.prmName||null,tcb_region:g.tcbRegion||null,unit:g.unit||null,sih_name:g.sihName||null,note:g.note||null,companions:g.companions||[],checked_in:!!g.checkedIn,checkin_time:g.checkinTime||null,checkin_by:g.checkinBy||null,cancelled:!!g.cancelled,cancel_note:g.cancelNote||null,created_at:g.createdAt||Date.now()}}
+function gToDb(g){return{id:g.id,event_id:g.eventId,guest_code:g.guestCode,system_code:g.systemCode||null,name:g.name,phone:g.phone||null,prm_name:g.prmName||null,tcb_region:g.tcbRegion||null,unit:g.unit||null,sih_name:g.sihName||null,note:g.note||null,companions:g.companions||[],checked_in:!!g.checkedIn,checkin_time:g.checkinTime||null,checkin_by:g.checkinBy||null,cancelled:!!g.cancelled,cancel_note:g.cancelNote||null,walkin:!!g.walkin,created_at:g.createdAt||Date.now()}}
 
 function loadLocal(){try{const r=localStorage.getItem(SK);return r?JSON.parse(r):{events:[],guests:[]}}catch(e){return{events:[],guests:[]}}}
 
@@ -192,11 +192,22 @@ async function loadData(){
   else{const loc=loadLocal();db.events=loc.events;db.guests=loc.guests;}
 }
 
+/* isEvLocked — ngày > ngày event → khoá check-in / cancel / thêm-xoá khách / import.
+   Sửa thông tin tĩnh (tên, SĐT, PRM, vùng, đơn vị, SIH, note, systemCode) vẫn cho phép. */
 function isEvLocked(ev){
   if(!ev?.date)return false;
   const today=new Date().toISOString().slice(0,10);
   return today>ev.date;
 }
+
+/* isWalkinDay — true nếu hôm nay đúng ngày tổ chức sự kiện.
+   Chỉ trong ngày này mới cho phép tạo Walk-in guest (gắn flag walkin=true). */
+function isWalkinDay(ev){
+  if(!ev?.date)return false;
+  const today=new Date().toISOString().slice(0,10);
+  return today===ev.date;
+}
+
 function getEvById(id){return db.events.find(e=>e.id===id)}
 
 /* ⚠️ LEGACY — polling 15s. Mục tiêu 2 thay cơ chế này bằng Realtime (initSupabaseRealtime bên dưới).
@@ -489,7 +500,7 @@ function rEvTab(){
           <span class="badge ${locked?'b-gray':p.c===p.t&&p.t>0?'b-green':p.c>0?'b-blue':'b-gray'}">${locked?'Đã đóng':p.c===p.t&&p.t>0?'Hoàn tất':p.c>0?p.c+' đã vào':'Chờ'}</span>
           ${ev.eventPw&&S.unlockedEvs[ev.id]?`<button class="btn sm" onclick="alert('Mật khẩu: '+db.events.find(e=>e.id==='${ev.id}')?.eventPw)" title="Xem mật khẩu" style="font-size:11px">🔓 MK</button>`:''}
           <button class="btn sm" onclick="openGM('${ev.id}')">📋 Khách</button>
-          ${locked?'<span class="btn sm" style="opacity:.35;cursor:not-allowed">✏️ Sửa</span>':`<button class="btn sm" onclick="openEditEv('${ev.id}')">✏️ Sửa</button>`}
+          <button class="btn sm" onclick="openEditEv('${ev.id}')">✏️ Sửa</button>
           <button class="btn sm red" onclick="delEv('${ev.id}')">🗑️</button>
         </div>
       </div>`;}).join('')}`;
@@ -513,9 +524,11 @@ function rGTab(){
   if(S.filter==='checked')gs=gs.filter(g=>g.checkedIn);
   if(S.filter==='pending')gs=gs.filter(g=>!g.checkedIn&&!g.cancelled);
   if(S.filter==='cancelled')gs=gs.filter(g=>g.cancelled);
+  if(S.filter==='walkin')gs=gs.filter(g=>!!g.walkin);
 
   const btcTags=(ev.btcMembers||[]).map(m=>`<span class="badge b-purple" style="margin:2px">🔑 ${m.name} (${m.code})</span>`).join('');
-  const evLocked = isEvLocked(ev);
+  const evLocked = isEvLocked(ev);       // true khi ngày > ngày event → khoá check-in/cancel/add-del
+  const evWalkinDay = isWalkinDay(ev);   // true khi ngày = ngày event → cho phép tạo Walk-in
 
   return`
     <div class="topbar">
@@ -528,6 +541,7 @@ function rGTab(){
           <option value="checked" ${S.filter==='checked'?'selected':''}>✅ Đã vào (${p.c})</option>
           <option value="pending" ${S.filter==='pending'?'selected':''}>⏳ Chưa xác nhận (${p.p})</option>
           <option value="cancelled" ${S.filter==='cancelled'?'selected':''}>🚫 Cancel (${p.x})</option>
+          <option value="walkin" ${S.filter==='walkin'?'selected':''}>🚶 Walk-in (${egs(S.selEv).filter(g=>g.walkin).length})</option>
         </select>
         
         ${evLocked?'':`
@@ -535,14 +549,16 @@ function rGTab(){
           <button class="btn sm" onclick="downloadExcelTemplate()">📄 Mẫu Excel</button>
         `}
         ${p.t > 0 ? `<button class="btn blue sm" onclick="downloadAllQRsZip()" id="zip_btn">🗂️ Tải QR hàng loạt (.ZIP)</button>` : ''}
-        ${evLocked?'':`<button class="btn blue sm" onclick="openM('add_g')">+ Thêm khách</button>`}
+        ${evLocked?'':`<button class="btn blue sm" onclick="openM('add_g')">+ Thêm KH đăng ký</button>`}
+        ${evWalkinDay?`<button class="btn sm" style="background:#7C3AED;color:#fff;border-color:#7C3AED" onclick="openWalkin()">🚶 + Walk-in</button>`:''}
       </div>
     </div>
     
-    ${evLocked?`<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
-      <span style="font-size:20px">🔐</span>
-      <div><div style="font-weight:600;font-size:13px;color:#B91C1C">Sự kiện đã kết thúc — Chỉ xem, không thể thao tác</div>
-        <div style="font-size:11px;color:#aaa">Tất cả chức năng check-in, thêm/sửa/xoá khách đã bị khoá kể từ ngày ${fmtD(ev.date)}</div>
+    ${evLocked?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">📋</span>
+      <div>
+        <div style="font-weight:600;font-size:13px;color:#92400E">Sự kiện đã kết thúc — Chế độ chỉnh sửa hậu sự kiện</div>
+        <div style="font-size:11px;color:#aaa">Check-in, Cancel, Thêm/Xoá khách đã bị khoá từ ngày ${fmtD(ev.date)}. Vẫn có thể <b>sửa thông tin</b> (PRM, vùng, đơn vị, SIH, ghi chú, systemCode, tên, SĐT).</div>
       </div>
     </div>`:''}
     <div class="stats" style="grid-template-columns:repeat(5,1fr)">
@@ -566,10 +582,16 @@ function rGTab(){
           ${gs.map((g,i)=>{
             const comps=g.companions||[];
             const isCancelled=!!g.cancelled;
+            const isWalkin=!!g.walkin;
+            // evLocked = ký sự kiện đã qua: khoá check-in/cancel/add-del
+            // Sửa thông tin tĩnh (edit) LUÔN cho phép dù evLocked
             let rows=`<tr ${isCancelled?'class="cancelled"':''} style="${isCancelled?'background:#FFF8F8':''}">
               <td style="color:#ccc">${i+1}</td>
               <td>
-                <div style="font-weight:600${isCancelled?';text-decoration:line-through;color:#bbb':''}">${g.name}</div>
+                <div style="font-weight:600${isCancelled?';text-decoration:line-through;color:#bbb':''}">
+                  ${g.name}
+                  ${isWalkin?`<span style="font-size:9px;font-weight:700;background:#EDE9FE;color:#7C3AED;padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle">Walk-in</span>`:''}
+                </div>
                 ${isCancelled?`<span class="cancelled-badge">🚫 Cancel</span>${g.cancelNote?`<div class="cancel-note">${g.cancelNote}</div>`:''}`:
                   `${comps.length?`<div class="sub">+${comps.length} đi kèm</div>`:''}
                    ${g.note?`<div class="sub" style="font-style:italic">${g.note}</div>`:''}
@@ -586,13 +608,12 @@ function rGTab(){
               </td>
               <td>
                 <div style="display:flex;gap:2px;flex-wrap:wrap">
-                  ${evLocked?`<button class="btn xs" onclick="openTickets('${g.id}')" title="Vé">🎫</button>`
-                  :isCancelled?
+                  <button class="btn xs" onclick="openTickets('${g.id}')" title="Vé">🎫</button>
+                  ${evLocked?'':isCancelled?
                     `<button class="btn xs" onclick="undoCancel('${g.id}','g')" style="color:#185FA5;border-color:#185FA5" title="Recall — KH quay lại tham dự">↩</button>`
-                    :`<button class="btn xs" onclick="openTickets('${g.id}')" title="Vé">🎫</button>
-                     <button class="btn xs" onclick="openCancel('${g.id}','g')" title="Cancel KH" style="color:#B91C1C;border-color:#FECACA">🚫</button>`}
-                  ${evLocked?'':`<button class="btn xs" onclick="openEdit('${g.id}')" title="Sửa">✏️</button>
-                  <button class="btn xs red" onclick="openDel('${g.id}')" title="Xoá">🗑️</button>`}
+                    :`<button class="btn xs" onclick="openCancel('${g.id}','g')" title="Cancel KH" style="color:#B91C1C;border-color:#FECACA">🚫</button>`}
+                  <button class="btn xs" onclick="openEdit('${g.id}')" title="Sửa thông tin">✏️</button>
+                  ${evLocked?'':`<button class="btn xs red" onclick="openDel('${g.id}')" title="Xoá">🗑️</button>`}
                 </div>
               </td>
             </tr>`;
@@ -614,13 +635,12 @@ function rGTab(){
                 </td>
                 <td>
                   <div style="display:flex;gap:2px;flex-wrap:wrap">
-                    ${evLocked?`<button class="btn xs" onclick="openCpTicket('${g.id}','${cp.id}')" title="Vé">🎫</button>`
-                    :cpCancelled?
+                    <button class="btn xs" onclick="openCpTicket('${g.id}','${cp.id}')" title="Vé">🎫</button>
+                    ${evLocked?'':cpCancelled?
                       `<button class="btn xs" onclick="undoCancel('${g.id}','c','${cp.id}')" style="color:#185FA5;border-color:#185FA5" title="Recall — người đi kèm quay lại">↩</button>`
-                      :`<button class="btn xs" onclick="openCpTicket('${g.id}','${cp.id}')" title="Vé">🎫</button>
-                       <button class="btn xs" onclick="openCancel('${g.id}','c','${cp.id}')" style="color:#B91C1C;border-color:#FECACA" title="Cancel">🚫</button>`}
-                    ${evLocked?'':`<button class="btn xs" onclick="openCpEdit('${g.id}','${cp.id}')" title="Sửa">✏️</button>
-                    <button class="btn xs red" onclick="openCpDel('${g.id}','${cp.id}')" title="Xoá">🗑️</button>`}
+                      :`<button class="btn xs" onclick="openCancel('${g.id}','c','${cp.id}')" style="color:#B91C1C;border-color:#FECACA" title="Cancel">🚫</button>`}
+                    <button class="btn xs" onclick="openCpEdit('${g.id}','${cp.id}')" title="Sửa thông tin">✏️</button>
+                    ${evLocked?'':`<button class="btn xs red" onclick="openCpDel('${g.id}','${cp.id}')" title="Xoá">🗑️</button>`}
                   </div>
                 </td>
               </tr>`;
@@ -710,12 +730,14 @@ function rRTab(){
   const ciAllComp=ciAll-ciAllMain;
   const avgCompPerMain=ciAllMain>0?Math.round((ciAllComp/ciAllMain)*100)/100:0;
 
+  const walkinM=mainGuests.filter(g=>g.walkin).length;
   const statsHtml=`<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng quan (Khách hàng - Main)</div>
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     ${statCard('Tổng KH mời (Main)','#185FA5',totalM,'')}
     ${statCard('✅ KH đã tới','#3B6D11',ciM,pctM+'% turnout')}
     ${statCard('⏳ KH chưa tới','#888',pdM,'')}
     ${statCard('🚫 KH cancel','#B91C1C',cnM,'')}
+    ${walkinM>0?statCard('🚶 Walk-in','#7C3AED',walkinM,'trong tổng số Main'):''}
   </div>
   <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;border:1px solid #eaecf0">
     <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
@@ -781,7 +803,7 @@ function rRTab(){
             <div style="font-size:11px;font-weight:700;color:#3B6D11;margin-bottom:6px">Đã check-in (${ci} Main)</div>
             ${gs.filter(g=>g.checkedIn).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #c8e6c9;display:flex;justify-content:space-between;align-items:center">
               <div>
-                <div style="font-weight:600;font-size:13px">${g.name}</div>
+                <div style="font-weight:600;font-size:13px">${g.name}${g.walkin?'<span style="font-size:9px;background:#EDE9FE;color:#7C3AED;padding:1px 5px;border-radius:6px;margin-left:4px">Walk-in</span>':''}</div>
                 <div style="font-size:11px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
                 <div style="font-size:10px;color:#3B6D11">✅ ${fmtTm(g.checkinTime)}</div>
               </div>
@@ -853,6 +875,7 @@ function rModal(){
   if(S.modal==='cancel')return wrapModal(rCancelM(),'sm');
   if(S.modal==='ev_unlock')return wrapModal(rEvUnlockM(),'sm');
   if(S.modal==='import_preview')return wrapModal(rImportPreviewM(),'lg'); // Modal preview dữ liệu Excel
+  if(S.modal==='walkin')return wrapModal(rWalkinM(),'lg');
   return'';
 }
 
@@ -1547,9 +1570,18 @@ function openDel(id){S.delGid=id;S.modal='del_pw';R()}
 function openTickets(id){S.ticketGid=id;S.modal='tickets';R()}
 function closeM(){S.modal=null;S.editGid=null;S.delGid=null;S.cpTicket=null;S.cpEdit=null;S.cpDel=null;S.cpAdd=null;S.adminCI=null;S.cancelTarget=null;S.evUnlockTarget=null;S.editEvId=null;S.importData=null;R()}
 
+/* ============================================================
+   WALK-IN FUNCTIONS — tạo KH ngay tại sự kiện trong ngày tổ chức
+   ============================================================ */
+function openWalkin(){
+  const ev=getEvById(S.selEv);
+  if(!isWalkinDay(ev)){alert('Walk-in chỉ khả dụng đúng ngày tổ chức sự kiện ('+fmtD(ev?.date)+').');return;}
+  S.modal='walkin';R();
+}
+
 function openEditEv(id){
   const ev=db.events.find(e=>e.id===id);if(!ev)return;
-  if(isEvLocked(ev)){alert('Sự kiện đã kết thúc. Không thể chỉnh sửa thông tin sự kiện.');return;}
+  // Sự kiện đã qua ngày vẫn cho phép sửa thông tin tĩnh — chỉ check-in/cancel/add-del mới bị khoá
   if(ev.eventPw&&!S.unlockedEvs[id]){S.evUnlockTarget=id;S.modal='ev_unlock';R();return;}
   S.editEvId=id;S.modal='edit_ev';R();
 }
@@ -1690,7 +1722,8 @@ async function saveG(){
   const note=document.getElementById('g_note')?.value?.trim();
   if(!name){alert('Vui lòng nhập họ tên KH');return}
   if(!eventId){alert('Vui lòng chọn sự kiện');return}
-  if(isEvLocked(getEvById(eventId))){alert('Sự kiện đã kết thúc. Không thể thêm/sửa khách.');closeM();return;}
+  // Sau ngày event: không cho thêm KH mới; nhưng sửa thông tin tĩnh KH hiện có vẫn OK
+  if(isEvLocked(getEvById(eventId))&&S.modal!=='edit_g'){alert('Sự kiện đã kết thúc. Không thể thêm khách mới.');closeM();return;}
   const rawComps=getComps('add');
 
   let isEditMode=false,editedFields=null,newGuestRow=null;
@@ -2039,18 +2072,112 @@ async function finishCI(){
 
 function expCSV(){
   const ev=db.events.find(e=>e.id===S.selEv);
-  const rows=[['STT','Loại','Mã','Mã Hệ thống','Họ tên','SĐT','KH gốc (nếu đi kèm)','PRM','Vùng TCB','Đơn vị','SIH','Note','Trạng thái','Giờ check-in','BTC','Lý do cancel']];
+  const rows=[['STT','Loại','Mã','Mã Hệ thống','Họ tên','SĐT','KH gốc (nếu đi kèm)','PRM','Vùng TCB','Đơn vị','SIH','Note','Walk-in','Trạng thái','Giờ check-in','BTC','Lý do cancel']];
   let n=0;
   egs(S.selEv).forEach(g=>{n++;
     const gStatus=g.cancelled?'Cancel':g.checkedIn?'Đã vào':'Chưa';
-    rows.push([n,'KH chính',g.guestCode,g.systemCode||'',g.name,g.phone||'','',g.prmName||'',g.tcbRegion||'',g.unit||'',g.sihName||'',g.note||'',gStatus,g.checkinTime?fmtDT(g.checkinTime):'',g.checkinBy||'',g.cancelNote||'']);
+    rows.push([n,'KH chính',g.guestCode,g.systemCode||'',g.name,g.phone||'','',g.prmName||'',g.tcbRegion||'',g.unit||'',g.sihName||'',g.note||'',g.walkin?'Walk-in':'',gStatus,g.checkinTime?fmtDT(g.checkinTime):'',g.checkinBy||'',g.cancelNote||'']);
     (g.companions||[]).forEach(c=>{n++;
       const cStatus=c.cancelled?'Cancel':c.checkedIn?'Đã vào':'Chưa';
-      rows.push([n,'Đi kèm',c.code,'',c.name,c.phone||'',g.name,g.prmName||'',g.tcbRegion||'','','','',cStatus,c.checkinTime?fmtDT(c.checkinTime):'',c.checkinBy||'',c.cancelNote||''])})});
+      rows.push([n,'Đi kèm',c.code,'',c.name,c.phone||'',g.name,g.prmName||'',g.tcbRegion||'','','','',g.walkin?'(Walk-in Main)':'',cStatus,c.checkinTime?fmtDT(c.checkinTime):'',c.checkinBy||'',c.cancelNote||''])})});
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
   a.download=`checkin_${(ev?.name||'').replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;a.click()}
 
+
+/* ============================================================
+   WALK-IN MODAL
+   ============================================================ */
+function rWalkinM(){
+  const ev=getEvById(S.selEv);
+  return`<div class="mh">🚶 Tạo khách Walk-in</div>
+    <div style="background:#EDE9FE;border:1px solid #DDD6FE;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">🚶</span>
+      <div>
+        <div style="font-weight:700;font-size:13px;color:#5B21B6">Khách Walk-in — đăng ký tại chỗ ngày ${fmtD(ev?.date)}</div>
+        <div style="font-size:11px;color:#7C3AED">Hệ thống sẽ gắn nhãn Walk-in và tạo mã vào ngay. Không thể thêm Walk-in sau khi sự kiện kết thúc.</div>
+      </div>
+    </div>
+    <div class="fg"><label>Sự kiện</label>
+      <div style="padding:9px 12px;background:#f4f7fb;border-radius:8px;font-size:13px;color:#555">${ev?.name||'—'} · ${fmtD(ev?.date)}</div>
+    </div>
+    <div class="sec">Thông tin khách Walk-in</div>
+    <div class="g3">
+      <div class="fg"><label>Họ và tên *</label><input id="wi_n" placeholder="Nguyễn Văn A" autofocus/></div>
+      <div class="fg"><label>Số điện thoại</label><input id="wi_ph" type="tel" placeholder="09xxxxxxxx"/></div>
+      <div class="fg"><label>Mã Hệ thống <span style="font-weight:400;color:#aaa">(nếu có)</span></label><input id="wi_syscode" placeholder="OH-xxxxx"/></div>
+    </div>
+    <div class="sec">Người đi kèm <span style="text-transform:none;letter-spacing:0;font-weight:400">(tuỳ chọn)</span></div>
+    <div id="wi_cp_w"></div>
+    <button class="btn sm" onclick="addWiCR()" style="margin-bottom:4px">+ Thêm đi kèm</button>
+    <div class="sec">Thông tin chăm sóc</div>
+    <div class="g3">
+      <div class="fg"><label>Tên PRM</label><input id="wi_prm" placeholder="Tên PRM"/></div>
+      <div class="fg"><label>Vùng TCB</label><input id="wi_reg" placeholder="Vùng 1 HCM"/></div>
+      <div class="fg"><label>Đơn vị</label><input id="wi_unit" placeholder="CN Thủ Đức"/></div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label>Tên SIH</label><input id="wi_sih" placeholder="Tên SIH"/></div>
+      <div class="fg"><label>Note / Lưu ý</label><input id="wi_note" placeholder="Ghi chú..."/></div>
+    </div>
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Huỷ</button>
+      <button class="btn" style="background:#7C3AED;color:#fff;border-color:#7C3AED" onclick="saveWalkin()">🚶 Tạo Walk-in & Tạo vé</button>
+    </div>`;
+}
+
+function addWiCR(){
+  const w=document.getElementById('wi_cp_w');if(!w)return;
+  const i=w.querySelectorAll('.wi-cp-r').length;
+  const d=document.createElement('div');d.className='wi-cp-r cp-r';d.id='wicr_'+i;
+  d.innerHTML=`<div class="g2" style="margin-bottom:0">
+    <div class="fg" style="margin-bottom:0"><label>Tên đi kèm ${i+1}</label><input id="wicn_${i}" placeholder="Họ và tên"/></div>
+    <div class="fg" style="margin-bottom:0"><label>SĐT</label><input id="wicp_${i}" type="tel" placeholder="09xxxxxxxx"/></div>
+  </div>
+  ${i>0?`<button class="btn xs red" onclick="rmWiCR(${i})" style="margin-top:6px">Xoá đi kèm này</button>`:''}`;
+  w.appendChild(d);
+}
+function rmWiCR(i){const r=document.getElementById('wicr_'+i);if(r)r.remove();}
+function getWiComps(){
+  const w=document.getElementById('wi_cp_w');if(!w)return[];
+  const cs=[];
+  w.querySelectorAll('.wi-cp-r').forEach(r=>{
+    const idx=r.id.replace(/[^0-9]/g,'');
+    const n=(document.getElementById('wicn_'+idx)?.value||'').trim();
+    const p=(document.getElementById('wicp_'+idx)?.value||'').trim();
+    if(n)cs.push({name:n,phone:p});
+  });
+  return cs;
+}
+
+async function saveWalkin(){
+  const eventId=S.selEv;
+  const ev=getEvById(eventId);
+  if(!isWalkinDay(ev)){alert('Walk-in chỉ khả dụng đúng ngày tổ chức sự kiện.');closeM();return;}
+  const name=(document.getElementById('wi_n')?.value||'').trim();
+  if(!name){alert('Vui lòng nhập họ tên khách Walk-in');return;}
+  const phone=(document.getElementById('wi_ph')?.value||'').trim();
+  const systemCode=(document.getElementById('wi_syscode')?.value||'').trim();
+  const prmName=(document.getElementById('wi_prm')?.value||'').trim();
+  const tcbRegion=(document.getElementById('wi_reg')?.value||'').trim();
+  const unit=(document.getElementById('wi_unit')?.value||'').trim();
+  const sihName=(document.getElementById('wi_sih')?.value||'').trim();
+  const note=(document.getElementById('wi_note')?.value||'').trim();
+  const rawComps=getWiComps();
+  const guestCode=genCode(eventId);
+  const companions=rawComps.map(rc=>({id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}));
+  const ng={
+    id:uid(),eventId,guestCode,systemCode,name,phone,prmName,tcbRegion,unit,sihName,
+    note:note?note:'[Walk-in]',
+    walkin:true,  // ← flag Walk-in
+    companions,checkedIn:false,checkinTime:null,checkinBy:null,createdAt:Date.now()
+  };
+  db.guests.push(ng);
+  S.ticketGid=ng.id;
+  saveLocalOnly();S.modal='tickets';R();
+  const ok=await sbUpsertOne('oh_guests',gToDb(ng));
+  if(!ok)alert('⚠️ Đã tạo Walk-in trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại trước khi phát vé.');
+}
 
 /* ============================================================
    NEW FEATURES LOGIC: EXCEL EXPORT/IMPORT & ALL QR ZIP DOWNLOAD
@@ -2343,3 +2470,5 @@ window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=
 window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
 window.downloadExcelTemplate=downloadExcelTemplate; window.commitExcelImport=commitExcelImport;
 window.downloadAllQRsZip=downloadAllQRsZip;
+window.openWalkin=openWalkin; window.saveWalkin=saveWalkin;
+window.addWiCR=addWiCR; window.rmWiCR=rmWiCR;
