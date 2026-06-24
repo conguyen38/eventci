@@ -570,9 +570,9 @@ function rGTab(){
         ?`<div style="display:flex;align-items:center;gap:6px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:6px 12px">
             <span style="font-size:14px">✅</span>
             <div style="font-size:12px;font-weight:700;color:#92400E">Đang mở check-in bù</div>
-            <button class="btn xs" onclick="S.unlockedCIEvs['${ev.id}']=false;R()" style="background:#fff;color:#B45309;border-color:#FCD34D;font-size:11px">Khoá lại</button>
+            <button class="btn xs" onclick="closeCIUnlock('${ev.id}')" style="background:#fff;color:#B45309;border-color:#FCD34D;font-size:11px">Khoá lại</button>
           </div>`
-        :`<button class="btn sm" onclick="S.ciUnlockTarget='${ev.id}';S.modal='ci_unlock';R()" style="background:#D97706;color:#fff;border-color:#D97706;white-space:nowrap">🔓 Mở check-in bù</button>`
+        :`<button class="btn sm" onclick="openCIUnlock('${ev.id}')" style="background:#D97706;color:#fff;border-color:#D97706;white-space:nowrap">🔓 Mở check-in bù</button>`
       }
     </div>`:''}
     <div class="stats" style="grid-template-columns:repeat(5,1fr)">
@@ -2561,6 +2561,9 @@ async function downloadAllQRsZip() {
   zipBtn.disabled = false;
 }
 
+function openCIUnlock(id){S.ciUnlockTarget=id;S.modal='ci_unlock';R()}
+function closeCIUnlock(id){S.unlockedCIEvs[id]=false;R()}
+
 // Expose all functions to window scope (required for Vite module bundling)
 window.R=R; window.doLogin=doLogin; window.doRefresh=doRefresh; window.doUrlCI=doUrlCI;
 window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch;
@@ -2582,6 +2585,6 @@ window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=
 window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
 window.downloadExcelTemplate=downloadExcelTemplate; window.commitExcelImport=commitExcelImport;
 window.downloadAllQRsZip=downloadAllQRsZip;
-window.doCIUnlock=doCIUnlock;
+window.doCIUnlock=doCIUnlock; window.openCIUnlock=openCIUnlock; window.closeCIUnlock=closeCIUnlock;
 window.openWalkin=openWalkin; window.saveWalkin=saveWalkin;
 window.addWiCR=addWiCR; window.rmWiCR=rmWiCR;
