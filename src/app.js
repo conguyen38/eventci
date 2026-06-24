@@ -341,7 +341,7 @@ let S={
   urlCISyncWarn:false,
   tab:'events', 
   selEv:null,
-  modal:null,   // add_ev | add_g | edit_g | del_g | tickets | btc_members | import_preview
+  modal:null,   // add_ev | add_g | edit_g | del_g | tickets | btc_members | import_preview | ci_unlock
   editGid:null,
   delGid:null,
   ticketGid:null,
@@ -352,8 +352,10 @@ let S={
   cpAdd:null,     
   adminCI:null,   
   cancelTarget:null, 
-  unlockedEvs:{},    
+  unlockedEvs:{},
+  unlockedCIEvs:{},   // Sự kiện được Admin mở check-in bù sau ngày tổ chức
   evUnlockTarget:null, 
+  ciUnlockTarget:null,
   rptEv:null,          
   rptExp:{},           
   search:'',
@@ -532,6 +534,7 @@ function rGTab(){
   const btcTags=(ev.btcMembers||[]).map(m=>`<span class="badge b-purple" style="margin:2px">🔑 ${m.name} (${m.code})</span>`).join('');
   const evLocked = isEvLocked(ev);       // true khi ngày > ngày event → khoá check-in/cancel/add-del
   const evWalkinDay = isWalkinDay(ev);   // true khi ngày = ngày event → cho phép tạo Walk-in
+  const ciUnlocked = !!S.unlockedCIEvs[ev.id]; // true khi Admin đã mở check-in bù
 
   return`
     <div class="topbar">
@@ -557,12 +560,20 @@ function rGTab(){
       </div>
     </div>
     
-    ${evLocked?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+    ${evLocked?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:20px">📋</span>
-      <div>
+      <div style="flex:1">
         <div style="font-weight:600;font-size:13px;color:#92400E">Sự kiện đã kết thúc — Chế độ chỉnh sửa hậu sự kiện</div>
         <div style="font-size:11px;color:#aaa">Check-in, Cancel, Thêm/Xoá khách đã bị khoá từ ngày ${fmtD(ev.date)}. Vẫn có thể <b>sửa thông tin</b> (PRM, vùng, đơn vị, SIH, ghi chú, systemCode, tên, SĐT).</div>
       </div>
+      ${ciUnlocked
+        ?`<div style="display:flex;align-items:center;gap:6px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:6px 12px">
+            <span style="font-size:14px">✅</span>
+            <div style="font-size:12px;font-weight:700;color:#92400E">Đang mở check-in bù</div>
+            <button class="btn xs" onclick="S.unlockedCIEvs['${ev.id}']=false;R()" style="background:#fff;color:#B45309;border-color:#FCD34D;font-size:11px">Khoá lại</button>
+          </div>`
+        :`<button class="btn sm" onclick="S.ciUnlockTarget='${ev.id}';S.modal='ci_unlock';R()" style="background:#D97706;color:#fff;border-color:#D97706;white-space:nowrap">🔓 Mở check-in bù</button>`
+      }
     </div>`:''}
     <div class="stats" style="grid-template-columns:repeat(5,1fr)">
       <div class="stat"><div class="n">${p.t}</div><div class="l">Tổng</div></div>
@@ -587,6 +598,7 @@ function rGTab(){
             const isCancelled=!!g.cancelled;
             const isWalkin=!!g.walkin;
             // evLocked = ký sự kiện đã qua: khoá check-in/cancel/add-del
+            // ciUnlocked = Admin đã mở check-in bù: cho phép check-in dù evLocked
             // Sửa thông tin tĩnh (edit) LUÔN cho phép dù evLocked
             let rows=`<tr ${isCancelled?'class="cancelled"':''} style="${isCancelled?'background:#FFF8F8':''}">
               <td style="color:#ccc">${i+1}</td>
@@ -605,7 +617,7 @@ function rGTab(){
               <td><div style="font-size:12px">${g.prmName||'—'}</div><div class="sub">${g.tcbRegion||''}</div></td>
               <td style="font-size:12px;color:#888">${g.unit||'—'}</td>
               <td style="font-size:12px;color:#888">${g.sihName||'—'}</td>
-              <td>${isCancelled||evLocked?'<span style="font-size:11px;color:#ccc">—</span>':
+              <td>${isCancelled||(evLocked&&!ciUnlocked)?'<span style="font-size:11px;color:#ccc">—</span>':
                 `<button class="ci ${g.checkedIn?'on':'off'}" onclick="togCI('${g.id}','g')">${g.checkedIn?'✅ Vào':'⏳'}</button>
                  ${g.checkedIn?`<div style="font-size:10px;color:#bbb;margin-top:2px">${fmtTm(g.checkinTime)}</div>`:''}`}
               </td>
@@ -632,7 +644,7 @@ function rGTab(){
                 <td><span class="mono">${cp.code}</span></td>
                 <td style="font-size:12px;color:#aaa">${cp.phone||'—'}</td>
                 <td colspan="2"></td><td></td>
-                <td>${cpCancelled||evLocked?'<span style="font-size:11px;color:#ccc">—</span>':
+                <td>${cpCancelled||(evLocked&&!ciUnlocked)?'<span style="font-size:11px;color:#ccc">—</span>':
                   `<button class="ci ${cp.checkedIn?'on':'off'}" onclick="togCI('${g.id}','c','${cp.id}')">${cp.checkedIn?'✅ Vào':'⏳'}</button>
                    ${cp.checkedIn?`<div style="font-size:10px;color:#bbb;margin-top:2px">${fmtTm(cp.checkinTime)}</div>`:''}`}
                 </td>
@@ -932,8 +944,9 @@ function rModal(){
   if(S.modal==='admin_ci')return wrapModal(rAdminCIM(),'sm');
   if(S.modal==='cancel')return wrapModal(rCancelM(),'sm');
   if(S.modal==='ev_unlock')return wrapModal(rEvUnlockM(),'sm');
-  if(S.modal==='import_preview')return wrapModal(rImportPreviewM(),'lg'); // Modal preview dữ liệu Excel
+  if(S.modal==='import_preview')return wrapModal(rImportPreviewM(),'lg');
   if(S.modal==='walkin')return wrapModal(rWalkinM(),'lg');
+  if(S.modal==='ci_unlock')return wrapModal(rCIUnlockM(),'sm');
   return'';
 }
 
@@ -1346,6 +1359,37 @@ function rImportPreviewM(){
   `;
 }
 
+/* Modal mở check-in bù sau sự kiện — yêu cầu Admin PW */
+function rCIUnlockM(){
+  const ev=db.events.find(e=>e.id===S.ciUnlockTarget);if(!ev)return'';
+  return`<div class="mh">🔓 Mở check-in bù</div>
+    <div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:4px">⚠️ Mở check-in sau sự kiện</div>
+      <div style="font-size:12px;color:#B45309">Sự kiện <b>${ev.name}</b> đã kết thúc (${fmtD(ev.date)}). Chức năng này chỉ dùng để check-in bù cho KH đã tới nhưng chưa được ghi nhận. Nhập mật khẩu Admin để xác nhận.</div>
+    </div>
+    <div class="fg"><label>Mật khẩu Admin</label>
+      <input type="password" id="ci_unlock_pw" placeholder="Nhập mật khẩu Admin..."
+        style="font-size:15px;padding:11px 14px"
+        autofocus onkeydown="if(event.key==='Enter')doCIUnlock()"/></div>
+    <div id="ci_unlock_err" style="color:#B91C1C;font-size:12px;margin-bottom:8px"></div>
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Huỷ</button>
+      <button class="btn" style="background:#D97706;color:#fff;border-color:#D97706" onclick="doCIUnlock()">🔓 Xác nhận mở</button>
+    </div>`;
+}
+
+function doCIUnlock(){
+  const pw=document.getElementById('ci_unlock_pw')?.value||'';
+  if(pw!==ADMIN_PW){
+    const el=document.getElementById('ci_unlock_err');
+    if(el)el.textContent='⚠️ Mật khẩu Admin không đúng.';
+    const inp=document.getElementById('ci_unlock_pw');if(inp){inp.value='';inp.focus();}
+    return;
+  }
+  S.unlockedCIEvs[S.ciUnlockTarget]=true;
+  S.ciUnlockTarget=null;S.modal=null;R();
+}
+
 /* ============================================================
    URL CHECK-IN VIEW (Scan QR)
    ============================================================ */
@@ -1610,7 +1654,7 @@ function rCIDone(){
     ${g.note?`<div style="margin-top:10px;display:inline-block"><span class="badge b-amber">${g.note}</span></div>`:''}
     <div style="font-size:12px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)} · BTC: ${p.checkinBy||'—'}</div>
     ${S.ciSyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:12px;padding:10px 14px;border-radius:10px;text-align:left;max-width:360px;margin-left:auto;margin-right:auto">
-      ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng).
+      ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng hoặc lỗi Supabase).
       Vui lòng kiểm tra lại kết nối và báo kỹ thuật nếu tình trạng tiếp diễn.
     </div>`:''}
     <div style="margin-top:24px">
@@ -1647,7 +1691,7 @@ function openM(m){S.modal=m;R()}
 function openEdit(id){S.editGid=id;S.modal='edit_pw';R()}
 function openDel(id){S.delGid=id;S.modal='del_pw';R()}
 function openTickets(id){S.ticketGid=id;S.modal='tickets';R()}
-function closeM(){S.modal=null;S.editGid=null;S.delGid=null;S.cpTicket=null;S.cpEdit=null;S.cpDel=null;S.cpAdd=null;S.adminCI=null;S.cancelTarget=null;S.evUnlockTarget=null;S.editEvId=null;S.importData=null;R()}
+function closeM(){S.modal=null;S.editGid=null;S.delGid=null;S.cpTicket=null;S.cpEdit=null;S.cpDel=null;S.cpAdd=null;S.adminCI=null;S.cancelTarget=null;S.evUnlockTarget=null;S.editEvId=null;S.importData=null;S.ciUnlockTarget=null;R()}
 
 /* ============================================================
    WALK-IN FUNCTIONS — tạo KH ngay tại sự kiện trong ngày tổ chức
@@ -1768,9 +1812,6 @@ async function saveEv(){
     if(pwNew)S.unlockedEvs[S.editEvId]=true;
     const editedId=S.editEvId;
     saveLocalOnly();S.modal=null;S.editEvId=null;R();
-    // Trước đây: save() POST nguyên cả mảng db.events LẪN db.guests mỗi khi sửa 1 sự kiện — nghĩa là
-    // sửa tên/venue 1 sự kiện cũng có thể kéo theo nguy cơ đè check-in đang có ở sự kiện khác. Giờ chỉ
-    // PATCH đúng 1 dòng oh_events.
     const ok=await sbPatchEvent(editedId,{name,date_str:date||null,team:team||null,venue:venue||null,event_pw:eventPw,btc_members:bms});
     if(!ok)alert('⚠️ Đã lưu sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
   } else {
@@ -1831,9 +1872,6 @@ async function saveG(){
   }
   S.selEv=eventId;saveLocalOnly();S.editGid=null;S.modal='tickets';R();
 
-  // Trước đây: save() POST nguyên cả mảng db.guests mỗi lần thêm/sửa 1 khách — kéo theo rủi ro đè
-  // check-in của các khách khác nếu local state của thiết bị này đang cũ hơn server. Giờ chỉ ghi
-  // đúng 1 dòng vừa tạo/sửa.
   const ticketGid=S.ticketGid;
   const ok=isEditMode
     ? await sbPatchGuest(ticketGid,editedFields)
@@ -1961,7 +1999,7 @@ function dlCpTicket(){
 async function togCI(gid,type,cid){
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
   const ev=getEvById(g.eventId);
-  if(isEvLocked(ev)){alert('Sự kiện đã kết thúc. Không thể thay đổi trạng thái check-in.');return;}
+  if(isEvLocked(ev)&&!S.unlockedCIEvs[g.eventId]){alert('Sự kiện đã kết thúc. Dùng nút "🔓 Mở check-in bù" trong tab Khách mời để check-in bổ sung.');return;}
   const person=type==='c'?(g.companions||[]).find(x=>x.id===cid):g;
   if(!person)return;
   if(person.cancelled){alert('Khách đã cancel. Vui lòng nhấn " Huỷ Cancel" trước khi check-in.');return;}
@@ -1970,8 +2008,6 @@ async function togCI(gid,type,cid){
     const personName=person.name;
     person.checkedIn=false;person.checkinTime=null;person.checkinBy=null;
     saveLocalOnly();R();
-    // Trước đây bước này KHÔNG đồng bộ lên Supabase — chỉ ghi local rồi gọi save() (full-array sync
-    // debounce 600ms), dễ bị đè bởi thiết bị khác trước khi kịp chạy. Giờ ghi atomic + có cảnh báo.
     const patchFields = type==='g'
       ? {checked_in:false,checkin_time:null,checkin_by:null}
       : {companions:(g.companions||[])};
@@ -1986,7 +2022,7 @@ async function togCI(gid,type,cid){
 async function doAdminCI(){
   const {gid,type,cpId}=S.adminCI||{};
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
-  if(isEvLocked(getEvById(g.eventId))){alert('Sự kiện đã kết thúc. Không thể check-in.');closeM();return;}
+  if(isEvLocked(getEvById(g.eventId))&&!S.unlockedCIEvs[g.eventId]){alert('Sự kiện đã kết thúc. Không thể check-in.');closeM();return;}
   const person=type==='c'?(g.companions||[]).find(x=>x.id===cpId):g;
   if(!person)return;
   const last4=person.phone?person.phone.replace(/\D/g,'').slice(-4):'';
@@ -2003,9 +2039,6 @@ async function doAdminCI(){
   const personName=person.name;
   person.checkedIn=true;person.checkinTime=now;person.checkinBy='admin';
   saveLocalOnly();S.modal=null;S.adminCI=null;R();
-  // Trước đây bước này chỉ gọi save() (full-array sync debounce), KHÔNG có patch atomic và KHÔNG
-  // cảnh báo khi thất bại — đây là nguyên nhân chính của hiện tượng "tick check-in xong rồi biến mất"
-  // khi có người bấm "Làm mới" sau đó. Giờ ghi atomic ngay + cảnh báo rõ nếu không thành công.
   const patchFields = type==='g'
     ? {checked_in:true,checkin_time:now,checkin_by:'admin'}
     : {companions:(g.companions||[])};
@@ -2414,9 +2447,6 @@ async function commitExcelImport() {
 
   saveLocalOnly();
   closeM();
-  // Trước đây: save() POST nguyên cả mảng db.guests (gồm cả những khách đã có sẵn từ trước) — với
-  // sự kiện đã có sẵn vài trăm khách thì 1 lượt import vài chục dòng vẫn kéo theo re-upload toàn bộ,
-  // tăng rủi ro đè check-in nếu local đang cũ hơn server. Giờ chỉ upsert đúng các dòng vừa tạo.
   const ok = await sbUpsertMany('oh_guests', createdGuests.map(gToDb));
   if (ok) {
     alert(`🎉 Đã import thành công ${createdGuests.length} khách mời từ Excel vào hệ thống!`);
@@ -2530,6 +2560,7 @@ async function downloadAllQRsZip() {
   zipBtn.textContent = oldText;
   zipBtn.disabled = false;
 }
+
 // Expose all functions to window scope (required for Vite module bundling)
 window.R=R; window.doLogin=doLogin; window.doRefresh=doRefresh; window.doUrlCI=doUrlCI;
 window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch;
@@ -2551,5 +2582,6 @@ window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=
 window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
 window.downloadExcelTemplate=downloadExcelTemplate; window.commitExcelImport=commitExcelImport;
 window.downloadAllQRsZip=downloadAllQRsZip;
+window.doCIUnlock=doCIUnlock;
 window.openWalkin=openWalkin; window.saveWalkin=saveWalkin;
 window.addWiCR=addWiCR; window.rmWiCR=rmWiCR;
