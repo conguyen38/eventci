@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.codex-vite.*.log
+.DS_Store

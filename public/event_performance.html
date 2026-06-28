@@ -187,8 +187,12 @@
   .bk-ev-pill.on.noshow{background:rgba(245,166,35,.15);color:var(--orange);border-color:var(--orange);}
   .bk-ev-pill.on.cancel{background:rgba(224,82,82,.15);color:var(--red);border-color:var(--red);}
   .bk-ev-pill.on.all{background:var(--accent);color:#0d0f14;border-color:var(--accent);}
-  .bk-search{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:7px 12px;font-size:12px;font-family:inherit;outline:none;width:220px;}
+  .bk-search-wrap{position:relative;display:inline-flex;align-items:center;}
+  .bk-search{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:var(--r);padding:7px 34px 7px 12px;font-size:12px;font-family:inherit;outline:none;width:220px;}
   .bk-search:focus{border-color:var(--accent2);}
+  .bk-search-clear{position:absolute;right:5px;width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:var(--muted);display:none;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;}
+  .bk-search-wrap.has-value .bk-search-clear{display:flex;}
+  .bk-search-clear:hover{background:rgba(255,255,255,.08);color:var(--text);}
   .bk-count{font-size:11px;color:var(--muted);}
   .bk-wrap{overflow-x:auto;border-radius:var(--r-lg);border:1px solid var(--border);}
   .bk-tbl{width:100%;border-collapse:collapse;font-size:12px;}
@@ -494,7 +498,10 @@
       <!-- Row 1: search + sort -->
       <div class="bk-toolbar-row">
         <div style="display:flex;align-items:center;gap:10px">
-          <input class="bk-search" id="bkSearch" placeholder="🔍 Tìm tên KH..." oninput="bkRender()">
+          <div class="bk-search-wrap" id="bkSearchWrap">
+            <input class="bk-search" id="bkSearch" placeholder="🔍 Tìm tên KH..." oninput="bkSyncSearchClear();bkRender()">
+            <button class="bk-search-clear" onclick="bkClearSearch()" title="Xóa tìm kiếm">×</button>
+          </div>
           <span class="bk-count" id="bkCount"></span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center">
@@ -2289,10 +2296,26 @@ function bkResetFilters(){
   bkRender();
 }
 
+function bkSyncSearchClear(){
+  const input=document.getElementById('bkSearch');
+  const wrap=document.getElementById('bkSearchWrap');
+  if(wrap)wrap.classList.toggle('has-value',!!input?.value);
+}
+
+function bkClearSearch(){
+  const input=document.getElementById('bkSearch');
+  if(!input)return;
+  input.value='';
+  bkSyncSearchClear();
+  bkRender();
+  input.focus();
+}
+
 function bkRender(){
   const tbody=document.getElementById('bkTbody');
   if(!tbody||!merged.length){ return; }
 
+  bkSyncSearchClear();
   const q=(document.getElementById('bkSearch')?.value||'').toLowerCase().trim();
 
   const region=bkGetRegion();

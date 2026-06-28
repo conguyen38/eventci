@@ -1,8 +1,380 @@
+import jsQR from 'jsqr';
+
 /* ============================================================
-   CONFIG - thay đổi mật khẩu tại đây
+   CONFIG - tài khoản đăng nhập và mật khẩu xác nhận nội bộ
    ============================================================ */
-const ADMIN_PW = "OH2026";
+const LOGIN_USER = "admin";
+const DEFAULT_ADMIN_PW = "admin123";
+const ADMIN_PW_SK = "oh_ci_admin_pw";
+const ADMIN_ACCOUNTS_SK = "oh_ci_admin_accounts";
+const ADMIN_SESSION_SK = "oh_ci_admin_session";
+const ADMIN_SESSION_MS = 90*24*60*60*1000;
 const SK = "oh_ci_v5";
+const ROLE_DEFS={
+  super_admin:{label:'Super Admin',badge:'Toàn quyền'},
+  manager:{label:'Quản lý',badge:'Vận hành'},
+  staff:{label:'Nhân viên',badge:'Thực thi'}
+};
+
+function getAdminPw(){
+  return localStorage.getItem(ADMIN_PW_SK)||DEFAULT_ADMIN_PW;
+}
+function setAdminPw(pw){
+  localStorage.setItem(ADMIN_PW_SK,pw);
+}
+function normalizeUsername(v){
+  return (v||'').trim().toLowerCase();
+}
+function roleLabel(role){
+  return ROLE_DEFS[role]?.label||ROLE_DEFS.staff.label;
+}
+function defaultAdminAccount(){
+  return{id:'admin',username:LOGIN_USER,name:'Administrator',role:'super_admin',password:getAdminPw(),createdAt:Date.now(),updatedAt:Date.now()};
+}
+function saveAccounts(accounts){
+  const clean=accounts.map(acc=>({
+    ...acc,
+    username:normalizeUsername(acc.username),
+    role:ROLE_DEFS[acc.role]?acc.role:'staff',
+    updatedAt:acc.updatedAt||Date.now()
+  }));
+  localStorage.setItem(ADMIN_ACCOUNTS_SK,JSON.stringify(clean));
+  const admin=clean.find(acc=>acc.username===LOGIN_USER);
+  if(admin?.password)setAdminPw(admin.password);
+}
+function loadAccounts(){
+  try{
+    const raw=localStorage.getItem(ADMIN_ACCOUNTS_SK);
+    let accounts=raw?JSON.parse(raw):[];
+    if(!Array.isArray(accounts))accounts=[];
+    accounts=accounts
+      .filter(acc=>acc&&acc.username)
+      .map(acc=>({
+        id:acc.id||uid(),
+        username:normalizeUsername(acc.username),
+        name:acc.name||acc.fullName||acc.username,
+        role:ROLE_DEFS[acc.role]?acc.role:'staff',
+        password:acc.password||'',
+        createdAt:acc.createdAt||Date.now(),
+        updatedAt:acc.updatedAt||Date.now()
+      }));
+    if(!accounts.some(acc=>acc.username===LOGIN_USER)){
+      accounts.unshift(defaultAdminAccount());
+      saveAccounts(accounts);
+    }
+    return accounts;
+  }catch(e){
+    const accounts=[defaultAdminAccount()];
+    saveAccounts(accounts);
+    return accounts;
+  }
+}
+function findAccount(username){
+  const u=normalizeUsername(username);
+  return loadAccounts().find(acc=>acc.username===u)||null;
+}
+function currentAccount(){
+  return findAccount(S.currentUser)||findAccount(LOGIN_USER);
+}
+function canManageAccounts(){
+  return currentAccount()?.role==='super_admin';
+}
+function keepAdminSession(username=LOGIN_USER){
+  try{localStorage.setItem(ADMIN_SESSION_SK,JSON.stringify({until:Date.now()+ADMIN_SESSION_MS,user:normalizeUsername(username)||LOGIN_USER}))}catch(e){}
+}
+function clearAdminSession(){
+  try{localStorage.removeItem(ADMIN_SESSION_SK)}catch(e){}
+}
+function getAdminSessionUser(){
+  try{
+    const raw=localStorage.getItem(ADMIN_SESSION_SK);
+    if(!raw)return null;
+    const session=JSON.parse(raw);
+    if(!session?.until||Number(session.until)<Date.now()){clearAdminSession();return null}
+    const username=normalizeUsername(session.user||LOGIN_USER);
+    if(!findAccount(username)){clearAdminSession();return null}
+    keepAdminSession(username);
+    return username;
+  }catch(e){
+    clearAdminSession();
+    return null;
+  }
+}
+function hasAdminSession(){
+  return !!getAdminSessionUser();
+}
+function esc(v){
+  return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function jsStr(v){
+  return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,' ');
+}
+function cssEscape(v){
+  return window.CSS?.escape?CSS.escape(String(v)):String(v??'').replace(/\\/g,'\\\\').replace(/"/g,'\\"');
+}
+function normSearchText(v){
+  return String(v??'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function filterDDOptions(menu,query){
+  if(!menu)return;
+  const q=normSearchText(query).trim();
+  let shown=0;
+  menu.querySelectorAll('.dd-option').forEach(opt=>{
+    const ok=!q||normSearchText(opt.dataset.label||opt.textContent).includes(q);
+    opt.hidden=!ok;
+    if(ok)shown++;
+  });
+  const empty=menu.querySelector('.dd-empty');
+  if(empty)empty.hidden=shown>0;
+}
+function updateSearchClear(input){
+  const wrap=input?.closest('.search-control,.dd-search');
+  if(wrap)wrap.classList.toggle('has-value',!!input.value);
+}
+function resetDDSearch(dd){
+  const input=dd?.querySelector('.dd-search-input');
+  if(!input)return;
+  input.value='';
+  filterDDOptions(dd.querySelector('.dd-menu'),'');
+  updateSearchClear(input);
+}
+function focusDDSearch(dd){
+  const input=dd?.querySelector('.dd-search-input');
+  if(input)setTimeout(()=>{input.focus();input.select();},30);
+}
+function closeDropdowns(){
+  document.querySelectorAll('.dd.open').forEach(dd=>dd.classList.remove('open'));
+}
+function toggleDD(id,event){
+  if(event)event.stopPropagation();
+  const dd=document.querySelector(`[data-dd="${cssEscape(id)}"]`);
+  if(!dd)return;
+  const isOpen=dd.classList.contains('open');
+  closeDropdowns();
+  if(!isOpen){resetDDSearch(dd);dd.classList.add('open');focusDDSearch(dd);}
+}
+function filterDD(id,query,event){
+  if(event)event.stopPropagation();
+  const dd=document.querySelector(`[data-dd="${cssEscape(id)}"]`);
+  filterDDOptions(dd?.querySelector('.dd-menu'),query);
+  updateSearchClear(event?.target);
+}
+function clearDDSearch(id,event){
+  if(event)event.stopPropagation();
+  const dd=document.querySelector(`[data-dd="${cssEscape(id)}"]`);
+  const input=dd?.querySelector('.dd-search-input');
+  if(!input)return;
+  input.value='';
+  filterDDOptions(dd.querySelector('.dd-menu'),'');
+  updateSearchClear(input);
+  input.focus();
+}
+function setDD(id,value,event,onChange){
+  if(event)event.stopPropagation();
+  const input=document.getElementById(id);
+  const dd=document.querySelector(`[data-dd="${cssEscape(id)}"]`);
+  if(input)input.value=value;
+  if(dd){
+    const option=dd.querySelector(`[data-dd-value="${cssEscape(value)}"]`);
+    const label=option?.dataset.label||'';
+    const labelEl=dd.querySelector('.dd-label');
+    if(labelEl)labelEl.textContent=label;
+    dd.querySelectorAll('.dd-option').forEach(btn=>btn.classList.toggle('selected',btn.dataset.ddValue===value));
+    dd.classList.remove('open');
+  }
+  if(onChange&&typeof window[onChange]==='function')window[onChange](value);
+}
+function dropdownHTML(id,value,options,opts={}){
+  const selected=options.find(opt=>String(opt.value)===String(value));
+  const label=selected?.label||opts.placeholder||'Chọn';
+  const className=opts.className||'';
+  const onChange=opts.onChange||'';
+  const style=opts.style?` style="${esc(opts.style)}"`:'';
+  return`<div class="dd ${className}" data-dd="${esc(id)}"${style}>
+    <input type="hidden" id="${esc(id)}" value="${esc(value||'')}"/>
+    <button type="button" class="dd-btn" onclick="toggleDD('${jsStr(id)}',event)">
+      <span class="dd-label">${esc(label)}</span>
+      <span class="material-symbols-rounded mi dd-caret" aria-hidden="true">keyboard_arrow_down</span>
+    </button>
+    <div class="dd-menu">
+      ${options.length>12?`<div class="dd-search" onclick="event.stopPropagation()"><span class="material-symbols-rounded mi" aria-hidden="true">search</span><input class="dd-search-input" placeholder="Tìm kiếm..." oninput="filterDD('${jsStr(id)}',this.value,event)" onclick="event.stopPropagation()"/><button type="button" class="dd-search-clear" onclick="clearDDSearch('${jsStr(id)}',event)" title="Xóa tìm kiếm"><span class="material-symbols-rounded mi" aria-hidden="true">close</span></button></div>`:''}
+      ${options.map(opt=>`<button type="button" class="dd-option ${String(opt.value)===String(value)?'selected':''}" data-dd-value="${esc(opt.value)}" data-label="${esc(opt.label)}" onclick="setDD('${jsStr(id)}','${jsStr(opt.value)}',event,'${jsStr(onChange)}')">${esc(opt.label)}</button>`).join('')}
+      ${options.length>12?`<div class="dd-empty" hidden>Không tìm thấy kết quả</div>`:''}
+    </div>
+  </div>`;
+}
+function enhanceDropdowns(root=document.getElementById('root')){
+  if(!root)return;
+  root.querySelectorAll('select').forEach(select=>{
+    if(select.dataset.ddEnhanced)return;
+    select.dataset.ddEnhanced='1';
+    const dd=document.createElement('div');
+    dd.className='dd';
+    if(select.style.width)dd.style.width=select.style.width;
+    if(select.style.minWidth)dd.style.minWidth=select.style.minWidth;
+    if(select.classList.contains('selx'))dd.classList.add('dd-inline');
+
+    const button=document.createElement('button');
+    button.type='button';
+    button.className='dd-btn';
+    button.setAttribute('aria-haspopup','listbox');
+    button.innerHTML='<span class="dd-label"></span><span class="material-symbols-rounded mi dd-caret" aria-hidden="true">keyboard_arrow_down</span>';
+
+    const menu=document.createElement('div');
+    menu.className='dd-menu';
+    menu.setAttribute('role','listbox');
+
+    const sync=()=>{
+      const selected=select.options[select.selectedIndex];
+      const selectedBtn=menu.querySelector(`[data-value="${cssEscape(select.value)}"]`);
+      const label=selectedBtn?.dataset.label||selected?.textContent||'Chọn';
+      const labelEl=button.querySelector('.dd-label');
+      if(labelEl)labelEl.textContent=label;
+      menu.querySelectorAll('.dd-option').forEach(opt=>{
+        opt.classList.toggle('selected',opt.dataset.value===select.value);
+      });
+    };
+
+    if(select.options.length>12){
+      const searchWrap=document.createElement('div');
+      searchWrap.className='dd-search';
+      searchWrap.innerHTML='<span class="material-symbols-rounded mi" aria-hidden="true">search</span><input class="dd-search-input" placeholder="Tìm kiếm..."/><button type="button" class="dd-search-clear" title="Xóa tìm kiếm"><span class="material-symbols-rounded mi" aria-hidden="true">close</span></button>';
+      searchWrap.addEventListener('click',event=>event.stopPropagation());
+      const searchInput=searchWrap.querySelector('.dd-search-input');
+      const searchClear=searchWrap.querySelector('.dd-search-clear');
+      searchInput.addEventListener('click',event=>event.stopPropagation());
+      searchInput.addEventListener('input',()=>{filterDDOptions(menu,searchInput.value);updateSearchClear(searchInput)});
+      searchClear.addEventListener('click',event=>{
+        event.stopPropagation();
+        searchInput.value='';
+        filterDDOptions(menu,'');
+        updateSearchClear(searchInput);
+        searchInput.focus();
+      });
+      menu.appendChild(searchWrap);
+    }
+
+    Array.from(select.options).forEach(option=>{
+      const optBtn=document.createElement('button');
+      optBtn.type='button';
+      optBtn.className='dd-option';
+      optBtn.dataset.value=option.value;
+      optBtn.dataset.label=option.textContent;
+      optBtn.textContent=option.textContent;
+      optBtn.disabled=option.disabled;
+      optBtn.setAttribute('role','option');
+      optBtn.addEventListener('click',event=>{
+        event.stopPropagation();
+        select.value=option.value;
+        sync();
+        dd.classList.remove('open');
+        select.dispatchEvent(new Event('change',{bubbles:true}));
+      });
+      menu.appendChild(optBtn);
+    });
+
+    if(select.options.length>12){
+      const empty=document.createElement('div');
+      empty.className='dd-empty';
+      empty.hidden=true;
+      empty.textContent='Không tìm thấy kết quả';
+      menu.appendChild(empty);
+    }
+
+    button.addEventListener('click',event=>{
+      event.stopPropagation();
+      const wasOpen=dd.classList.contains('open');
+      closeDropdowns();
+      dd.classList.toggle('open',!wasOpen);
+      if(!wasOpen){resetDDSearch(dd);focusDDSearch(dd);}
+    });
+    select.addEventListener('change',sync);
+    dd.appendChild(button);
+    dd.appendChild(menu);
+    select.classList.add('native-select-hidden');
+    select.setAttribute('aria-hidden','true');
+    select.insertAdjacentElement('afterend',dd);
+    sync();
+  });
+}
+document.addEventListener('click',closeDropdowns);
+
+const MI_BY_EMOJI={
+  '⚠️':'warning','⚠':'warning','📡':'settings_input_antenna','✅':'check_circle','🔄':'refresh','⏳':'hourglass_empty',
+  '📊':'bar_chart','📅':'calendar_month','👥':'groups','👤':'person','📷':'photo_camera','📭':'inventory_2',
+  '🔐':'lock','🔒':'lock','🔓':'lock_open','📌':'push_pin','🏢':'apartment','🏦':'account_balance',
+  '📍':'location_on','🔑':'key','📋':'assignment','✏️':'edit','✏':'edit','🗑️':'delete','🗑':'delete',
+  '👆':'touch_app','☝️':'touch_app','☝':'touch_app','🔍':'search','🚫':'block','🚶':'directions_walk',
+  '📥':'file_download','📄':'description','🗂️':'folder_zip','🗂':'folder_zip','🎫':'confirmation_number',
+  '🎉':'celebration','❌':'cancel','💾':'save','🖨️':'print','🖨':'print','🔢':'pin','🤝':'handshake',
+  '⬇️':'download','⬇':'download','✕':'close','↩':'undo','←':'arrow_back','→':'arrow_forward','▲':'keyboard_arrow_up','▼':'keyboard_arrow_down','🎪':'festival'
+};
+const MI_EMOJI_RE=new RegExp(Object.keys(MI_BY_EMOJI).sort((a,b)=>b.length-a.length).map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|'),'gu');
+let miObserver=null;
+let miBusy=false;
+
+function stripMaterialEmojiText(text){
+  if(!text)return text;
+  MI_EMOJI_RE.lastIndex=0;
+  return text.replace(MI_EMOJI_RE,'').replace(/[ \t]{2,}/g,' ').trim();
+}
+function makeMaterialIcon(emoji){
+  const span=document.createElement('span');
+  span.className='material-symbols-rounded mi';
+  span.setAttribute('aria-hidden','true');
+  span.textContent=MI_BY_EMOJI[emoji]||'emoji_symbols';
+  return span;
+}
+function materializeEmojiTextNode(node){
+  const text=node.nodeValue;
+  MI_EMOJI_RE.lastIndex=0;
+  if(!MI_EMOJI_RE.test(text))return;
+  MI_EMOJI_RE.lastIndex=0;
+  const frag=document.createDocumentFragment();
+  let last=0;
+  text.replace(MI_EMOJI_RE,(emoji,offset)=>{
+    if(offset>last)frag.appendChild(document.createTextNode(text.slice(last,offset)));
+    frag.appendChild(makeMaterialIcon(emoji));
+    last=offset+emoji.length;
+    return emoji;
+  });
+  if(last<text.length)frag.appendChild(document.createTextNode(text.slice(last)));
+  node.parentNode.replaceChild(frag,node);
+}
+function materializeIcons(root=document.getElementById('root')){
+  if(!root||miBusy)return;
+  miBusy=true;
+  try{
+    root.querySelectorAll('option').forEach(opt=>{opt.textContent=stripMaterialEmojiText(opt.textContent)});
+    root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el=>{
+      ['placeholder','title','aria-label'].forEach(attr=>{
+        if(el.hasAttribute(attr))el.setAttribute(attr,stripMaterialEmojiText(el.getAttribute(attr)));
+      });
+    });
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{
+      acceptNode(node){
+        const parent=node.parentElement;
+        if(!parent)return NodeFilter.FILTER_REJECT;
+        if(parent.closest('script,style,textarea,option,.material-symbols-rounded'))return NodeFilter.FILTER_REJECT;
+        MI_EMOJI_RE.lastIndex=0;
+        return MI_EMOJI_RE.test(node.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT;
+      }
+    });
+    const nodes=[];
+    while(walker.nextNode())nodes.push(walker.currentNode);
+    nodes.forEach(materializeEmojiTextNode);
+  }finally{
+    miBusy=false;
+  }
+}
+function ensureMaterialIconObserver(root=document.getElementById('root')){
+  if(!root||miObserver)return;
+  miObserver=new MutationObserver(()=>{
+    if(miBusy)return;
+    requestAnimationFrame(()=>materializeIcons(root));
+  });
+  miObserver.observe(root,{childList:true,subtree:true,characterData:true});
+}
 
 /* ============================================================
    SUPABASE CONFIG — điền thông tin của bạn vào đây
@@ -27,14 +399,14 @@ const supabaseClient = (typeof supabase !== 'undefined' && supabase.createClient
 /* ============================================================
    BASE URL — URL GitHub Pages sau khi deploy
    ============================================================ */
-const BASE_URL = "https://lemaitranmedia.github.io/eventoh-checkin";
+const BASE_URL = window.location.origin;
 
 /* ============================================================
    DATA LAYER
    ============================================================ */
 function dbToEv(r){return{id:r.id,name:r.name,date:r.date_str,team:r.team,venue:r.venue,eventPw:r.event_pw,btcMembers:r.btc_members||[],createdAt:r.created_at}}
 function dbToG(r){return{id:r.id,eventId:r.event_id,guestCode:r.guest_code,systemCode:r.system_code,name:r.name,phone:r.phone,prmName:r.prm_name,tcbRegion:r.tcb_region,unit:r.unit,sihName:r.sih_name,note:r.note,companions:r.companions||[],checkedIn:!!r.checked_in,checkinTime:r.checkin_time,checkinBy:r.checkin_by,cancelled:!!r.cancelled,cancelNote:r.cancel_note,walkin:!!r.walkin,createdAt:r.created_at}}
-function evToDb(e){return{id:e.id,name:e.name,date_str:e.date||null,team:e.team||null,venue:e.venue||null,event_pw:e.eventPw||null,btc_members:e.btcMembers||[],created_at:e.createdAt||Date.now()}}
+function evToDb(e){return{id:e.id,name:e.name,date_str:e.date||null,team:e.team||null,venue:e.venue||null,event_pw:e.eventPw||'',btc_members:e.btcMembers||[],created_at:e.createdAt||Date.now()}}
 function gToDb(g){return{id:g.id,event_id:g.eventId,guest_code:g.guestCode,system_code:g.systemCode||null,name:g.name,phone:g.phone||null,prm_name:g.prmName||null,tcb_region:g.tcbRegion||null,unit:g.unit||null,sih_name:g.sihName||null,note:g.note||null,companions:g.companions||[],checked_in:!!g.checkedIn,checkin_time:g.checkinTime||null,checkin_by:g.checkinBy||null,cancelled:!!g.cancelled,cancel_note:g.cancelNote||null,walkin:!!g.walkin,created_at:g.createdAt||Date.now()}}
 
 function loadLocal(){try{const r=localStorage.getItem(SK);return r?JSON.parse(r):{events:[],guests:[]}}catch(e){return{events:[],guests:[]}}}
@@ -212,6 +584,57 @@ function isWalkinAllowed(ev){
 function isWalkinDay(ev){ return isWalkinAllowed(ev); }
 
 function getEvById(id){return db.events.find(e=>e.id===id)}
+function assetUrl(path){return `${import.meta.env.BASE_URL}${path.replace(/^\/+/,'')}`}
+function appRoutePath(path='/'){
+  return path.startsWith('/')?path:`/${path}`;
+}
+function normalizeLegacyRoute(){
+  const path=(window.location.pathname||'/').replace(/\/+$/,'')||'/';
+  if(path==='/eventoh-checkin/check')history.replaceState({},'',`/check${window.location.search}`);
+  else if(path==='/eventoh-checkin')history.replaceState({},'',`/${window.location.search}`);
+}
+function isCheckRoute(){
+  const path=(window.location.pathname||'/').replace(/\/+$/,'')||'/';
+  return path==='/check';
+}
+function pushAppRoute(path,replace=false){
+  const next=appRoutePath(path);
+  if(window.location.pathname===next)return;
+  history[replace?'replaceState':'pushState']({},'',next);
+}
+function enterCheckPage(){
+  const events=visibleEvents();
+  const initial=S.ciEv&&canAccessEvent(S.ciEv)?S.ciEv:(S.selEv&&canAccessEvent(S.selEv)?S.selEv:(events.length===1?events[0].id:null));
+  S.view='checkin';
+  S.ciEv=initial;
+  S.ciOp=currentCheckinOperator();
+  S.ciOk=!!initial;
+  S.ciState=null;
+}
+function enterDashboardPage(){
+  S.view='admin';
+  S.ciOk=false;
+  S.ciState=null;
+  S.ciSyncWarn=false;
+}
+function syncPageFromRoute(){
+  normalizeLegacyRoute();
+  const urlCode=new URLSearchParams(window.location.search).get('code');
+  if(urlCode&&!isCheckRoute()){
+    S.urlCode=decodeURIComponent(urlCode);
+    S.view='url_ci';
+    R();
+    return;
+  }
+  S.urlCode=null;
+  if(isCheckRoute()){
+    S.view='checkin';
+    if(S.adminOk)enterCheckPage();
+  }else{
+    enterDashboardPage();
+  }
+  R();
+}
 
 /* ⚠️ LEGACY — polling 15s. Mục tiêu 2 thay cơ chế này bằng Realtime (initSupabaseRealtime bên dưới).
    Giữ lại định nghĩa hàm để dự phòng (vd: nếu cần bật lại polling làm lưới an toàn thì gọi startAutoRefresh()
@@ -251,6 +674,15 @@ async function doRefresh(){
 let _realtimeChannel = null;
 let _realtimeRetryCount = 0;
 let _realtimeReconnectT = null;
+let _qrStream = null;
+let _qrDetector = null;
+let _qrCanvas = null;
+let _qrTimer = null;
+let _qrBusy = false;
+let _qrLastCode = '';
+let _qrLastAt = 0;
+let _cameraStatusResetT = null;
+let _ciHeightObserver = null;
 
 function initSupabaseRealtime() {
   if (!supabaseClient || !SB_ON) {
@@ -317,23 +749,204 @@ function scheduleRealtimeReconnect(){
   }, delay);
 }
 
+function extractTicketCode(raw){
+  const text=String(raw||'').trim();
+  if(!text)return'';
+  try{
+    const url=new URL(text,window.location.href);
+    const code=url.searchParams.get('code');
+    if(code)return decodeURIComponent(code).trim().toUpperCase();
+  }catch(e){}
+  const match=text.match(/[?&]code=([^&]+)/i);
+  if(match)return decodeURIComponent(match[1]).trim().toUpperCase();
+  return text.trim().toUpperCase();
+}
+function setCameraStatus(message,type='',autoResetMs=0){
+  const el=document.getElementById('ci_camera_status');
+  if(!el)return;
+  if(_cameraStatusResetT){clearTimeout(_cameraStatusResetT);_cameraStatusResetT=null}
+  el.textContent=message;
+  el.dataset.type=type;
+  if(autoResetMs>0){
+    const expected=message;
+    _cameraStatusResetT=setTimeout(()=>{
+      const current=document.getElementById('ci_camera_status');
+      if(current&&current.textContent===expected)setCameraStatus('Đưa mã QR vào khung quét','ready');
+    },autoResetMs);
+  }
+}
+function clearCheckinColumnHeight(){
+  if(_ciHeightObserver){_ciHeightObserver.disconnect();_ciHeightObserver=null}
+  const right=document.querySelector('.ci-recent-card');
+  if(right)right.style.height='';
+}
+function isMobileCheckinLayout(){
+  return !!window.matchMedia?.('(max-width: 980px)').matches;
+}
+function shouldRunCheckinScanner(){
+  return S.view==='checkin'&&S.ciOk&&!S.ciState&&(!isMobileCheckinLayout()||(S.ciMobileMode||'camera')==='camera');
+}
+function firstVisibleElement(ids){
+  for(const id of ids){
+    const el=document.getElementById(id);
+    if(!el)continue;
+    const box=el.getBoundingClientRect();
+    if(box.width>0&&box.height>0)return el;
+  }
+  return null;
+}
+function syncCheckinColumnHeight(){
+  clearCheckinColumnHeight();
+  const left=document.querySelector('.ci-camera-card');
+  const right=document.querySelector('.ci-recent-card');
+  if(!left||!right)return;
+  const apply=()=>{
+    if(window.matchMedia('(max-width: 980px)').matches){
+      right.style.height='';
+      return;
+    }
+    const h=Math.ceil(left.getBoundingClientRect().height);
+    if(h>0)right.style.height=`${h}px`;
+  };
+  requestAnimationFrame(apply);
+  if('ResizeObserver' in window){
+    _ciHeightObserver=new ResizeObserver(()=>requestAnimationFrame(apply));
+    _ciHeightObserver.observe(left);
+  }
+}
+function stopQrScanner(){
+  if(_qrTimer){clearInterval(_qrTimer);_qrTimer=null}
+  if(_qrStream){_qrStream.getTracks().forEach(track=>track.stop());_qrStream=null}
+  _qrBusy=false;
+}
+async function startQrScanner(){
+  const video=document.getElementById('ci_video');
+  if(!video||S.view!=='checkin'||!S.ciOk||S.ciState)return;
+  if(!navigator.mediaDevices?.getUserMedia){
+    setCameraStatus('Trình duyệt không hỗ trợ camera. Vui lòng nhập mã thủ công.','error');
+    return;
+  }
+  try{
+    if(('BarcodeDetector' in window)&&!_qrDetector){
+      try{_qrDetector=new BarcodeDetector({formats:['qr_code']})}catch(e){_qrDetector=null}
+    }
+    if(!_qrStream){
+      _qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    }
+    if(video.srcObject!==_qrStream)video.srcObject=_qrStream;
+    await video.play();
+    setCameraStatus('Đưa mã QR vào khung quét','ready');
+    if(!_qrTimer)_qrTimer=setInterval(scanQrFrame,450);
+  }catch(e){
+    setCameraStatus('Không mở được camera. Kiểm tra quyền camera hoặc dùng nhập mã thủ công.','error');
+  }
+}
+async function scanQrFrame(){
+  if(_qrBusy)return;
+  const video=document.getElementById('ci_video');
+  if(!video||video.readyState<2)return;
+  _qrBusy=true;
+  try{
+    let code='';
+    if(_qrDetector){
+      const codes=await _qrDetector.detect(video);
+      if(codes.length)code=extractTicketCode(codes[0].rawValue);
+    }
+    if(!code){
+      const w=video.videoWidth;
+      const h=video.videoHeight;
+      if(!w||!h)return;
+      _qrCanvas=_qrCanvas||document.createElement('canvas');
+      const scale=Math.min(1,960/w);
+      _qrCanvas.width=Math.max(1,Math.floor(w*scale));
+      _qrCanvas.height=Math.max(1,Math.floor(h*scale));
+      const ctx=_qrCanvas.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(video,0,0,_qrCanvas.width,_qrCanvas.height);
+      const img=ctx.getImageData(0,0,_qrCanvas.width,_qrCanvas.height);
+      const qr=jsQR(img.data,_qrCanvas.width,_qrCanvas.height,{inversionAttempts:'attemptBoth'});
+      if(qr?.data)code=extractTicketCode(qr.data);
+    }
+    if(!code)return;
+    const now=Date.now();
+    if(code===_qrLastCode&&now-_qrLastAt<2500)return;
+    _qrLastCode=code;_qrLastAt=now;
+    setCameraStatus(`Đã đọc mã ${code}. Đang check-in...`,'ready');
+    const result=await startCI(code,{skipVerify:true,stayIdle:true,fromScan:true});
+    if(result?.ok){
+      playCheckinBeep();
+      showCheckinToast(result.person?.name||'Khách mời',result.syncOk);
+      const input=document.getElementById('ci_in');
+      if(input)input.value='';
+    }
+  }catch(e){
+    setCameraStatus('Không đọc được QR. Giữ mã trong khung và thử lại.','error',2200);
+  }finally{
+    _qrBusy=false;
+  }
+}
+function playCheckinBeep(){
+  try{
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)return;
+    const ctx=new AudioCtx();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.type='sine';
+    osc.frequency.value=880;
+    gain.gain.value=.08;
+    osc.connect(gain);gain.connect(ctx.destination);
+    if(ctx.state==='suspended')ctx.resume();
+    osc.start();
+    osc.stop(ctx.currentTime+.13);
+    setTimeout(()=>ctx.close?.(),260);
+  }catch(e){}
+}
+function showCheckinToast(name,syncOk=true,opts={}){
+  const old=document.querySelector('.ci-toast');
+  if(old)old.remove();
+  const title=opts.title||(syncOk?'Đã check-in thành công':'Đã check-in, chờ đồng bộ');
+  const text=opts.text||name;
+  const icon=opts.icon||(syncOk?'check_circle':'warning');
+  const toast=document.createElement('div');
+  toast.className=`ci-toast ${syncOk?'':'warn'}`;
+  toast.innerHTML=`<div class="ci-toast-icon"><span class="material-symbols-rounded mi" aria-hidden="true">${esc(icon)}</span></div>
+    <div><div class="ci-toast-title">${esc(title)}</div>
+    <div class="ci-toast-text">${esc(text)}</div></div>`;
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.classList.add('show'),20);
+  setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>toast.remove(),220)},3600);
+}
+
 async function init(){
+  normalizeLegacyRoute();
   const urlCode=new URLSearchParams(window.location.search).get('code');
+  const checkRoute=isCheckRoute();
   const root=document.getElementById('root');
   root.innerHTML=`<div style="max-width:360px;margin:80px auto;text-align:center;font-family:'Be Vietnam Pro',sans-serif"><div style="font-size:40px;margin-bottom:12px">⏳</div><div style="font-size:14px;color:#aaa;margin-top:8px">Đang tải...</div></div>`;
   await loadData();
   if(SB_ON) initSupabaseRealtime(); // thay cho startAutoRefresh() cũ
-  if(urlCode){S.urlCode=decodeURIComponent(urlCode);S.view='url_ci';R();return;}
+  const sessionUser=getAdminSessionUser();
+  S.adminOk=!!sessionUser;
+  S.currentUser=sessionUser;
+  if(urlCode&&!checkRoute){S.urlCode=decodeURIComponent(urlCode);S.view='url_ci';R();return;}
+  if(checkRoute){
+    S.view='checkin';
+    if(S.adminOk)enterCheckPage();
+    R();
+    return;
+  }
   R();
 }
 
 init();
+window.addEventListener('popstate',syncPageFromRoute);
 
 /* ============================================================
    STATE
    ============================================================ */
 let S={
   adminOk:false,
+  currentUser:null,
   view:'admin', 
   urlCode:null,     
   urlCIStep:null,   
@@ -343,10 +956,14 @@ let S={
   selEv:null,
   modal:null,   // add_ev | add_g | edit_g | del_g | tickets | btc_members | import_preview | ci_unlock
   editGid:null,
+  detailGid:null,
   delGid:null,
   ticketGid:null,
   editEvId:null,   
+  editAccountId:null,
+  delAccountId:null,
   cpTicket:null,  
+  cpDetail:null,
   cpEdit:null,    
   cpDel:null,     
   cpAdd:null,     
@@ -358,6 +975,7 @@ let S={
   ciUnlockTarget:null,
   rptEv:null,          
   rptExp:{},           
+  evSearch:'',
   search:'',
   filter:'all',
   ciOk:false,
@@ -365,6 +983,8 @@ let S={
   ciOp:null,   
   ciState:null,
   ciSyncWarn:false,
+  ciRecentSearch:'',
+  ciMobileMode:'camera',
   pwVal:'',
   pwErr:'',
   newEvBtcRows:1,
@@ -379,6 +999,44 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function fmtD(d){return d?new Date(d).toLocaleDateString('vi-VN'):'—'}
 function fmtDT(d){return d?new Date(d).toLocaleString('vi-VN'):'—'}
 function fmtTm(d){return d?new Date(d).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}):''}
+function companionNameLabel(name){
+  return String(name||'').replace(/\s*\((người đi kèm|nguoi di kem)\)\s*/i,' ').replace(/\s{2,}/g,' ').trim();
+}
+function ticketDigits(v){
+  return String(v||'').replace(/\D/g,'').slice(0,8);
+}
+function formatTicketCode(v){
+  const digits=ticketDigits(v);
+  return digits.length>4?`${digits.slice(0,4)}-${digits.slice(4)}`:digits;
+}
+function canonicalTicketCode(v){
+  const raw=String(v||'').trim().toUpperCase();
+  const digits=raw.replace(/\D/g,'');
+  if(digits.length===8&&/^[\d\s-]+$/.test(raw))return `${digits.slice(0,4)}-${digits.slice(4)}`;
+  return raw.replace(/\s+/g,'');
+}
+function formatCIInput(el){
+  if(!el)return;
+  el.value=formatTicketCode(el.value);
+}
+function currentCheckinOperator(){
+  const acc=currentAccount()||defaultAdminAccount();
+  const username=normalizeUsername(acc.username||LOGIN_USER)||LOGIN_USER;
+  return{code:username,name:acc.name||username,account:username};
+}
+function checkinByLabel(){
+  const op=S.ciOp||currentCheckinOperator();
+  return op.name||op.code||LOGIN_USER;
+}
+function refocusInput(id,pos){
+  requestAnimationFrame(()=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.focus();
+    const caret=Number.isFinite(pos)?pos:el.value.length;
+    try{el.setSelectionRange(caret,caret)}catch(e){}
+  });
+}
 function egs(eid){return db.guests.filter(g=>g.eventId===eid)}
 function allPeople(eid){
   let t=0,c=0,x=0;
@@ -389,24 +1047,64 @@ function allPeople(eid){
   return{t,c,x,p:t-c-x};
 }
 function genCode(eid){
-  const ev=db.events.find(e=>e.id===eid);
-  const pfx=ev?ev.name.replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,3):'OH';
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const used=new Set();
-  db.guests.forEach(g=>{used.add(g.guestCode);(g.companions||[]).forEach(c=>used.add(c.code))});
+  db.guests.forEach(g=>{used.add(canonicalTicketCode(g.guestCode));(g.companions||[]).forEach(c=>used.add(canonicalTicketCode(c.code)))});
   let code,t=0;
-  do{code=pfx+'-';for(let i=0;i<4;i++)code+=chars[Math.floor(Math.random()*chars.length)];t++}
+  do{code=formatTicketCode(String(Math.floor(Math.random()*100000000)).padStart(8,'0'));t++}
   while(used.has(code)&&t<200);
   return code;
 }
 function findCode(eid,code){
+  const needle=canonicalTicketCode(code);
   for(const g of db.guests.filter(x=>x.eventId===eid)){
-    if(g.guestCode===code)return{type:'guest',guest:g,person:g};
+    if(canonicalTicketCode(g.guestCode)===needle)return{type:'guest',guest:g,person:g};
     for(const c of(g.companions||[])){
-      if(c.code===code)return{type:'comp',guest:g,person:c};
+      if(canonicalTicketCode(c.code)===needle)return{type:'comp',guest:g,person:c};
     }
   }
   return null;
+}
+function findAnyCode(code){
+  const needle=canonicalTicketCode(code);
+  for(const g of db.guests){
+    if(canonicalTicketCode(g.guestCode)===needle)return{type:'guest',guest:g,person:g};
+    for(const c of(g.companions||[])){
+      if(canonicalTicketCode(c.code)===needle)return{type:'comp',guest:g,person:c};
+    }
+  }
+  return null;
+}
+function canSeeAllEvents(){
+  const role=currentAccount()?.role;
+  return role==='super_admin'||role==='manager';
+}
+function canManageEvents(){
+  return canSeeAllEvents();
+}
+function eventAssignedUsers(ev){
+  return new Set((ev?.btcMembers||[]).map(m=>normalizeUsername(m.account||m.username||m.user||'')).filter(Boolean));
+}
+function canAccessEvent(eid){
+  const ev=getEvById(eid);
+  if(!ev)return false;
+  if(canSeeAllEvents())return true;
+  return eventAssignedUsers(ev).has(normalizeUsername(S.currentUser));
+}
+function visibleEvents(){
+  if(canSeeAllEvents())return db.events;
+  const user=normalizeUsername(S.currentUser);
+  return db.events.filter(ev=>eventAssignedUsers(ev).has(user));
+}
+function accountOptionsHTML(selected=''){
+  const accounts=loadAccounts().filter(acc=>acc.role==='staff'||acc.role==='manager').sort((a,b)=>a.name.localeCompare(b.name));
+  return`<option value="">- Chọn tài khoản -</option>${accounts.map(acc=>`<option value="${esc(acc.username)}" ${normalizeUsername(selected)===acc.username?'selected':''}>${esc(acc.name)} (${esc(acc.username)})</option>`).join('')}`;
+}
+function btcRowHTML(m={},i=0){
+  const selected=m.account||m.username||m.user||m.code||'';
+  return`<div class="btc-r" id="br_${i}">
+    <select id="ba_${i}" class="btc-account-select" style="min-width:320px">${accountOptionsHTML(selected)}</select>
+    ${i>0?`<button class="btn xs red" onclick="rmBR(${i})">✕</button>`:`<span style="width:22px"></span>`}
+  </div>`;
 }
 
 /* ============================================================
@@ -414,10 +1112,16 @@ function findCode(eid,code){
    ============================================================ */
 function R(){
   const root=document.getElementById('root');
-  if(S.view==='url_ci'){root.innerHTML=rUrlCI();postUrlCI();return} 
-  if(!S.adminOk){root.innerHTML=rLogin();return}
-  if(S.view==='checkin'){root.innerHTML=rCIView();postCI();return}
+  root.className=S.view==='url_ci'?'wrap':!S.adminOk?'login-root':S.view==='checkin'?'checkin-root':'admin-root';
+  ensureMaterialIconObserver(root);
+  const wantsScanner=S.adminOk&&shouldRunCheckinScanner();
+  if(!wantsScanner){stopQrScanner();clearCheckinColumnHeight();}
+  if(S.view==='url_ci'){root.innerHTML=rUrlCI();enhanceDropdowns(root);materializeIcons(root);postUrlCI();return} 
+  if(!S.adminOk){root.innerHTML=rLogin();enhanceDropdowns(root);materializeIcons(root);return}
+  if(S.view==='checkin'){root.innerHTML=rCIView();enhanceDropdowns(root);materializeIcons(root);postCI();return}
   root.innerHTML=rAdmin();
+  enhanceDropdowns(root);
+  materializeIcons(root);
   postAdmin();
 }
 
@@ -426,44 +1130,98 @@ function R(){
    ============================================================ */
 function rLogin(){
   return`<div class="login-box">
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:36px;margin-bottom:10px">🏢</div>
-      <div style="font-size:20px;font-weight:800">Hệ thống Check-in Sự kiện</div>
-      <div style="font-size:13px;color:#999;margin-top:4px">OneHousing — Nhập mật khẩu để tiếp tục</div>
+    <div class="login-brand">
+      <img class="login-logo-img" src="${assetUrl('images/logo-oh-header.png')}" alt="OneHousing" />
     </div>
-    <div class="fg"><label>Mật khẩu Admin</label>
-      <input type="password" id="login_pw" placeholder="Nhập mật khẩu..." autofocus
+    <div class="login-title">Đăng nhập</div>
+    <div class="login-subtitle">Nhập thông tin tài khoản để tiếp tục</div>
+
+    <div class="fg"><label>Tên đăng nhập</label>
+      <input type="text" id="login_user" placeholder="admin" autocomplete="username" autofocus
         onkeydown="if(event.key==='Enter')doLogin()" style="font-size:16px;padding:12px 14px"/></div>
-    <div id="login_err" style="color:#a32d2d;font-size:12px;margin-bottom:8px"></div>
-    <button class="btn blue full" onclick="doLogin()">Đăng nhập →</button>
+    <div class="fg"><label>Mật khẩu</label>
+      <input type="password" id="login_pw" placeholder="Nhập mật khẩu" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()" style="font-size:16px;padding:12px 14px"/></div>
+    <div id="login_err" class="login-error"></div>
+    <button class="btn blue full login-submit" onclick="doLogin()">Đăng nhập</button>
   </div>`;
 }
 function doLogin(){
+  const user=(document.getElementById('login_user')?.value||'').trim();
   const pw=document.getElementById('login_pw')?.value||'';
-  if(pw===ADMIN_PW){S.adminOk=true;R()}
-  else{document.getElementById('login_err').textContent='⚠️ Mật khẩu không đúng.'}
+  const account=findAccount(user);
+  if(account&&pw===account.password){
+    S.adminOk=true;S.currentUser=account.username;keepAdminSession(account.username);
+    if(isCheckRoute())enterCheckPage();
+    else enterDashboardPage();
+    R()
+  }
+  else{document.getElementById('login_err').textContent='⚠️ Tài khoản hoặc mật khẩu không đúng.'}
+}
+function doLogout(){
+  clearAdminSession();
+  S.adminOk=false;
+  S.currentUser=null;
+  S.view=isCheckRoute()?'checkin':'admin';
+  S.modal=null;
+  S.ciOk=false;
+  S.ciOp=null;
+  S.ciState=null;
+  R();
 }
 
 /* ============================================================
    ADMIN SHELL
    ============================================================ */
 function rAdmin(){
+  const pageTitle=S.tab==='events'?'Sự kiện':S.tab==='report'?'Báo cáo':S.tab==='permissions'?'Phân quyền':S.tab==='guests'?'Khách mời':'Sự kiện';
+  const me=currentAccount();
+  const initial=(me?.name||me?.username||'A').trim().slice(0,1).toUpperCase();
+  const showPermissions=canManageAccounts();
+  const eventCount=visibleEvents().length;
   return`
-    <div class="topbar no-print" style="margin-bottom:16px">
-      <div>
-        <div style="font-size:17px;font-weight:800">🎪 Hệ thống Check-in Sự kiện</div>
-        <div style="font-size:12px;color:#aaa">OneHousing · ${db.events.length} sự kiện · ${db.guests.length} nhóm khách</div>
-      </div>
-      <button class="btn" onclick="goCI()">📷 Màn hình Check-in BTC</button>
+    <div class="admin-layout">
+      <aside class="side-nav no-print" aria-label="Điều hướng quản trị">
+        <div class="side-brand">
+          <img class="side-logo-img" src="${assetUrl('images/logo-oh-footer.png')}" alt="OneHousing" />
+        </div>
+
+        <div class="side-section">
+          <div class="side-section-title">Quản lý</div>
+          <button class="side-tab ${S.tab==='events'?'on':''}" onclick="setTab('events')">📅 <span>Sự kiện</span></button>
+          <button class="side-tab ${S.tab==='report'?'on':''}" onclick="setTab('report')">📊 <span>Báo cáo</span></button>
+          ${showPermissions?`<button class="side-tab ${S.tab==='permissions'?'on':''}" onclick="setTab('permissions')">🔐 <span>Phân quyền</span></button>`:''}
+        </div>
+
+        <div class="side-user">
+          <div class="side-avatar">${esc(initial)}</div>
+          <div>
+            <div class="side-user-name">${esc(me?.name||'Administrator')}</div>
+            <div class="side-user-role">${esc(roleLabel(me?.role))}</div>
+          </div>
+        </div>
+        <button class="side-link" onclick="openAccount()">🔑 <span>Đổi mật khẩu</span></button>
+        <button class="side-link" onclick="doLogout()">↪ <span>Đăng xuất</span></button>
+      </aside>
+      <section class="admin-panel">
+        <header class="admin-header no-print">
+          <div>
+            <div class="admin-title">${pageTitle}</div>
+            <div class="admin-subtitle">OneHousing · ${eventCount} sự kiện</div>
+          </div>
+          <button class="btn" onclick="goCI()">
+            <span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span>
+            Mở App Check-in
+          </button>
+        </header>
+        <main class="admin-content">
+          ${S.tab==='events'?rEvTab():''}
+          ${S.tab==='guests'?rGTab():''}
+          ${S.tab==='report'?rRTab():''}
+          ${S.tab==='permissions'?rPermissionTab():''}
+        </main>
+      </section>
     </div>
-    <div class="tabs no-print">
-      <button class="tab ${S.tab==='events'?'on':''}" onclick="setTab('events')">📅 Sự kiện</button>
-      <button class="tab ${S.tab==='guests'?'on':''}" onclick="setTab('guests')">👥 Khách mời</button>
-      <button class="tab ${S.tab==='report'?'on':''}" onclick="setTab('report')">📊 Báo cáo</button>
-    </div>
-    ${S.tab==='events'?rEvTab():''}
-    ${S.tab==='guests'?rGTab():''}
-    ${S.tab==='report'?rRTab():''}
     ${S.modal?rModal():''}`;
 }
 
@@ -482,15 +1240,29 @@ function postAdmin(){
    EVENTS TAB
    ============================================================ */
 function rEvTab(){
-  const sorted=[...db.events].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
-  return`<div class="topbar"><div style="font-weight:700">Danh sách sự kiện</div>
-    <button class="btn blue sm" onclick="openM('add_ev')">+ Tạo sự kiện</button></div>
-    ${sorted.length===0?`<div class="empty">📭 Chưa có sự kiện nào.<br>Nhấn "Tạo sự kiện" để bắt đầu.</div>`:''}
+  const q=(S.evSearch||'').trim().toLowerCase();
+  const allEvents=visibleEvents();
+  const canManage=canManageEvents();
+  const sorted=[...allEvents]
+    .filter(ev=>!q||[ev.name,ev.team,ev.venue,ev.date,fmtD(ev.date)].some(v=>(v||'').toLowerCase().includes(q)))
+    .sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+  return`<div class="topbar">
+    <div style="font-weight:700">Danh sách sự kiện</div>
+    <div class="event-toolbar">
+      <div class="search-control event-search ${S.evSearch?'has-value':''}">
+        <span class="material-symbols-rounded mi search-leading" aria-hidden="true">search</span>
+        <input id="ev_search" class="search-input" placeholder="Tìm sự kiện..." oninput="setEvSrch(this.value,this.selectionStart)" value="${esc(S.evSearch)}">
+        <button type="button" class="search-clear" onclick="clearEvSrch()" title="Xóa tìm kiếm"><span class="material-symbols-rounded mi" aria-hidden="true">close</span></button>
+      </div>
+      ${canManage?`<button class="btn blue sm" onclick="openM('add_ev')">+ Tạo sự kiện</button>`:''}
+    </div>
+  </div>
+    ${allEvents.length===0?`<div class="empty">📭 Chưa có sự kiện nào được phân công.</div>`:''}
+    ${allEvents.length>0&&sorted.length===0?`<div class="empty">Không tìm thấy sự kiện phù hợp.</div>`:''}
     ${sorted.map(ev=>{const p=allPeople(ev.id);const btcN=(ev.btcMembers||[]).length;const locked=isEvLocked(ev);
       return`<div class="ev-item" onclick="openGM('${ev.id}')">
-        <div style="font-size:28px;flex-shrink:0">${locked?'🔐':'📌'}</div>
         <div style="flex:1">
-          <div style="font-weight:700;font-size:15px">${ev.name} ${ev.eventPw?(S.unlockedEvs[ev.id]?'🔓':'🔒'):''} ${locked?'<span style="font-size:10px;font-weight:600;background:#FEF2F2;color:#B91C1C;padding:2px 7px;border-radius:10px;vertical-align:middle">Đã kết thúc</span>':''}</div>
+          <div style="font-weight:700;font-size:16px">${ev.name} ${locked?'<span style="font-size:14px;font-weight:600;background:#FEF2F2;color:#B91C1C;padding:2px 7px;border-radius:10px;vertical-align:middle">Đã kết thúc</span>':''}</div>
           <div class="ev-meta">
             <span>📅 ${fmtD(ev.date)}</span>
             <span>🏢 ${ev.team||'—'}</span>
@@ -503,23 +1275,114 @@ function rEvTab(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap" onclick="event.stopPropagation()">
           <span class="badge ${locked?'b-gray':p.c===p.t&&p.t>0?'b-green':p.c>0?'b-blue':'b-gray'}">${locked?'Đã đóng':p.c===p.t&&p.t>0?'Hoàn tất':p.c>0?p.c+' đã vào':'Chờ'}</span>
-          ${ev.eventPw&&S.unlockedEvs[ev.id]?`<button class="btn sm" onclick="alert('Mật khẩu: '+db.events.find(e=>e.id==='${ev.id}')?.eventPw)" title="Xem mật khẩu" style="font-size:11px">🔓 MK</button>`:''}
           <button class="btn sm" onclick="openGM('${ev.id}')">📋 Khách</button>
-          <button class="btn sm" onclick="openEditEv('${ev.id}')">✏️ Sửa</button>
-          <button class="btn sm red" onclick="delEv('${ev.id}')">🗑️</button>
+          ${canManage?`<button class="btn sm" onclick="openEditEv('${ev.id}')">✏️ Sửa</button>
+          <button class="btn sm red" onclick="delEv('${ev.id}')">🗑️</button>`:''}
         </div>
       </div>`;}).join('')}`;
+}
+
+/* ============================================================
+   PERMISSIONS TAB
+   ============================================================ */
+function rPermissionTab(){
+  if(!canManageAccounts()){
+    return`<div class="card" style="text-align:center;padding:32px">
+      <div style="font-weight:700;margin-bottom:4px">Không có quyền truy cập</div>
+      <div style="font-size:15px;color:#888">Chỉ tài khoản Super Admin mới được quản lý phân quyền.</div>
+    </div>`;
+  }
+  const roles=[
+    {
+      icon:'admin_panel_settings',
+      name:'Super Admin',
+      badge:'Toàn quyền',
+      desc:'Quản trị toàn bộ hệ thống, dữ liệu, bảo mật và phân quyền.',
+      perms:['Tạo, sửa, xoá sự kiện','Quản lý khách mời và báo cáo','Đổi mật khẩu Admin','Thiết lập vai trò người dùng']
+    },
+    {
+      icon:'manage_accounts',
+      name:'Quản lý',
+      badge:'Vận hành',
+      desc:'Điều phối sự kiện, theo dõi dữ liệu và xử lý danh sách khách.',
+      perms:['Tạo và chỉnh sửa sự kiện','Quản lý danh sách khách','Xem báo cáo sự kiện','Mở check-in bù khi được cấp quyền']
+    },
+    {
+      icon:'badge',
+      name:'Nhân viên',
+      badge:'Thực thi',
+      desc:'Thực hiện các tác vụ check-in và hỗ trợ vận hành tại sự kiện.',
+      perms:['Mở màn hình Check-in BTC','Quét vé và xác nhận khách','Xem thông tin vé cần xử lý','Không truy cập cấu hình hệ thống']
+    }
+  ];
+  const roleRank={super_admin:1,manager:2,staff:3};
+  const accounts=loadAccounts().sort((a,b)=>(roleRank[a.role]||9)-(roleRank[b.role]||9)||a.username.localeCompare(b.username));
+  const current=normalizeUsername(S.currentUser);
+  const superCount=accounts.filter(acc=>acc.role==='super_admin').length;
+  return`<div class="topbar">
+    <div style="font-weight:700">Danh sách tài khoản</div>
+    <button class="btn blue sm" onclick="openAccountForm()">+ Tạo tài khoản</button>
+  </div>
+  <div class="card-tight" style="margin-bottom:18px">
+    <table class="tbl">
+      <thead><tr>
+        <th>Tài khoản</th>
+        <th>Họ tên</th>
+        <th>Vai trò</th>
+        <th>Ngày tạo</th>
+        <th style="text-align:right">Thao tác</th>
+      </tr></thead>
+      <tbody>
+        ${accounts.map(acc=>{
+          const isCurrent=acc.username===current;
+          const isLastSuper=acc.role==='super_admin'&&superCount<=1;
+          const lockDelete=isCurrent||isLastSuper;
+          return`<tr>
+            <td><span class="mono">${esc(acc.username)}</span>${isCurrent?` <span class="badge b-blue" style="margin-left:6px">Đang dùng</span>`:''}</td>
+            <td>${esc(acc.name)}</td>
+            <td><span class="badge ${acc.role==='super_admin'?'b-purple':acc.role==='manager'?'b-blue':'b-gray'}">${esc(roleLabel(acc.role))}</span></td>
+            <td style="color:#888">${fmtD(acc.createdAt)}</td>
+            <td>
+              <div class="account-actions">
+                <button class="btn sm" onclick="openAccountForm('${acc.id}')">✏️ Sửa</button>
+                <button class="btn sm red" onclick="openAccountDel('${acc.id}')" ${lockDelete?'disabled':''} title="${isCurrent?'Không thể xoá tài khoản đang đăng nhập':isLastSuper?'Cần giữ ít nhất 1 Super Admin':'Xoá tài khoản'}">🗑️ Xoá</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="perm-section-title">Nhóm quyền</div>
+  <div class="role-grid">
+    ${roles.map(role=>`<div class="role-card">
+      <div class="role-head">
+        <div class="role-icon"><span class="material-symbols-rounded mi" aria-hidden="true">${role.icon}</span></div>
+        <div>
+          <div class="role-title">${role.name}</div>
+          <div class="role-desc">${role.desc}</div>
+        </div>
+      </div>
+      <span class="role-badge">${role.badge}</span>
+      <div class="role-perms">
+        ${role.perms.map(p=>`<div class="role-perm"><span class="material-symbols-rounded mi" aria-hidden="true">check_circle</span><span>${p}</span></div>`).join('')}
+      </div>
+    </div>`).join('')}
+  </div>`;
 }
 
 /* ============================================================
    GUESTS TAB
    ============================================================ */
 function rGTab(){
-  const evSel=`<select class="selx" onchange="pickEv(this.value)">
-    <option value="">-- Chọn sự kiện --</option>
-    ${db.events.map(e=>`<option value="${e.id}" ${S.selEv===e.id?'selected':''}>${e.name}</option>`).join('')}
+  const events=visibleEvents();
+  const evSel=`<select class="selx" style="min-width:260px" onchange="pickEv(this.value)">
+    <option value="">- Chọn sự kiện -</option>
+    ${events.map(e=>`<option value="${e.id}" ${S.selEv===e.id?'selected':''}>${e.name}</option>`).join('')}
   </select>`;
   if(!S.selEv)return`<div class="topbar">${evSel}</div><div class="empty">👆 Chọn sự kiện để quản lý khách mời</div>`;
+  if(!canAccessEvent(S.selEv))return`<div class="topbar">${evSel}</div><div class="empty">Bạn không có quyền xem sự kiện này.</div>`;
 
   const ev = db.events.find(e=>e.id===S.selEv);
   let gs = egs(S.selEv);
@@ -531,65 +1394,89 @@ function rGTab(){
   if(S.filter==='cancelled')gs=gs.filter(g=>g.cancelled);
   if(S.filter==='walkin')gs=gs.filter(g=>!!g.walkin);
 
-  const btcTags=(ev.btcMembers||[]).map(m=>`<span class="badge b-purple" style="margin:2px">🔑 ${m.name} (${m.code})</span>`).join('');
+  const walkinCount = egs(S.selEv).filter(g=>g.walkin).length;
   const evLocked = isEvLocked(ev);       // true khi ngày > ngày event → khoá check-in/cancel/add-del
   const evWalkinDay = isWalkinDay(ev);   // true khi ngày = ngày event → cho phép tạo Walk-in
   const ciUnlocked = !!S.unlockedCIEvs[ev.id]; // true khi Admin đã mở check-in bù
 
   return`
-    <div class="topbar">
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${evSel}${btcTags?`<div style="display:flex;flex-wrap:wrap;gap:2px">${btcTags}</div>`:''}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button id="refresh_btn" class="btn sm" onclick="doRefresh()" title="Làm mới dữ liệu">🔄 Làm mới</button>
-        <input class="sinput" placeholder="🔍 Tìm tên, mã, SĐT..." oninput="setSrch(this.value)" value="${S.search}">
-        <select class="selx" onchange="setFil(this.value)">
-          <option value="all" ${S.filter==='all'?'selected':''}>Tất cả (${p.t})</option>
-          <option value="checked" ${S.filter==='checked'?'selected':''}>✅ Đã vào (${p.c})</option>
-          <option value="pending" ${S.filter==='pending'?'selected':''}>⏳ Chưa xác nhận (${p.p})</option>
-          <option value="cancelled" ${S.filter==='cancelled'?'selected':''}>🚫 Cancel (${p.x})</option>
-          <option value="walkin" ${S.filter==='walkin'?'selected':''}>🚶 Walk-in (${egs(S.selEv).filter(g=>g.walkin).length})</option>
-        </select>
-        
-        ${evLocked?'':`
-          <button class="btn green sm" onclick="triggerExcelImport()">📥 Import Excel</button>
-          <button class="btn sm" onclick="downloadExcelTemplate()">📄 Mẫu Excel</button>
-        `}
-        ${p.t > 0 ? `<button class="btn blue sm" onclick="downloadAllQRsZip()" id="zip_btn">🗂️ Tải QR hàng loạt (.ZIP)</button>` : ''}
-        ${evLocked?'':`<button class="btn blue sm" onclick="openM('add_g')">+ Thêm KH đăng ký</button>`}
-        ${evWalkinDay?`<button class="btn sm" style="background:#7C3AED;color:#fff;border-color:#7C3AED" onclick="openWalkin()">🚶 + Walk-in</button>`:''}
+    <div class="guest-toolbar">
+      <div class="guest-toolbar-head">
+        <div class="guest-event-group">
+          <div class="guest-toolbar-label">Sự kiện đang quản lý</div>
+          ${evSel}
+        </div>
+      </div>
+      <div class="guest-toolbar-body">
+        <div class="guest-filter-group">
+          <div class="search-control guest-search-input ${S.search?'has-value':''}">
+            <span class="material-symbols-rounded mi search-leading" aria-hidden="true">search</span>
+            <input id="guest_search" class="search-input" placeholder="Tìm tên, mã, SĐT..." oninput="setSrch(this.value,this.selectionStart)" value="${esc(S.search)}">
+            <button type="button" class="search-clear" onclick="clearSrch()" title="Xóa tìm kiếm"><span class="material-symbols-rounded mi" aria-hidden="true">close</span></button>
+          </div>
+          <select class="selx" style="min-width:210px" onchange="setFil(this.value)">
+            <option value="all" ${S.filter==='all'?'selected':''}>Tất cả (${p.t})</option>
+            <option value="checked" ${S.filter==='checked'?'selected':''}>Đã vào (${p.c})</option>
+            <option value="pending" ${S.filter==='pending'?'selected':''}>Chưa xác nhận (${p.p})</option>
+            <option value="cancelled" ${S.filter==='cancelled'?'selected':''}>Cancel (${p.x})</option>
+            <option value="walkin" ${S.filter==='walkin'?'selected':''}>Walk-in (${walkinCount})</option>
+          </select>
+        </div>
+        <div class="guest-actions">
+          <button id="refresh_btn" class="btn sm" onclick="doRefresh()" title="Làm mới dữ liệu"><span class="material-symbols-rounded mi" aria-hidden="true">refresh</span>Làm mới</button>
+          ${evLocked?'':`
+            <button class="btn green sm" onclick="triggerExcelImport()"><span class="material-symbols-rounded mi" aria-hidden="true">file_download</span>Import Excel</button>
+            <button class="btn sm" onclick="downloadExcelTemplate()"><span class="material-symbols-rounded mi" aria-hidden="true">description</span>Mẫu Excel</button>
+          `}
+          ${p.t > 0 ? `<button class="btn sm" onclick="expCSV()"><span class="material-symbols-rounded mi" aria-hidden="true">download</span>Xuất CSV</button>` : ''}
+          ${p.t > 0 ? `<button class="btn blue sm" onclick="downloadAllQRsZip()" id="zip_btn"><span class="material-symbols-rounded mi" aria-hidden="true">folder_zip</span>Tải QR hàng loạt</button>` : ''}
+          ${evLocked?'':`<button class="btn blue sm" onclick="openM('add_g')"><span class="material-symbols-rounded mi" aria-hidden="true">person_add</span>Thêm KH đăng ký</button>`}
+          ${evWalkinDay?`<button class="btn sm guest-walkin-btn" onclick="openWalkin()"><span class="material-symbols-rounded mi" aria-hidden="true">directions_walk</span>Walk-in</button>`:''}
+        </div>
       </div>
     </div>
     
     ${evLocked?`<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:20px">📋</span>
       <div style="flex:1">
-        <div style="font-weight:600;font-size:13px;color:#92400E">Sự kiện đã kết thúc — Chế độ chỉnh sửa hậu sự kiện</div>
-        <div style="font-size:11px;color:#aaa">Check-in, Cancel, Thêm/Xoá khách đã bị khoá từ ngày ${fmtD(ev.date)}. Vẫn có thể <b>sửa thông tin</b> (PRM, vùng, đơn vị, SIH, ghi chú, systemCode, tên, SĐT).</div>
+        <div style="font-weight:600;font-size:15px;color:#92400E">Sự kiện đã kết thúc — Chế độ chỉnh sửa hậu sự kiện</div>
+        <div style="font-size:14px;color:#aaa">Check-in, Cancel, Thêm/Xoá khách đã bị khoá từ ngày ${fmtD(ev.date)}. Vẫn có thể <b>sửa thông tin</b> (PRM, vùng, đơn vị, SIH, ghi chú, systemCode, tên, SĐT).</div>
       </div>
       ${ciUnlocked
         ?`<div style="display:flex;align-items:center;gap:6px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:6px 12px">
             <span style="font-size:14px">✅</span>
-            <div style="font-size:12px;font-weight:700;color:#92400E">Đang mở check-in bù</div>
-            <button class="btn xs" onclick="closeCIUnlock('${ev.id}')" style="background:#fff;color:#B45309;border-color:#FCD34D;font-size:11px">Khoá lại</button>
+            <div style="font-size:14px;font-weight:700;color:#92400E">Đang mở check-in bù</div>
+            <button class="btn xs" onclick="closeCIUnlock('${ev.id}')" style="background:#fff;color:#B45309;border-color:#FCD34D">Khoá lại</button>
           </div>`
         :`<button class="btn sm" onclick="openCIUnlock('${ev.id}')" style="background:#D97706;color:#fff;border-color:#D97706;white-space:nowrap">🔓 Mở check-in bù</button>`
       }
     </div>`:''}
-    <div class="stats" style="grid-template-columns:repeat(5,1fr)">
+    <div class="stats guest-stats">
       <div class="stat"><div class="n">${p.t}</div><div class="l">Tổng</div></div>
       <div class="stat"><div class="n" style="color:#3B6D11">${p.c}</div><div class="l">✅ Đã vào</div></div>
       <div class="stat"><div class="n" style="color:#aaa">${p.p}</div><div class="l">⏳ Chưa</div></div>
       <div class="stat"><div class="n" style="color:#B91C1C">${p.x}</div><div class="l">🚫 Cancel</div></div>
       <div class="stat"><div class="n">${p.t>0?Math.round(p.c/p.t*100):0}%</div><div class="l">Tỷ lệ vào</div></div>
     </div>
-    <div class="card-tight">
-      <div style="overflow-x:auto">
-        <table class="tbl">
+    <div class="card-tight guest-table-card">
+      <div class="guest-table-scroll">
+        <table class="tbl guest-table">
+          <colgroup>
+            <col class="guest-col-index">
+            <col class="guest-col-name">
+            <col class="guest-col-code">
+            <col class="guest-col-phone">
+            <col class="guest-col-prm">
+            <col class="guest-col-unit">
+            <col class="guest-col-sih">
+            <col class="guest-col-checkin">
+            <col class="guest-col-actions">
+          </colgroup>
           <thead><tr>
-            <th style="width:26px">#</th><th>Khách / Đi kèm</th><th style="width:76px">Mã</th>
-            <th style="width:95px">SĐT</th><th style="width:120px">PRM / Vùng</th>
-            <th style="width:95px">Đơn vị</th><th style="width:85px">SIH</th>
-            <th style="width:72px">Check-in</th><th style="width:90px">TT</th>
+            <th>#</th><th>Khách / Đi kèm</th><th>Mã</th>
+            <th>SĐT</th><th>PRM / Vùng</th>
+            <th>Đơn vị</th><th>SIH</th>
+            <th>Check-in</th><th>Thao tác</th>
           </tr></thead>
           <tbody>
           ${gs.length===0?`<tr><td colspan="9" style="text-align:center;padding:24px;color:#bbb">Không có dữ liệu</td></tr>`:''}
@@ -603,29 +1490,29 @@ function rGTab(){
             let rows=`<tr ${isCancelled?'class="cancelled"':''} style="${isCancelled?'background:#FFF8F8':''}">
               <td style="color:#ccc">${i+1}</td>
               <td>
-                <div style="font-weight:600${isCancelled?';text-decoration:line-through;color:#bbb':''}">
-                  ${g.name}
-                  ${isWalkin?`<span style="font-size:9px;font-weight:700;background:#EDE9FE;color:#7C3AED;padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle">Walk-in</span>`:''}
+                <div class="guest-name-row" style="font-weight:600${isCancelled?';text-decoration:line-through;color:#bbb':''}">
+                  <button type="button" class="name-link ${isCancelled?'is-cancelled':''}" onclick="openGuestDetail('${g.id}')" title="Xem chi tiết">${esc(g.name)}</button>
+                  ${isWalkin?`<span style="font-size:14px;font-weight:700;background:#EDE9FE;color:#7C3AED;padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle">Walk-in</span>`:''}
                 </div>
                 ${isCancelled?`<span class="cancelled-badge">🚫 Cancel</span>${g.cancelNote?`<div class="cancel-note">${g.cancelNote}</div>`:''}`:
                   `${comps.length?`<div class="sub">+${comps.length} đi kèm</div>`:''}
                    ${g.note?`<div class="sub" style="font-style:italic">${g.note}</div>`:''}
-                   ${evLocked?'':`<button class="btn xs" onclick="openAddComp('${g.id}')" style="margin-top:5px;font-size:10px;color:#185FA5;border-color:#b3d4f5">+ thêm đi kèm</button>`}`}
+                   ${evLocked?'':`<button class="btn xs" onclick="openAddComp('${g.id}')" style="margin-top:5px;color:#185FA5;border-color:#b3d4f5">+ thêm đi kèm</button>`}`}
               </td>
-              <td><span class="mono">${g.guestCode}</span>${g.systemCode?`<div style="font-size:10px;color:#aaa;margin-top:2px">Mã HT: ${g.systemCode}</div>`:''}</td>
-              <td style="color:#888;font-size:12px">${g.phone||'—'}</td>
-              <td><div style="font-size:12px">${g.prmName||'—'}</div><div class="sub">${g.tcbRegion||''}</div></td>
-              <td style="font-size:12px;color:#888">${g.unit||'—'}</td>
-              <td style="font-size:12px;color:#888">${g.sihName||'—'}</td>
-              <td>${isCancelled||(evLocked&&!ciUnlocked)?'<span style="font-size:11px;color:#ccc">—</span>':
+              <td><span class="mono">${g.guestCode}</span>${g.systemCode?`<div style="font-size:14px;color:#aaa;margin-top:2px">Mã HT: ${g.systemCode}</div>`:''}</td>
+              <td style="color:#888;font-size:14px">${g.phone||'—'}</td>
+              <td><div style="font-size:14px">${g.prmName||'—'}</div><div class="sub">${g.tcbRegion||''}</div></td>
+              <td style="font-size:14px;color:#888">${g.unit||'—'}</td>
+              <td style="font-size:14px;color:#888">${g.sihName||'—'}</td>
+              <td>${isCancelled||(evLocked&&!ciUnlocked)?'<span style="font-size:14px;color:#ccc">—</span>':
                 `<button class="ci ${g.checkedIn?'on':'off'}" onclick="togCI('${g.id}','g')">${g.checkedIn?'✅ Vào':'⏳'}</button>
-                 ${g.checkedIn?`<div style="font-size:10px;color:#bbb;margin-top:2px">${fmtTm(g.checkinTime)}</div>`:''}`}
+                 ${g.checkedIn?`<div style="font-size:14px;color:#bbb;margin-top:2px">${fmtTm(g.checkinTime)}</div>`:''}`}
               </td>
-              <td>
-                <div style="display:flex;gap:2px;flex-wrap:wrap">
+              <td class="actions-cell">
+                <div class="row-actions">
                   <button class="btn xs" onclick="openTickets('${g.id}')" title="Vé">🎫</button>
                   ${evLocked?'':isCancelled?
-                    `<button class="btn xs" onclick="undoCancel('${g.id}','g')" style="color:#185FA5;border-color:#185FA5" title="Recall — KH quay lại tham dự">↩</button>`
+                    `<button class="btn xs" onclick="undoCancel('${g.id}','g')" style="color:#256fe6;border-color:#256fe6" title="Recall — KH quay lại tham dự">↩</button>`
                     :`<button class="btn xs" onclick="openCancel('${g.id}','g')" title="Cancel KH" style="color:#B91C1C;border-color:#FECACA">🚫</button>`}
                   <button class="btn xs" onclick="openEdit('${g.id}')" title="Sửa thông tin">✏️</button>
                   ${evLocked?'':`<button class="btn xs red" onclick="openDel('${g.id}')" title="Xoá">🗑️</button>`}
@@ -637,22 +1524,22 @@ function rGTab(){
               rows+=`<tr ${cpCancelled?'class="cancelled"':''} style="background:${cpCancelled?'#FFF8F8':'#fafbfc'}">
                 <td></td>
                 <td style="padding-left:22px">
-                  <span style="font-size:12px;color:${cpCancelled?'#ccc':'#555'};font-weight:500${cpCancelled?';text-decoration:line-through':''}">↳ ${cp.name}</span>
+                  <button type="button" class="name-link companion ${cpCancelled?'is-cancelled':''}" onclick="openCpDetail('${g.id}','${cp.id}')" title="Xem chi tiết">↳ ${esc(companionNameLabel(cp.name))}</button>
                   ${cpCancelled?`<span class="cancelled-badge" style="margin-left:4px">🚫</span>${cp.cancelNote?`<div class="cancel-note" style="padding-left:14px">${cp.cancelNote}</div>`:''}`
-                    :`<span class="badge b-purple" style="font-size:9px;margin-left:4px">đi kèm</span>`}
+                    :`<span class="badge b-purple" style="font-size:14px;margin-left:4px">Đi kèm</span>`}
                 </td>
                 <td><span class="mono">${cp.code}</span></td>
-                <td style="font-size:12px;color:#aaa">${cp.phone||'—'}</td>
+                <td style="font-size:14px;color:#aaa">${cp.phone||'—'}</td>
                 <td colspan="2"></td><td></td>
-                <td>${cpCancelled||(evLocked&&!ciUnlocked)?'<span style="font-size:11px;color:#ccc">—</span>':
+                <td>${cpCancelled||(evLocked&&!ciUnlocked)?'<span style="font-size:14px;color:#ccc">—</span>':
                   `<button class="ci ${cp.checkedIn?'on':'off'}" onclick="togCI('${g.id}','c','${cp.id}')">${cp.checkedIn?'✅ Vào':'⏳'}</button>
-                   ${cp.checkedIn?`<div style="font-size:10px;color:#bbb;margin-top:2px">${fmtTm(cp.checkinTime)}</div>`:''}`}
+                   ${cp.checkedIn?`<div style="font-size:14px;color:#bbb;margin-top:2px">${fmtTm(cp.checkinTime)}</div>`:''}`}
                 </td>
-                <td>
-                  <div style="display:flex;gap:2px;flex-wrap:wrap">
+                <td class="actions-cell">
+                  <div class="row-actions">
                     <button class="btn xs" onclick="openCpTicket('${g.id}','${cp.id}')" title="Vé">🎫</button>
                     ${evLocked?'':cpCancelled?
-                      `<button class="btn xs" onclick="undoCancel('${g.id}','c','${cp.id}')" style="color:#185FA5;border-color:#185FA5" title="Recall — người đi kèm quay lại">↩</button>`
+                      `<button class="btn xs" onclick="undoCancel('${g.id}','c','${cp.id}')" style="color:#256fe6;border-color:#256fe6" title="Recall — người đi kèm quay lại">↩</button>`
                       :`<button class="btn xs" onclick="openCancel('${g.id}','c','${cp.id}')" style="color:#B91C1C;border-color:#FECACA" title="Cancel">🚫</button>`}
                     <button class="btn xs" onclick="openCpEdit('${g.id}','${cp.id}')" title="Sửa thông tin">✏️</button>
                     ${evLocked?'':`<button class="btn xs red" onclick="openCpDel('${g.id}','${cp.id}')" title="Xoá">🗑️</button>`}
@@ -666,17 +1553,18 @@ function rGTab(){
         </table>
       </div>
     </div>
-    ${p.t>0?`<div style="text-align:right;margin-top:6px"><button class="btn sm" onclick="expCSV()">⬇️ Xuất CSV</button></div>`:''}`;
+    `;
 }
 
 /* ============================================================
    REPORT TAB
    ============================================================ */
 function rRTab(){
-  if(!db.events.length)return'<div class="empty">Chưa có dữ liệu.</div>';
+  const events=visibleEvents();
+  if(!events.length)return'<div class="empty">Chưa có dữ liệu.</div>';
   const evSel=`<select class="selx" style="min-width:220px" onchange="setRptEv(this.value)">
-    <option value="">-- Tất cả sự kiện --</option>
-    ${db.events.map(e=>`<option value="${e.id}" ${S.rptEv===e.id?'selected':''}>${e.name}${e.eventPw&&!S.unlockedEvs[e.id]?' 🔒':''}${isEvLocked(e)?' 🔐':''}</option>`).join('')}
+    <option value="">- Tất cả sự kiện -</option>
+    ${events.map(e=>`<option value="${e.id}" ${S.rptEv===e.id?'selected':''}>${e.name}${isEvLocked(e)?' 🔐':''}</option>`).join('')}
   </select>`;
   const refreshBtn=`<button id="refresh_btn" class="btn sm" onclick="doRefresh()">🔄 Làm mới</button>`;
 
@@ -685,20 +1573,20 @@ function rRTab(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-weight:700">📊 Tổng quan sự kiện</div>${refreshBtn}</div>${evSel}
       </div>
-      ${db.events.map(ev=>{const p=allPeople(ev.id);const r=p.t?Math.round(p.c/p.t*100):0;
-        const locked=ev.eventPw&&!S.unlockedEvs[ev.id];
+      ${events.map(ev=>{const p=allPeople(ev.id);const r=p.t?Math.round(p.c/p.t*100):0;
+        const locked=false;
         return`<div style="padding:10px 0;border-bottom:1px solid #f0f0f0">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-            <div><div style="font-weight:600;font-size:13px">${ev.name}${locked?' 🔒':''}</div>
-              <div style="font-size:11px;color:#aaa">${fmtD(ev.date)}${ev.team?' · '+ev.team:''}</div></div>
+            <div><div style="font-weight:600;font-size:15px">${ev.name}${locked?' 🔒':''}</div>
+              <div style="font-size:14px;color:#aaa">${fmtD(ev.date)}${ev.team?' · '+ev.team:''}</div></div>
             <div style="display:flex;gap:10px;align-items:center">
-              <div style="text-align:center"><div style="font-size:15px;font-weight:700">${p.t}</div><div style="font-size:10px;color:#aaa">Tổng</div></div>
-              <div style="text-align:center"><div style="font-size:15px;font-weight:700;color:#3B6D11">${p.c}</div><div style="font-size:10px;color:#aaa">✅ Đã vào</div></div>
-              <div style="text-align:center"><div style="font-size:15px;font-weight:700;color:#aaa">${p.p}</div><div style="font-size:10px;color:#aaa">⏳ Chưa</div></div>
-              <div style="text-align:center"><div style="font-size:15px;font-weight:700;color:#B91C1C">${p.x}</div><div style="font-size:10px;color:#aaa">🚫 Cancel</div></div>
+              <div style="text-align:center"><div style="font-size:16px;font-weight:700">${p.t}</div><div style="font-size:14px;color:#aaa">Tổng</div></div>
+              <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B6D11">${p.c}</div><div style="font-size:14px;color:#aaa">✅ Đã vào</div></div>
+              <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#aaa">${p.p}</div><div style="font-size:14px;color:#aaa">⏳ Chưa</div></div>
+              <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#B91C1C">${p.x}</div><div style="font-size:14px;color:#aaa">🚫 Cancel</div></div>
               <div style="width:60px">
                 <div class="pb"><div class="pb-fill" style="width:${r}%;background:#3B6D11"></div></div>
-                <div style="font-size:10px;text-align:center;color:#aaa;margin-top:2px">${r}%</div>
+                <div style="font-size:14px;text-align:center;color:#aaa;margin-top:2px">${r}%</div>
               </div>
             </div>
           </div>
@@ -708,13 +1596,7 @@ function rRTab(){
   if(!S.rptEv){return overviewHtml+`<div class="empty" style="padding:24px">☝️ Chọn sự kiện ở trên để xem báo cáo chi tiết</div>`;}
 
   const selEv=db.events.find(e=>e.id===S.rptEv);
-  if(selEv?.eventPw&&!S.unlockedEvs[S.rptEv]){
-    return overviewHtml+`<div class="card" style="text-align:center;padding:24px">
-      <div style="font-size:24px;margin-bottom:8px">🔒</div>
-      <div style="font-weight:700;margin-bottom:4px">Sự kiện được bảo vệ</div>
-      <div style="font-size:13px;color:#aaa;margin-bottom:14px">Nhập mật khẩu để xem báo cáo chi tiết</div>
-      <button class="btn blue" onclick="S.evUnlockTarget='${S.rptEv}';S.modal='ev_unlock';R()">🔓 Nhập mật khẩu</button>
-    </div>`;}
+  if(!selEv||!canAccessEvent(S.rptEv))return overviewHtml+`<div class="empty" style="padding:24px">Bạn không có quyền xem báo cáo sự kiện này.</div>`;
 
   // Danh sách Khách hàng (Main) — đối tượng dùng cho mọi breakdown & đánh giá tỷ lệ
   const mainGuests=egs(S.rptEv).map(g=>({
@@ -753,55 +1635,55 @@ function rRTab(){
   const wiTotal=walkinG.length, wiCi=walkinG.filter(g=>g.checkedIn).length, wiCn=walkinG.filter(g=>g.cancelled).length, wiPd=wiTotal-wiCi-wiCn, wiPct=wiTotal>0?Math.round(wiCi/wiTotal*100):0;
 
   function wiCell(val, color, sub){
-    if(wiTotal===0)return '<td style="padding:8px 12px;text-align:center;color:#ccc;font-size:12px">—</td>';
+    if(wiTotal===0)return '<td style="padding:8px 12px;text-align:center;color:#ccc;font-size:14px">—</td>';
     return '<td style="padding:8px 12px;text-align:center;background:#FAFAFF">'
       +'<div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div>'
-      +(sub?'<div style="font-size:10px;color:#aaa;margin-top:1px">'+sub+'</div>':'')
+      +(sub?'<div style="font-size:14px;color:#aaa;margin-top:1px">'+sub+'</div>':'')
       +'</td>';
   }
   function prCell(val, color, sub){
     return '<td style="padding:8px 12px;text-align:center">'
       +'<div style="font-size:18px;font-weight:800;color:'+color+'">'+val+'</div>'
-      +(sub?'<div style="font-size:10px;color:#aaa;margin-top:1px">'+sub+'</div>':'')
+      +(sub?'<div style="font-size:14px;color:#aaa;margin-top:1px">'+sub+'</div>':'')
       +'</td>';
   }
 
   const walkinTableHtml=`
-  <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin:0 0 8px;text-transform:uppercase">📊 Pre-registered vs Walk-in (Main)</div>
+  <div style="font-size:14px;font-weight:700;color:#888;letter-spacing:1px;margin:0 0 8px;text-transform:uppercase">📊 Pre-registered vs Walk-in (Main)</div>
   <div style="background:#fff;border-radius:12px;border:1px solid #eaecf0;margin-bottom:14px;overflow:hidden">
     <table style="width:100%;border-collapse:collapse">
       <thead><tr style="background:#f8fafc">
-        <th style="padding:10px 12px;text-align:left;font-size:11px;color:#aaa;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #eaecf0"></th>
-        <th style="padding:10px 12px;text-align:center;font-size:12px;font-weight:700;color:#185FA5;border-bottom:1px solid #eaecf0">📋 Pre-registered</th>
-        <th style="padding:10px 12px;text-align:center;font-size:12px;font-weight:700;color:#7C3AED;border-bottom:1px solid #eaecf0;background:${wiTotal>0?'#F5F3FF':'#f8fafc'}">🚶 Walk-in</th>
+        <th style="padding:10px 12px;text-align:left;font-size:14px;color:#aaa;font-weight:700;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #eaecf0"></th>
+        <th style="padding:10px 12px;text-align:center;font-size:14px;font-weight:700;color:#185FA5;border-bottom:1px solid #eaecf0">📋 Pre-registered</th>
+        <th style="padding:10px 12px;text-align:center;font-size:14px;font-weight:700;color:#7C3AED;border-bottom:1px solid #eaecf0;background:${wiTotal>0?'#F5F3FF':'#f8fafc'}">🚶 Walk-in</th>
       </tr></thead>
       <tbody>
         <tr style="border-bottom:1px solid #f0f0f0">
-          <td style="padding:8px 12px;font-size:12px;color:#555;font-weight:600">Tổng KH</td>
+          <td style="padding:8px 12px;font-size:14px;color:#555;font-weight:600">Tổng KH</td>
           ${prCell(prTotal,'#185FA5','')}
           ${wiCell(wiTotal,'#7C3AED','')}
         </tr>
         <tr style="border-bottom:1px solid #f0f0f0">
-          <td style="padding:8px 12px;font-size:12px;color:#3B6D11;font-weight:600">✅ Đã vào</td>
+          <td style="padding:8px 12px;font-size:14px;color:#3B6D11;font-weight:600">✅ Đã vào</td>
           ${prCell(prCi,'#3B6D11',prPct+'% turnout')}
           ${wiCell(wiCi,'#3B6D11',wiPct+'% turnout')}
         </tr>
         <tr style="border-bottom:1px solid #f0f0f0">
-          <td style="padding:8px 12px;font-size:12px;color:#888;font-weight:600">⏳ Chưa tới</td>
+          <td style="padding:8px 12px;font-size:14px;color:#888;font-weight:600">⏳ Chưa tới</td>
           ${prCell(prPd,'#aaa','')}
           ${wiCell(wiPd,'#aaa','')}
         </tr>
         <tr>
-          <td style="padding:8px 12px;font-size:12px;color:#B91C1C;font-weight:600">🚫 Cancel</td>
+          <td style="padding:8px 12px;font-size:14px;color:#B91C1C;font-weight:600">🚫 Cancel</td>
           ${prCell(prCn>0?prCn:'—',prCn>0?'#B91C1C':'#ccc','')}
           ${wiCell(wiCn>0?wiCn:'—',wiCn>0?'#B91C1C':'#ccc','')}
         </tr>
       </tbody>
     </table>
-    ${wiTotal===0?'<div style="padding:8px 14px;font-size:11px;color:#bbb;text-align:center;border-top:1px solid #f0f0f0">Sự kiện này chưa có khách Walk-in</div>':''}
+    ${wiTotal===0?'<div style="padding:8px 14px;font-size:14px;color:#bbb;text-align:center;border-top:1px solid #f0f0f0">Sự kiện này chưa có khách Walk-in</div>':''}
   </div>`;
 
-  const statsHtml=`<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng quan (Khách hàng - Main)</div>
+  const statsHtml=`<div style="font-size:14px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng quan (Khách hàng - Main)</div>
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     ${statCard('Tổng KH mời (Main)','#185FA5',totalM,'')}
     ${statCard('✅ KH đã tới','#3B6D11',ciM,pctM+'% turnout')}
@@ -809,7 +1691,7 @@ function rRTab(){
     ${statCard('🚫 KH cancel','#B91C1C',cnM,'')}
   </div>
   <div style="background:#fff;border-radius:12px;padding:14px 18px;margin-bottom:14px;border:1px solid #eaecf0">
-    <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;font-size:15px;margin-bottom:8px">
       <span style="font-weight:700">${selEv.name}</span>
       <span style="color:#3B6D11;font-weight:700">${pctM}%</span>
     </div>
@@ -818,7 +1700,7 @@ function rRTab(){
     </div>
   </div>
   ${walkinTableHtml}
-  <div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng lượt tham dự thực tế (Main + Companion)</div>
+  <div style="font-size:14px;font-weight:700;color:#888;letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Tổng lượt tham dự thực tế (Main + Companion)</div>
   <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
     ${statCard('Tổng lượt đăng ký','#185FA5',totalAll,totalAllMain+' Main + '+totalAllComp+' Companion')}
     ${statCard('✅ Tổng đã vào sảnh','#3B6D11',ciAll,ciAllMain+' Main + '+ciAllComp+' Companion')}
@@ -832,7 +1714,7 @@ function rRTab(){
     if(!comps.length)return'';
     const parts=comps.map(c=>c.checkedIn?'-1':'+1');
     const color=parts.every(x=>x==='-1')?'#e24b4a':parts.every(x=>x==='+1')?'#3B6D11':'#aaa';
-    return `<span style="font-size:12px;font-weight:600;color:${color};white-space:nowrap;margin-left:8px">${parts.join(' ')}</span>`;
+    return `<span style="font-size:14px;font-weight:600;color:${color};white-space:nowrap;margin-left:8px">${parts.join(' ')}</span>`;
   }
 
   function mkBreakdown(label,icon,groupFn,keyFn){
@@ -840,7 +1722,7 @@ function rRTab(){
     mainGuests.forEach(g=>{const k=keyFn(g)||'Không xác định';if(!groups[k])groups[k]=[];groups[k].push(g)});
     const entries=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
     if(!entries.length)return'';
-    return`<div style="font-size:11px;font-weight:700;color:#888;letter-spacing:1px;margin:16px 0 8px;text-transform:uppercase">${icon} Theo ${label} (Main)</div>
+    return`<div style="font-size:14px;font-weight:700;color:#888;letter-spacing:1px;margin:16px 0 8px;text-transform:uppercase">${icon} Theo ${label} (Main)</div>
       ${entries.map(([grp,gs])=>{
         const ci=gs.filter(g=>g.checkedIn).length;
         const cn=gs.filter(g=>g.cancelled).length;
@@ -852,8 +1734,8 @@ function rRTab(){
         const expCn=!!S.rptExp[kPre+'_cn'];
         return`<div style="background:#fff;border-radius:12px;border:1px solid #eaecf0;padding:14px 16px;margin-bottom:8px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-            <div style="font-weight:700;font-size:13px">${grp} <span style="font-weight:400;color:#aaa;font-size:11px">(${gs.length} Main)</span></div>
-            <div style="display:flex;gap:6px;font-size:12px;flex-wrap:wrap">
+            <div style="font-weight:700;font-size:15px">${grp} <span style="font-weight:400;color:#aaa;font-size:14px">(${gs.length} Main)</span></div>
+            <div style="display:flex;gap:6px;font-size:14px;flex-wrap:wrap">
               <span onclick="togRpt('${kPre}_ci')" style="background:${ci>0?'#eaf3de':'#f5f5f5'};color:${ci>0?'#3B6D11':'#aaa'};border-radius:20px;padding:2px 10px;font-weight:600;cursor:${ci>0?'pointer':'default'};user-select:none">
                 Đã vào: ${ci}${ci>0?(expCi?' ▲':' ▼'):''}
               </span>
@@ -868,35 +1750,35 @@ function rRTab(){
           <div style="background:#f0f0f0;border-radius:99px;height:8px;overflow:hidden">
             <div style="width:${pct}%;background:${pct===100?'#3B6D11':'linear-gradient(90deg,#185FA5,#3B6D11)'};height:100%;border-radius:99px"></div>
           </div>
-          <div style="font-size:10px;color:#aaa;margin-top:4px;text-align:right">${pct}% Main đã check-in</div>
+          <div style="font-size:14px;color:#aaa;margin-top:4px;text-align:right">${pct}% Main đã check-in</div>
           ${expCi&&ci>0?`<div style="background:#f0faf0;border:1px solid #97C459;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#3B6D11;margin-bottom:6px">Đã check-in (${ci} Main)</div>
+            <div style="font-size:14px;font-weight:700;color:#3B6D11;margin-bottom:6px">Đã check-in (${ci} Main)</div>
             ${gs.filter(g=>g.checkedIn).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #c8e6c9;display:flex;justify-content:space-between;align-items:center">
               <div>
-                <div style="font-weight:600;font-size:13px">${g.name}${g.walkin?'<span style="font-size:9px;background:#EDE9FE;color:#7C3AED;padding:1px 5px;border-radius:6px;margin-left:4px">Walk-in</span>':''}</div>
-                <div style="font-size:11px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
-                <div style="font-size:10px;color:#3B6D11">✅ ${fmtTm(g.checkinTime)}</div>
+                <div style="font-weight:600;font-size:15px">${g.name}${g.walkin?'<span style="font-size:14px;background:#EDE9FE;color:#7C3AED;padding:1px 5px;border-radius:6px;margin-left:4px">Walk-in</span>':''}</div>
+                <div style="font-size:14px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
+                <div style="font-size:14px;color:#3B6D11">✅ ${fmtTm(g.checkinTime)}</div>
               </div>
               ${companionBadge(g)}
             </div>`).join('')}
           </div>`:''}
           ${expAb&&pend>0?`<div style="background:#fff8f8;border:1px solid #fdd;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#e24b4a;margin-bottom:6px">Chưa check-in (${pend} Main)</div>
+            <div style="font-size:14px;font-weight:700;color:#e24b4a;margin-bottom:6px">Chưa check-in (${pend} Main)</div>
             ${gs.filter(g=>!g.checkedIn&&!g.cancelled).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #fdd;display:flex;justify-content:space-between;align-items:center">
               <div>
-                <div style="font-weight:600;font-size:13px">${g.name}</div>
-                <div style="font-size:11px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
+                <div style="font-weight:600;font-size:15px">${g.name}</div>
+                <div style="font-size:14px;color:#888">${g.code}${g.phone?' · '+g.phone:''}</div>
               </div>
               ${companionBadge(g)}
             </div>`).join('')}
           </div>`:''}
           ${expCn&&cn>0?`<div style="background:#FFF8F8;border:1px solid #FECACA;border-radius:8px;padding:10px 12px;margin-top:8px">
-            <div style="font-size:11px;font-weight:700;color:#B91C1C;margin-bottom:6px">Đã cancel (${cn} Main)</div>
+            <div style="font-size:14px;font-weight:700;color:#B91C1C;margin-bottom:6px">Đã cancel (${cn} Main)</div>
             ${gs.filter(g=>g.cancelled).map(g=>`<div style="padding:5px 0;border-bottom:.5px solid #FECACA;display:flex;justify-content:space-between;align-items:center">
               <div>
-                <div style="font-weight:600;font-size:13px;text-decoration:line-through;color:#bbb">${g.name}</div>
-                <div style="font-size:11px;color:#aaa">${g.code}${g.phone?' · '+g.phone:''}</div>
-                ${g.note?`<div style="font-size:10px;color:#B91C1C;font-style:italic">${g.note}</div>`:''}
+                <div style="font-weight:600;font-size:15px;text-decoration:line-through;color:#bbb">${g.name}</div>
+                <div style="font-size:14px;color:#aaa">${g.code}${g.phone?' · '+g.phone:''}</div>
+                ${g.note?`<div style="font-size:14px;color:#B91C1C;font-style:italic">${g.note}</div>`:''}
               </div>
               ${companionBadge(g)}
             </div>`).join('')}
@@ -915,14 +1797,14 @@ function rRTab(){
 
 function statCard(lbl,color,val,sub){
   return`<div style="flex:1;min-width:120px;background:#fff;border-radius:12px;padding:14px 16px;border-left:4px solid ${color};border:1px solid #eaecf0;border-left-width:4px">
-    <div style="font-size:11px;color:#888;margin-bottom:4px">${lbl}</div>
+    <div style="font-size:14px;color:#888;margin-bottom:4px">${lbl}</div>
     <div style="font-size:28px;font-weight:800;color:${color};line-height:1">${val}</div>
-    ${sub?`<div style="font-size:11px;color:#aaa;margin-top:4px">${sub}</div>`:''}
+    ${sub?`<div style="font-size:14px;color:#aaa;margin-top:4px">${sub}</div>`:''}
   </div>`;
 }
 function togRpt(key){S.rptExp[key]=!S.rptExp[key];R()}
 function setRptEv(v){
-  if(v){const ev=db.events.find(e=>e.id===v);if(ev?.eventPw&&!S.unlockedEvs[v]){S.evUnlockTarget=v;S.rptEv=v;S.modal='ev_unlock';R();return}}
+  if(v&&!canAccessEvent(v)){S.rptEv=null;R();return}
   S.rptEv=v||null;S.rptExp={};R()
 }
 
@@ -934,26 +1816,85 @@ function rModal(){
   if(S.modal==='add_ev'||S.modal==='edit_ev')return wrapModal(rAddEvM(),'lg');
   if(S.modal==='add_g'||S.modal==='edit_g')return wrapModal(rAddGM(),'lg');
   if(S.modal==='tickets')return wrapModal(rTicketsM(),'lg');
+  if(S.modal==='guest_detail')return wrapModal(rGuestDetailM(),'lg');
   if(S.modal==='edit_pw')return wrapModal(rEditPwM(),'sm');
   if(S.modal==='edit_form')return wrapModal(rEditFormM(),'lg');
   if(S.modal==='del_pw')return wrapModal(rDelM(),'sm');
   if(S.modal==='cp_ticket')return wrapModal(rCpTicketM(),'sm');
+  if(S.modal==='cp_detail')return wrapModal(rCpDetailM(),'sm');
   if(S.modal==='cp_edit')return wrapModal(rCpEditM(),'sm');
   if(S.modal==='cp_del')return wrapModal(rCpDelM(),'sm');
   if(S.modal==='cp_add')return wrapModal(rCpAddM());
   if(S.modal==='admin_ci')return wrapModal(rAdminCIM(),'sm');
   if(S.modal==='cancel')return wrapModal(rCancelM(),'sm');
-  if(S.modal==='ev_unlock')return wrapModal(rEvUnlockM(),'sm');
   if(S.modal==='import_preview')return wrapModal(rImportPreviewM(),'lg');
   if(S.modal==='walkin')return wrapModal(rWalkinM(),'lg');
   if(S.modal==='ci_unlock')return wrapModal(rCIUnlockM(),'sm');
+  if(S.modal==='admin_account')return wrapModal(rAdminAccountM(),'sm');
+  if(S.modal==='account_form')return wrapModal(rAccountFormM(),'sm');
+  if(S.modal==='account_del')return wrapModal(rAccountDelM(),'sm');
   return'';
+}
+
+function rAdminAccountM(){
+  return`<div class="mh">🔑 Đổi mật khẩu</div>
+    <div style="font-size:15px;color:#888;margin-bottom:14px">Đổi mật khẩu tài khoản đang đăng nhập. Chỉ cần nhập mật khẩu mới và xác nhận lại.</div>
+    <div class="fg"><label>Mật khẩu mới</label>
+      <input type="password" id="admin_pw_new" placeholder="Nhập mật khẩu mới" autocomplete="new-password" autofocus
+        onkeydown="if(event.key==='Enter')saveAdminPw()"/></div>
+    <div class="fg"><label>Xác nhận mật khẩu mới</label>
+      <input type="password" id="admin_pw_confirm" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password"
+        onkeydown="if(event.key==='Enter')saveAdminPw()"/></div>
+    <div id="admin_pw_err" class="err"></div>
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Huỷ</button>
+      <button class="btn blue" onclick="saveAdminPw()">💾 Lưu mật khẩu</button>
+    </div>`;
+}
+
+function roleOptions(selected){
+  return Object.entries(ROLE_DEFS).map(([value,info])=>`<option value="${value}" ${selected===value?'selected':''}>${info.label}</option>`).join('');
+}
+
+function rAccountFormM(){
+  if(!canManageAccounts())return'<div class="mh">Không có quyền</div>';
+  const isEdit=!!S.editAccountId;
+  const acc=isEdit?loadAccounts().find(x=>x.id===S.editAccountId):null;
+  if(isEdit&&!acc)return'<div class="mh">Không tìm thấy tài khoản</div>';
+  return`<div class="mh">${isEdit?'✏️ Chỉnh sửa tài khoản':'👤 Tạo tài khoản mới'}</div>
+    <div class="fg"><label>Họ tên *</label>
+      <input id="acc_name" value="${esc(acc?.name||'')}" placeholder="VD: Nguyễn Văn A" autofocus /></div>
+    <div class="fg"><label>Tên đăng nhập *</label>
+      <input id="acc_user" value="${esc(acc?.username||'')}" placeholder="vd: nguyenvana" ${isEdit?'disabled':''} autocomplete="off" /></div>
+    <div class="fg"><label>Vai trò *</label>
+      <select id="acc_role">${roleOptions(acc?.role||'staff')}</select></div>
+    <div class="fg"><label>${isEdit?'Mật khẩu mới':'Mật khẩu'} ${isEdit?'<span style="font-weight:400;color:#aaa">(để trống nếu giữ nguyên)</span>':'*'}</label>
+      <input id="acc_pw" type="password" placeholder="${isEdit?'Nhập nếu muốn đổi mật khẩu':'Nhập mật khẩu'}" autocomplete="new-password" onkeydown="if(event.key==='Enter'&&!${isEdit})saveAccount()" /></div>
+    ${isEdit?`<div class="fg"><label>Xác nhận mật khẩu <span style="font-weight:400;color:#aaa">(nếu đổi)</span></label>
+      <input id="acc_pw2" type="password" placeholder="Nhập lại mật khẩu mới" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveAccount()"/></div>`:''}
+    <div id="acc_err" class="err"></div>
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Huỷ</button>
+      <button class="btn blue" onclick="saveAccount()">💾 ${isEdit?'Lưu thay đổi':'Tạo tài khoản'}</button>
+    </div>`;
+}
+
+function rAccountDelM(){
+  const acc=loadAccounts().find(x=>x.id===S.delAccountId);
+  if(!acc)return'<div class="mh">Không tìm thấy tài khoản</div>';
+  return`<div class="mh">🗑️ Xoá tài khoản</div>
+    <div style="font-size:15px;color:#555;margin-bottom:12px">Bạn chắc chắn muốn xoá tài khoản <b>${esc(acc.name)}</b> — <span class="mono">${esc(acc.username)}</span>?</div>
+    <div id="acc_del_err" class="err"></div>
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Huỷ</button>
+      <button class="btn red" onclick="deleteAccount()">Xoá tài khoản</button>
+    </div>`;
 }
 
 function rAddEvM(){
   const isEdit=S.modal==='edit_ev';
   const ev=isEdit?db.events.find(e=>e.id===S.editEvId):{};
-  const btcList=ev?.btcMembers||[{code:'',name:''}];
+  const btcList=ev?.btcMembers?.length?ev.btcMembers:[{account:''}];
   return`<div class="mh">${isEdit?'✏️ Chỉnh sửa sự kiện':'📅 Tạo sự kiện mới'}</div>
     <div class="g2">
       <div class="fg sp"><label>Tên sự kiện *</label><input id="ev_n" placeholder="VD: OneHousing Elite Night — The Global City" value="${ev?.name||''}"/></div>
@@ -961,33 +1902,12 @@ function rAddEvM(){
       <div class="fg"><label>Team tổ chức</label><input id="ev_t" placeholder="VD: Marketing Miền Nam" value="${ev?.team||''}"/></div>
       <div class="fg sp"><label>Địa điểm</label><input id="ev_v" placeholder="VD: The Global City Ballroom" value="${ev?.venue||''}"/></div>
     </div>
-    <div class="sec">🔐 Mật khẩu bảo vệ danh sách khách</div>
-    ${isEdit?`
-      <div style="font-size:12px;color:#aaa;margin-bottom:8px">Đổi mật khẩu mới — để trống nếu muốn giữ nguyên mật khẩu cũ.</div>
-      <div style="background:#f4f7fb;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:#555">
-        Mật khẩu hiện tại: <span style="font-family:'JetBrains Mono',monospace;font-weight:600;color:#185FA5">${ev?.eventPw||'(chưa có)'}</span>
-      </div>
-      <div class="g2">
-        <div class="fg"><label>Mật khẩu mới (tuỳ chọn)</label><input id="ev_pw" type="text" placeholder="Để trống = giữ nguyên" style="font-family:'JetBrains Mono',monospace" autocomplete="off"/></div>
-        <div class="fg"><label>Nhập lại mật khẩu mới</label><input id="ev_pw2" type="text" placeholder="Nhập lại để xác nhận" style="font-family:'JetBrains Mono',monospace" autocomplete="off"/></div>
-      </div>`
-    :`
-      <div style="font-size:12px;color:#aaa;margin-bottom:8px">Ai muốn xem/quản lý khách phải nhập đúng mật khẩu này.</div>
-      <div class="g2">
-        <div class="fg"><label>Mật khẩu sự kiện *</label><input id="ev_pw" type="text" placeholder="VD: OH_Elite_0626" style="font-family:'JetBrains Mono',monospace;letter-spacing:1px" autocomplete="off"/></div>
-        <div class="fg"><label>Nhập lại để xác nhận *</label><input id="ev_pw2" type="text" placeholder="Nhập lại mật khẩu" style="font-family:'JetBrains Mono',monospace;letter-spacing:1px" autocomplete="off"/></div>
-      </div>`}
-    <div id="ev_pw_err" style="color:#B91C1C;font-size:12px;margin-bottom:8px"></div>
-    <div class="sec">🔑 Danh sách BTC — Mã nhân viên có quyền check-in</div>
-    <div style="font-size:12px;color:#aaa;margin-bottom:8px">Thêm, sửa hoặc xoá thành viên BTC. Cùng mã có thể dùng ở nhiều sự kiện.</div>
+    <div class="sec">🔑 Phân công nhân viên / BTC</div>
+    <div style="font-size:14px;color:#aaa;margin-bottom:8px">Chọn tài khoản nhân viên cần phân công. Tài khoản được chọn sẽ chỉ nhìn thấy sự kiện này.</div>
     <div id="btc_w">
-      ${btcList.map((m,i)=>`<div class="btc-r" id="br_${i}">
-        <input placeholder="Mã NV" id="bc_${i}" value="${m.code||''}" style="max-width:110px;font-family:'JetBrains Mono',monospace;text-transform:uppercase"/>
-        <input placeholder="Họ tên BTC" id="bn_${i}" value="${m.name||''}"/>
-        ${i>0?`<button class="btn xs red" onclick="rmBR(${i})">✕</button>`:`<span style="width:22px"></span>`}
-      </div>`).join('')}
+      ${btcList.map((m,i)=>btcRowHTML(m,i)).join('')}
     </div>
-    <button class="btn sm" onclick="addBR()" style="margin-bottom:4px">+ Thêm BTC</button>
+    <button class="btn sm" onclick="addBR()" style="margin-bottom:4px">+ Thêm nhân viên</button>
     <div class="mf">
       <button class="btn" onclick="closeM()">Huỷ</button>
       <button class="btn ${isEdit?'green':'blue'}" onclick="saveEv()">✅ ${isEdit?'Lưu thay đổi':'Tạo sự kiện'}</button>
@@ -997,9 +1917,10 @@ function rAddEvM(){
 function rAddGM(){
   const g=S.modal==='edit_g'&&S.editGid?db.guests.find(x=>x.id===S.editGid):{};
   const comps=g?.companions?.length?g.companions:[{name:'',phone:''}];
+  const events=visibleEvents();
   return`<div class="mh">${S.modal==='edit_g'?'✏️ Chỉnh sửa khách mời':'👤 Thêm khách mời mới'}</div>
-    <div class="fg"><label>Sự kiện *</label><select id="g_ev">${db.events.map(e=>`<option value="${e.id}" ${(S.selEv===e.id||g?.eventId===e.id)?'selected':''}>${e.name}</option>`).join('')}</select></div>
-    ${S.modal==='edit_g'?`<div style="margin-bottom:10px"><span style="font-size:12px;color:#aaa">Mã KH:</span> <span class="mono">${g?.guestCode||''}</span> <span style="font-size:11px;color:#ccc">(cố định, không thay đổi)</span></div>`:''}
+    <div class="fg"><label>Sự kiện *</label><select id="g_ev">${events.map(e=>`<option value="${e.id}" ${(S.selEv===e.id||g?.eventId===e.id)?'selected':''}>${e.name}</option>`).join('')}</select></div>
+    ${S.modal==='edit_g'?`<div style="margin-bottom:10px"><span style="font-size:14px;color:#aaa">Mã KH:</span> <span class="mono">${g?.guestCode||''}</span> <span style="font-size:14px;color:#ccc">(cố định, không thay đổi)</span></div>`:''}
     <div class="sec">Thông tin khách hàng chính</div>
     <div class="g3">
       <div class="fg"><label>Họ và tên KH *</label><input id="g_n" placeholder="Nguyễn Văn A" value="${g?.name||''}"/></div>
@@ -1027,8 +1948,8 @@ function rAddGM(){
         <input type="checkbox" id="g_walkin" ${g?.walkin?'checked':''} style="width:16px;height:16px;accent-color:#7C3AED;cursor:pointer"
           onchange="document.getElementById('g_walkin_lbl').style.background=this.checked?'#EDE9FE':'#f8fafc';document.getElementById('g_walkin_lbl').style.borderColor=this.checked?'#7C3AED':'#e0e4ef'"/>
         <div>
-          <span style="font-size:13px;font-weight:600;color:#5B21B6">🚶 Khách Walk-in</span>
-          <div style="font-size:11px;color:#aaa;margin-top:2px">Tích nếu KH đến trực tiếp tại sự kiện, không đăng ký trước</div>
+          <span style="font-size:15px;font-weight:600;color:#5B21B6">🚶 Khách Walk-in</span>
+          <div style="font-size:14px;color:#aaa;margin-top:2px">Tích nếu KH đến trực tiếp tại sự kiện, không đăng ký trước</div>
         </div>
       </label>
     </div>`:''}
@@ -1046,7 +1967,7 @@ function cpRowHTML(c,i,existingCode){
       <div class="fg" style="margin-bottom:0"><label>Số điện thoại</label>
         <input placeholder="09xxxxxxxx" type="tel" id="cp_${i}" value="${c.phone||''}"/></div>
     </div>
-    ${existingCode?`<div style="margin-top:6px;font-size:11px;color:#aaa">Mã: <span class="mono">${existingCode}</span> (cố định)</div>`:''}
+    ${existingCode?`<div style="margin-top:6px;font-size:14px;color:#aaa">Mã: <span class="mono">${existingCode}</span> (cố định)</div>`:''}
     ${i>0?`<button class="btn xs red" onclick="rmCR(${i})" style="margin-top:6px">Xoá đi kèm này</button>`:''}
   </div>`;
 }
@@ -1058,14 +1979,14 @@ function rTicketsM(){
   const all=[{type:'main',name:g.name,code:g.guestCode,phone:g.phone},
     ...(g.companions||[]).map(c=>({type:'comp',name:c.name,code:c.code,phone:c.phone,parentName:g.name}))];
   return`<div class="mh">🎫 Vé tham dự sự kiện</div>
-    <div style="font-size:13px;color:#aaa;margin-bottom:4px">${ev?.name||''} · ${fmtD(ev?.date)}</div>
-    <div style="font-size:12px;color:#bbb;margin-bottom:16px">${all.length} vé · 1 KH chính${g.companions?.length?' + '+g.companions.length+' đi kèm':''}</div>
+    <div style="font-size:15px;color:#aaa;margin-bottom:4px">${ev?.name||''} · ${fmtD(ev?.date)}</div>
+    <div style="font-size:14px;color:#bbb;margin-bottom:16px">${all.length} vé · 1 KH chính${g.companions?.length?' + '+g.companions.length+' đi kèm':''}</div>
     <div class="tgrid">
       ${all.map((tk,idx)=>`
         <div class="ticket">
           <div class="tk-header">VÉ THAM DỰ SỰ KIỆN</div>
-          <div style="font-size:11px;color:#bbb;margin-bottom:6px">${ev?.name||''}</div>
-          <div style="font-size:11px;color:#bbb;margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+          <div style="font-size:14px;color:#bbb;margin-bottom:6px">${ev?.name||''}</div>
+          <div style="font-size:14px;color:#bbb;margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
           <div class="tk-name">${tk.name}</div>
           <span class="tk-role ${tk.type==='main'?'b-blue':'b-purple'}">${tk.type==='main'?'Khách mời chính':'Đi kèm: '+tk.parentName}</span>
           <div class="tk-qr" id="tqr_${idx}"></div>
@@ -1074,7 +1995,7 @@ function rTicketsM(){
             Vui lòng xuất trình vé tại cổng check-in<br>
             Vé chỉ có giá trị cho 01 người
           </div>
-          <button class="btn sm" onclick="dlTicket(${idx},'${tk.name.replace(/'/g,"\\'")}','${tk.code}','${tk.type==='main'?'Khách mời chính':'Đi kèm: '+(tk.parentName||'').replace(/'/g,"\\'")}')" style="margin-top:10px;font-size:12px">⬇️ Tải vé này</button>
+          <button class="btn sm" onclick="dlTicket(${idx},'${tk.name.replace(/'/g,"\\'")}','${tk.code}','${tk.type==='main'?'Khách mời chính':'Đi kèm: '+(tk.parentName||'').replace(/'/g,"\\'")}')" style="margin-top:10px">⬇️ Tải vé này</button>
         </div>
       `).join('')}
     </div>
@@ -1084,9 +2005,131 @@ function rTicketsM(){
     </div>`;
 }
 
+function detailField(label,value,extraClass=''){
+  const v=value==null||value===''?'—':value;
+  return`<div class="fg ${extraClass}"><label>${label}</label><input disabled value="${esc(v)}"/></div>`;
+}
+function detailArea(label,value){
+  const v=value==null||value===''?'—':value;
+  return`<div class="fg sp"><label>${label}</label><textarea disabled rows="3">${esc(v)}</textarea></div>`;
+}
+function detailStatus(person){
+  if(person?.cancelled)return{label:'Cancel',badge:'b-amber'};
+  if(person?.checkedIn)return{label:'Đã vào',badge:'b-green'};
+  return{label:'Chưa check-in',badge:'b-gray'};
+}
+function rGuestDetailM(){
+  const g=db.guests.find(x=>x.id===S.detailGid);
+  if(!g)return'';
+  const ev=db.events.find(e=>e.id===g.eventId);
+  const status=detailStatus(g);
+  const comps=g.companions||[];
+  return`<div class="detail-modal">
+    <div class="mh">👤 Chi tiết khách mời</div>
+    <div class="detail-summary">
+      <span class="mono">${esc(g.guestCode)}</span>
+      <span class="badge ${status.badge}">${status.label}</span>
+      ${g.walkin?`<span class="badge b-purple">Walk-in</span>`:''}
+      ${g.cancelled&&g.cancelNote?`<span class="badge b-amber">${esc(g.cancelNote)}</span>`:''}
+    </div>
+    <div class="sec">Sự kiện</div>
+    <div class="g3">
+      ${detailField('Tên sự kiện',ev?.name)}
+      ${detailField('Ngày tổ chức',fmtD(ev?.date))}
+      ${detailField('Địa điểm',ev?.venue)}
+    </div>
+    <div class="sec">Thông tin khách hàng chính</div>
+    <div class="g3">
+      ${detailField('Họ và tên KH',g.name)}
+      ${detailField('Số điện thoại',g.phone)}
+      ${detailField('Mã hệ thống',g.systemCode)}
+    </div>
+    <div class="sec">Thông tin chăm sóc</div>
+    <div class="g3">
+      ${detailField('PRM',g.prmName)}
+      ${detailField('Vùng TCB',g.tcbRegion)}
+      ${detailField('Đơn vị',g.unit)}
+    </div>
+    <div class="g2">
+      ${detailField('SIH',g.sihName)}
+      ${detailField('Loại khách',g.walkin?'Walk-in':'Đăng ký')}
+    </div>
+    ${detailArea('Note',g.note)}
+    <div class="sec">Người đi kèm</div>
+    <div id="detail_cp_w">
+      ${comps.length?comps.map((c,i)=>{
+        const cpStatus=detailStatus(c);
+        return`<div class="cp-r detail-cp-r">
+          <div class="g3" style="margin-bottom:0">
+            ${detailField(`Tên đi kèm ${i+1}`,companionNameLabel(c.name))}
+            ${detailField('SĐT',c.phone)}
+            ${detailField('Mã vé',c.code)}
+          </div>
+          <div class="detail-inline-meta">
+            <span class="badge ${cpStatus.badge}">${cpStatus.label}</span>
+            ${c.checkedIn?`<span>Check-in: ${fmtDT(c.checkinTime)}</span>`:''}
+            ${c.cancelled&&c.cancelNote?`<span>Cancel: ${esc(c.cancelNote)}</span>`:''}
+          </div>
+        </div>`;
+      }).join(''):`<div class="empty detail-empty">Không có người đi kèm</div>`}
+    </div>
+    <div class="sec">Trạng thái</div>
+    <div class="g3">
+      ${detailField('Check-in lúc',g.checkedIn?fmtDT(g.checkinTime):'—')}
+      ${detailField('Check-in bởi',g.checkinBy)}
+      ${detailField('Ngày tạo',fmtDT(g.createdAt))}
+    </div>
+    ${g.cancelled?detailArea('Lý do cancel',g.cancelNote):''}
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Đóng</button>
+    </div>
+  </div>`;
+}
+
+function rCpDetailM(){
+  const {gid,cpId}=S.cpDetail||{};
+  const g=db.guests.find(x=>x.id===gid);
+  const cp=(g?.companions||[]).find(x=>x.id===cpId);
+  if(!g||!cp)return'';
+  const ev=db.events.find(e=>e.id===g.eventId);
+  const status=detailStatus(cp);
+  return`<div class="detail-modal">
+    <div class="mh">👤 Chi tiết người đi kèm</div>
+    <div class="detail-summary">
+      <span class="mono">${esc(cp.code)}</span>
+      <span class="badge ${status.badge}">${status.label}</span>
+      ${cp.cancelled&&cp.cancelNote?`<span class="badge b-amber">${esc(cp.cancelNote)}</span>`:''}
+    </div>
+    <div class="sec">Thông tin người đi kèm</div>
+    <div class="g2">
+      ${detailField('Họ và tên',companionNameLabel(cp.name))}
+      ${detailField('Số điện thoại',cp.phone)}
+    </div>
+    <div class="g2">
+      ${detailField('Mã vé',cp.code)}
+      ${detailField('Đi kèm khách chính',g.name)}
+    </div>
+    <div class="sec">Sự kiện</div>
+    <div class="g2">
+      ${detailField('Tên sự kiện',ev?.name)}
+      ${detailField('Ngày tổ chức',fmtD(ev?.date))}
+    </div>
+    ${detailField('Địa điểm',ev?.venue,'sp')}
+    <div class="sec">Trạng thái</div>
+    <div class="g2">
+      ${detailField('Check-in lúc',cp.checkedIn?fmtDT(cp.checkinTime):'—')}
+      ${detailField('Check-in bởi',cp.checkinBy)}
+    </div>
+    ${cp.cancelled?detailArea('Lý do cancel',cp.cancelNote):''}
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Đóng</button>
+    </div>
+  </div>`;
+}
+
 function rEditPwM(){
   return`<div class="mh">✏️ Xác nhận chỉnh sửa</div>
-    <div style="font-size:13px;color:#888;margin-bottom:12px">Nhập mật khẩu Admin để chỉnh sửa thông tin khách.</div>
+    <div style="font-size:15px;color:#888;margin-bottom:12px">Nhập mật khẩu Admin để chỉnh sửa thông tin khách.</div>
     <div class="fg"><label>Mật khẩu Admin</label>
       <input type="password" id="epw" placeholder="Nhập mật khẩu..." autofocus onkeydown="if(event.key==='Enter')chkEditPw()"/></div>
     <div id="epw_err" class="err"></div>
@@ -1101,7 +2144,7 @@ function rEditFormM(){
   if(!g)return'';
   const comps=g.companions?.length?g.companions:[{name:'',phone:'',code:''}];
   return`<div class="mh">✏️ Chỉnh sửa — ${g.name}</div>
-    <div style="margin-bottom:12px"><span class="mono">${g.guestCode}</span> <span style="font-size:11px;color:#ccc">(mã cố định)</span></div>
+    <div style="margin-bottom:12px"><span class="mono">${g.guestCode}</span> <span style="font-size:14px;color:#ccc">(mã cố định)</span></div>
     <div class="sec">Thông tin khách hàng chính</div>
     <div class="g3">
       <div class="fg"><label>Họ và tên KH</label><input id="eg_n" value="${g.name||''}"/></div>
@@ -1115,7 +2158,7 @@ function rEditFormM(){
           <div class="fg" style="margin-bottom:0"><label>Tên đi kèm ${i+1}</label><input id="ecn_${i}" value="${c.name||''}"/></div>
           <div class="fg" style="margin-bottom:0"><label>SĐT</label><input id="ecp_${i}" type="tel" value="${c.phone||''}"/></div>
         </div>
-        <div style="margin-top:5px;font-size:11px;color:#aaa">Mã: <span class="mono">${c.code||'—'}</span> (cố định)</div>
+        <div style="margin-top:5px;font-size:14px;color:#aaa">Mã: <span class="mono">${c.code||'—'}</span> (cố định)</div>
       </div>`).join('')}
     </div>
     <div class="sec">Thông tin chăm sóc</div>
@@ -1133,8 +2176,8 @@ function rEditFormM(){
         <input type="checkbox" id="eg_walkin" ${g.walkin?'checked':''} style="width:16px;height:16px;accent-color:#7C3AED;cursor:pointer"
           onchange="document.getElementById('eg_walkin_lbl').style.background=this.checked?'#EDE9FE':'#f8fafc';document.getElementById('eg_walkin_lbl').style.borderColor=this.checked?'#7C3AED':'#e0e4ef'"/>
         <div>
-          <span style="font-size:13px;font-weight:600;color:#5B21B6">🚶 Khách Walk-in</span>
-          <div style="font-size:11px;color:#aaa;margin-top:2px">Tích nếu KH đến trực tiếp tại sự kiện, không đăng ký trước</div>
+          <span style="font-size:15px;font-weight:600;color:#5B21B6">🚶 Khách Walk-in</span>
+          <div style="font-size:14px;color:#aaa;margin-top:2px">Tích nếu KH đến trực tiếp tại sự kiện, không đăng ký trước</div>
         </div>
       </label>
     </div>
@@ -1148,8 +2191,8 @@ function rDelM(){
   const g=db.guests.find(x=>x.id===S.delGid);
   return`<div class="mh">🗑️ Xoá khách hàng</div>
     <div style="text-align:center;padding:8px 0">
-      <div style="font-size:13px;color:#555;margin-bottom:4px">Xoá <b>${g?.name||''}</b> — <span class="mono">${g?.guestCode||''}</span></div>
-      <div style="font-size:12px;color:#bbb;margin-bottom:16px">Hành động này không thể hoàn tác. Người đi kèm cũng bị xoá.</div>
+      <div style="font-size:15px;color:#555;margin-bottom:4px">Xoá <b>${g?.name||''}</b> — <span class="mono">${g?.guestCode||''}</span></div>
+      <div style="font-size:14px;color:#bbb;margin-bottom:16px">Hành động này không thể hoàn tác. Người đi kèm cũng bị xoá.</div>
     </div>
     <div class="fg"><label>Mật khẩu Admin để xác nhận</label>
       <input type="password" id="dpw" placeholder="Nhập mật khẩu..." autofocus onkeydown="if(event.key==='Enter')doDel()"/></div>
@@ -1169,8 +2212,8 @@ function rCpTicketM(){
   return`<div class="mh">🎫 Vé người đi kèm</div>
     <div class="ticket" style="margin:8px 0">
       <div class="tk-header">VÉ THAM DỰ SỰ KIỆN</div>
-      <div style="font-size:11px;color:#bbb;margin-bottom:6px">${ev?.name||''}</div>
-      <div style="font-size:11px;color:#bbb;margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+      <div style="font-size:14px;color:#bbb;margin-bottom:6px">${ev?.name||''}</div>
+      <div style="font-size:14px;color:#bbb;margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
       <div class="tk-name">${cp.name}</div>
       <span class="tk-role b-purple">Đi kèm: ${g.name}</span>
       <div class="tk-qr" id="cp_tqr"></div>
@@ -1189,7 +2232,7 @@ function rCpEditM(){
   const cp=(g?.companions||[]).find(x=>x.id===cpId);
   if(!g||!cp)return'';
   return`<div class="mh">✏️ Sửa người đi kèm</div>
-    <div style="font-size:12px;color:#aaa;margin-bottom:12px">Mã: <span class="mono">${cp.code}</span> (cố định)</div>
+    <div style="font-size:14px;color:#aaa;margin-bottom:12px">Mã: <span class="mono">${cp.code}</span> (cố định)</div>
     <div class="fg"><label>Họ và tên</label>
       <input id="cpe_n" value="${cp.name}" autofocus/></div>
     <div class="fg"><label>Số điện thoại</label>
@@ -1207,9 +2250,9 @@ function rCpDelM(){
   if(!g||!cp)return'';
   return`<div class="mh">🗑️ Xoá người đi kèm</div>
     <div style="text-align:center;padding:8px 0">
-      <div style="font-size:13px;color:#555;margin-bottom:4px">Xoá <b>${cp.name}</b> <span class="mono">${cp.code}</span></div>
-      <div style="font-size:12px;color:#aaa;margin-bottom:4px">Đi kèm: ${g.name}</div>
-      <div style="font-size:12px;color:#bbb;margin-bottom:14px">Hành động này không thể hoàn tác.</div>
+      <div style="font-size:15px;color:#555;margin-bottom:4px">Xoá <b>${cp.name}</b> <span class="mono">${cp.code}</span></div>
+      <div style="font-size:14px;color:#aaa;margin-bottom:4px">Đi kèm: ${g.name}</div>
+      <div style="font-size:14px;color:#bbb;margin-bottom:14px">Hành động này không thể hoàn tác.</div>
     </div>
     <div class="fg"><label>Mật khẩu Admin để xác nhận</label>
       <input type="password" id="cpdpw" placeholder="Nhập mật khẩu..." autofocus onkeydown="if(event.key==='Enter')doCpDel()"/></div>
@@ -1224,7 +2267,7 @@ function rCpAddM(){
   const g=db.guests.find(x=>x.id===S.cpAdd);
   if(!g)return'';
   return`<div class="mh">👤 Thêm người đi kèm</div>
-    <div style="font-size:13px;color:#888;margin-bottom:14px">Thêm cho: <b>${g.name}</b> <span class="mono">${g.guestCode}</span></div>
+    <div style="font-size:15px;color:#888;margin-bottom:14px">Thêm cho: <b>${g.name}</b> <span class="mono">${g.guestCode}</span></div>
     <div class="fg"><label>Họ và tên *</label>
       <input id="cpa_n" placeholder="Họ và tên người đi kèm" autofocus/></div>
     <div class="fg"><label>Số điện thoại</label>
@@ -1244,23 +2287,23 @@ function rAdminCIM(){
   const hasPhone=!!(person.phone);
   return`<div class="mh">✅ Xác nhận Check-in</div>
     <div style="background:#f4f7fb;border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#aaa;margin-bottom:6px">THÔNG TIN KHÁCH</div>
+      <div style="font-size:14px;font-weight:700;letter-spacing:1px;color:#aaa;margin-bottom:6px">THÔNG TIN KHÁCH</div>
       <div style="font-size:18px;font-weight:800;margin-bottom:4px">${person.name}</div>
-      <div style="font-size:13px;color:#185FA5;margin-bottom:4px">Mã: <span style="font-family:'JetBrains Mono',monospace">${type==='c'?(g.companions||[]).find(x=>x.id===cpId)?.code||'—':g.guestCode}</span></div>
+      <div style="font-size:15px;color:#185FA5;margin-bottom:4px">Mã: <span style="font-family:'Be Vietnam Pro',sans-serif">${type==='c'?(g.companions||[]).find(x=>x.id===cpId)?.code||'—':g.guestCode}</span></div>
       ${type==='c'?`<div style="margin-top:4px"><span class="badge b-purple">Đi kèm: ${g.name}</span></div>`:''}
       ${g.note&&type==='g'?`<div style="margin-top:6px"><span class="badge b-amber">${g.note}</span></div>`:''}
     </div>
     ${hasPhone?`
-      <div style="font-size:13px;color:#555;text-align:center;margin-bottom:12px">🔢 Nhập 4 số cuối số điện thoại để xác nhận</div>
+      <div style="font-size:15px;color:#555;text-align:center;margin-bottom:12px">🔢 Nhập 4 số cuối số điện thoại để xác nhận</div>
       <input id="aci_ph" type="tel" maxlength="4" placeholder="— — — —"
-        style="width:100%;padding:14px;text-align:center;letter-spacing:10px;font-size:26px;font-family:'JetBrains Mono',monospace;border:2px solid #dde4f0;border-radius:12px"
+        style="width:100%;padding:14px;text-align:center;letter-spacing:10px;font-size:26px;font-family:'Be Vietnam Pro',sans-serif;border:2px solid #dde4f0;border-radius:12px"
         onkeydown="if(event.key==='Enter')doAdminCI()"/>
       <div id="aci_err" class="err" style="text-align:center;margin-top:8px"></div>
       <div class="mf">
         <button class="btn" onclick="closeM()">Huỷ</button>
         <button class="btn green" onclick="doAdminCI()" style="padding:10px 28px">✅ Xác nhận Check-in</button>
       </div>`
-    :`<div style="font-size:13px;color:#888;text-align:center;margin-bottom:16px">Khách không có SĐT — check-in trực tiếp không cần xác minh.</div>
+    :`<div style="font-size:15px;color:#888;text-align:center;margin-bottom:16px">Khách không có SĐT — check-in trực tiếp không cần xác minh.</div>
       <div class="mf" style="justify-content:center">
         <button class="btn" onclick="closeM()">Huỷ</button>
         <button class="btn green" onclick="doAdminCI()" style="padding:10px 28px">✅ Check-in</button>
@@ -1274,52 +2317,18 @@ function rCancelM(){
   if(!person)return'';
   return`<div class="mh">🚫 Đánh dấu Cancel</div>
     <div style="background:#FFF8F8;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #FECACA">
-      <div style="font-size:15px;font-weight:700">${person.name}</div>
-      <div style="font-size:12px;color:#aaa;margin-top:3px">Mã: <span class="mono">${type==='c'?person.code:g.guestCode}</span>${type==='c'?` · Đi kèm: ${g.name}`:''}</div>
+      <div style="font-size:16px;font-weight:700">${person.name}</div>
+      <div style="font-size:14px;color:#aaa;margin-top:3px">Mã: <span class="mono">${type==='c'?person.code:g.guestCode}</span>${type==='c'?` · Đi kèm: ${g.name}`:''}</div>
     </div>
     <div class="fg">
       <label>Lý do cancel / Ghi chú (tuỳ chọn)</label>
-      <textarea id="cancel_note" placeholder="VD: KH có việc đột xuất, chưa xác nhận lại..." style="resize:vertical;min-height:70px;padding:9px 12px;border:1.5px solid #dde4f0;border-radius:8px;font-size:13px;width:100%"></textarea>
+      <textarea id="cancel_note" placeholder="VD: KH có việc đột xuất, chưa xác nhận lại..." style="resize:vertical;min-height:70px;padding:9px 12px;border:1.5px solid #dde4f0;border-radius:8px;font-size:15px;width:100%"></textarea>
     </div>
-    <div style="font-size:12px;color:#aaa;margin-bottom:12px">Khách sẽ được giữ trong hệ thống và hiện trong báo cáo với trạng thái Cancel. Có thể khôi phục bất kỳ lúc nào.</div>
+    <div style="font-size:14px;color:#aaa;margin-bottom:12px">Khách sẽ được giữ trong hệ thống và hiện trong báo cáo với trạng thái Cancel. Có thể khôi phục bất kỳ lúc nào.</div>
     <div class="mf">
       <button class="btn" onclick="closeM()">Huỷ</button>
       <button class="btn red" onclick="doCancel()">🚫 Xác nhận Cancel</button>
     </div>`;
-}
-
-function rEvUnlockM(){
-  const ev=db.events.find(e=>e.id===S.evUnlockTarget);if(!ev)return'';
-  return`<div class="mh">🔒 Nhập mật khẩu sự kiện</div>
-    <div style="background:#f4f7fb;border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-size:15px;font-weight:700">${ev.name}</div>
-      <div style="font-size:12px;color:#aaa;margin-top:3px">${fmtD(ev.date)}${ev.team?' · '+ev.team:''}</div>
-    </div>
-    <div style="font-size:13px;color:#666;margin-bottom:12px">Danh sách khách của sự kiện này được bảo vệ. Nhập mật khẩu để tiếp tục.</div>
-    <div class="fg"><label>Mật khẩu sự kiện</label>
-      <input type="password" id="ev_unlock_pw" placeholder="Nhập mật khẩu..."
-        style="font-size:15px;padding:11px 14px;text-align:center;letter-spacing:2px"
-        autofocus onkeydown="if(event.key==='Enter')doEvUnlock()"/></div>
-    <div id="ev_unlock_err" style="color:#B91C1C;font-size:12px;margin-bottom:8px"></div>
-    <div class="mf">
-      <button class="btn" onclick="closeM()">Huỷ</button>
-      <button class="btn blue" onclick="doEvUnlock()">Mở khoá →</button>
-    </div>`;
-}
-function doEvUnlock(){
-  const ev=db.events.find(e=>e.id===S.evUnlockTarget);if(!ev)return;
-  const pw=document.getElementById('ev_unlock_pw')?.value||'';
-  if(pw!==ev.eventPw){
-    const el=document.getElementById('ev_unlock_err');
-    if(el)el.textContent='⚠️ Mật khẩu không đúng.';
-    const inp=document.getElementById('ev_unlock_pw');if(inp){inp.value='';inp.focus();}
-    return;
-  }
-  S.unlockedEvs[S.evUnlockTarget]=true;
-  const eid=S.evUnlockTarget;
-  S.evUnlockTarget=null;S.modal=null;
-  if(S.rptEv===eid){R();return} 
-  S.selEv=eid;S.tab='guests';S.search='';S.filter='all';R();
 }
 
 /* Modal xem trước dữ liệu khi Import Excel */
@@ -1327,7 +2336,7 @@ function rImportPreviewM(){
   const data = S.importData || [];
   return `
     <div class="mh">📊 Xác nhận Import danh sách từ Excel</div>
-    <div style="font-size:12px;color:#aaa;margin-bottom:12px">Hệ thống tìm thấy <b>${data.length} dòng dữ liệu</b>. Vui lòng kiểm tra kỹ trước khi lưu.</div>
+    <div style="font-size:14px;color:#aaa;margin-bottom:12px">Hệ thống tìm thấy <b>${data.length} dòng dữ liệu</b>. Vui lòng kiểm tra kỹ trước khi lưu.</div>
     <div style="max-height:300px;overflow-y:auto;border:1.5px solid #dde4f0;border-radius:10px;margin-bottom:12px">
       <table class="tbl">
         <thead>
@@ -1346,7 +2355,7 @@ function rImportPreviewM(){
               <td>${r.unit||'—'}</td>
               <td>${r.sihName||'—'}</td>
               <td style="color:#aaa;font-style:italic">${r.note||'—'}</td>
-              <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.type==='Main'?(r.systemCode||'—'):'—'}</td>
+              <td style="font-family:'Be Vietnam Pro',sans-serif;font-size:14px">${r.type==='Main'?(r.systemCode||'—'):'—'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -1364,14 +2373,14 @@ function rCIUnlockM(){
   const ev=db.events.find(e=>e.id===S.ciUnlockTarget);if(!ev)return'';
   return`<div class="mh">🔓 Mở check-in bù</div>
     <div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:4px">⚠️ Mở check-in sau sự kiện</div>
-      <div style="font-size:12px;color:#B45309">Sự kiện <b>${ev.name}</b> đã kết thúc (${fmtD(ev.date)}). Chức năng này chỉ dùng để check-in bù cho KH đã tới nhưng chưa được ghi nhận. Nhập mật khẩu Admin để xác nhận.</div>
+      <div style="font-size:15px;font-weight:700;color:#92400E;margin-bottom:4px">⚠️ Mở check-in sau sự kiện</div>
+      <div style="font-size:14px;color:#B45309">Sự kiện <b>${ev.name}</b> đã kết thúc (${fmtD(ev.date)}). Chức năng này chỉ dùng để check-in bù cho KH đã tới nhưng chưa được ghi nhận. Nhập mật khẩu Admin để xác nhận.</div>
     </div>
     <div class="fg"><label>Mật khẩu Admin</label>
       <input type="password" id="ci_unlock_pw" placeholder="Nhập mật khẩu Admin..."
-        style="font-size:15px;padding:11px 14px"
+        style="font-size:16px;padding:11px 14px"
         autofocus onkeydown="if(event.key==='Enter')doCIUnlock()"/></div>
-    <div id="ci_unlock_err" style="color:#B91C1C;font-size:12px;margin-bottom:8px"></div>
+    <div id="ci_unlock_err" style="color:#B91C1C;font-size:14px;margin-bottom:8px"></div>
     <div class="mf">
       <button class="btn" onclick="closeM()">Huỷ</button>
       <button class="btn" style="background:#D97706;color:#fff;border-color:#D97706" onclick="doCIUnlock()">🔓 Xác nhận mở</button>
@@ -1380,7 +2389,7 @@ function rCIUnlockM(){
 
 function doCIUnlock(){
   const pw=document.getElementById('ci_unlock_pw')?.value||'';
-  if(pw!==ADMIN_PW){
+  if(pw!==getAdminPw()){
     const el=document.getElementById('ci_unlock_err');
     if(el)el.textContent='⚠️ Mật khẩu Admin không đúng.';
     const inp=document.getElementById('ci_unlock_pw');if(inp){inp.value='';inp.focus();}
@@ -1394,22 +2403,15 @@ function doCIUnlock(){
    URL CHECK-IN VIEW (Scan QR)
    ============================================================ */
 function rUrlCI(){
-  const code=S.urlCode;
-  let found=null;
-  for(const g of db.guests){
-    if(g.guestCode===code){found={type:'guest',guest:g,person:g};break}
-    for(const c of(g.companions||[])){
-      if(c.code===code){found={type:'comp',guest:g,person:c};break}
-    }
-    if(found)break;
-  }
+  const code=canonicalTicketCode(S.urlCode);
+  const found=findAnyCode(code);
   const ev=found?db.events.find(e=>e.id===found?.guest?.eventId):null;
 
   if(!found){
     return`<div style="max-width:400px;margin:60px auto;padding:24px;text-align:center;font-family:'Be Vietnam Pro',sans-serif">
       <div style="font-size:52px;margin-bottom:12px">❌</div>
       <div style="font-size:18px;font-weight:700;color:#a32d2d;margin-bottom:8px">Không tìm thấy vé</div>
-      <div style="font-size:13px;color:#aaa;margin-bottom:20px">Mã <b>${code}</b> không tồn tại trong hệ thống.</div>
+      <div style="font-size:15px;color:#aaa;margin-bottom:20px">Mã <b>${code}</b> không tồn tại trong hệ thống.</div>
     </div>`;
   }
 
@@ -1420,15 +2422,15 @@ function rUrlCI(){
       <div style="font-size:64px;margin-bottom:12px">🎉</div>
       <div style="font-size:22px;font-weight:800;color:#0C447C;margin-bottom:10px">Check-in thành công!</div>
       <div style="font-size:17px;font-weight:600;color:#185FA5;margin-bottom:4px">${p.name}</div>
-      ${found.type==='comp'?`<div style="font-size:13px;color:#6D28D9;margin-bottom:4px">Đi kèm: ${g.name}</div>`:''}
-      <div style="font-size:13px;color:#aaa">${ev?.name||''}</div>
-      ${g.note?`<div style="display:inline-block;margin-top:8px;background:#FFFBEB;color:#92400E;font-size:12px;padding:4px 12px;border-radius:20px">${g.note}</div>`:''}
-      <div style="font-size:12px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)}</div>
-      ${S.urlCISyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:12px;padding:10px 14px;border-radius:10px;text-align:left">
+      ${found.type==='comp'?`<div style="font-size:15px;color:#6D28D9;margin-bottom:4px">Đi kèm: ${g.name}</div>`:''}
+      <div style="font-size:15px;color:#aaa">${ev?.name||''}</div>
+      ${g.note?`<div style="display:inline-block;margin-top:8px;background:#FFFBEB;color:#92400E;font-size:14px;padding:4px 12px;border-radius:20px">${g.note}</div>`:''}
+      <div style="font-size:14px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)}</div>
+      ${S.urlCISyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:14px;padding:10px 14px;border-radius:10px;text-align:left">
         ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng).
         Vui lòng báo BTC kỹ thuật kiểm tra lại để đảm bảo dữ liệu được cập nhật đầy đủ.
       </div>`:''}
-      <div style="margin-top:24px"><button onclick="window.close()" style="padding:10px 24px;background:#185FA5;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif">Đóng</button></div>
+      <div style="margin-top:24px"><button onclick="window.close()" style="padding:10px 24px;background:#256fe6;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif">Đóng</button></div>
     </div>`;
   }
 
@@ -1436,9 +2438,9 @@ function rUrlCI(){
     return`<div style="max-width:400px;margin:60px auto;padding:24px;text-align:center;font-family:'Be Vietnam Pro',sans-serif">
       <div style="font-size:52px;margin-bottom:12px">⚠️</div>
       <div style="font-size:18px;font-weight:700;color:#BA7517;margin-bottom:8px">Vé đã được sử dụng</div>
-      <div style="font-size:15px;font-weight:600">${p.name}</div>
-      <div style="font-size:12px;color:#aaa;margin-top:6px">Check-in lúc: ${fmtDT(p.checkinTime)}</div>
-      <div style="font-size:12px;color:#aaa">Xác nhận bởi: ${p.checkinBy||'—'}</div>
+      <div style="font-size:16px;font-weight:600">${p.name}</div>
+      <div style="font-size:14px;color:#aaa;margin-top:6px">Check-in lúc: ${fmtDT(p.checkinTime)}</div>
+      <div style="font-size:14px;color:#aaa">Xác nhận bởi: ${p.checkinBy||'—'}</div>
     </div>`;
   }
 
@@ -1446,38 +2448,45 @@ function rUrlCI(){
     return`<div style="max-width:400px;margin:60px auto;padding:24px;text-align:center;font-family:'Be Vietnam Pro',sans-serif">
       <div style="font-size:52px;margin-bottom:12px">🚫</div>
       <div style="font-size:18px;font-weight:700;color:#B91C1C;margin-bottom:8px">Vé đã bị huỷ</div>
-      <div style="font-size:15px;font-weight:600">${p.name}</div>
-      <div style="font-size:12px;color:#aaa;margin-top:6px">${p.cancelNote||''}</div>
+      <div style="font-size:16px;font-weight:600">${p.name}</div>
+      <div style="font-size:14px;color:#aaa;margin-top:6px">${p.cancelNote||''}</div>
     </div>`;
   }
 
   const hasPhone=!!p.phone;
+  const useSessionCheckin=!!(S.adminOk&&canAccessEvent(g.eventId));
+  const op=currentCheckinOperator();
   return`<div style="max-width:420px;margin:0 auto;padding:20px 16px;font-family:'Be Vietnam Pro',sans-serif">
     <div style="text-align:center;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #eaecf0">
-      <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:8px">VÉ THAM DỰ SỰ KIỆN</div>
-      <div style="font-size:13px;color:#aaa;margin-bottom:4px">${ev?.name||'—'}</div>
-      <div style="font-size:13px;color:#aaa">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+      <div style="font-size:14px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:8px">VÉ THAM DỰ SỰ KIỆN</div>
+      <div style="font-size:15px;color:#aaa;margin-bottom:4px">${ev?.name||'—'}</div>
+      <div style="font-size:15px;color:#aaa">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
     </div>
     <div style="background:#f4f7fb;border-radius:12px;padding:16px;margin-bottom:20px;text-align:center">
       <div style="font-size:20px;font-weight:800;color:#1a1a2e">${p.name}</div>
-      ${found.type==='comp'?`<div style="font-size:12px;color:#6D28D9;margin-top:4px;font-weight:500">Đi kèm: ${g.name}</div>`:''}
-      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#aaa;margin-top:6px;letter-spacing:1px">${code}</div>
-      ${g.note?`<div style="margin-top:6px;display:inline-block;background:#FFFBEB;color:#92400E;font-size:11px;padding:2px 10px;border-radius:20px;font-weight:600">${g.note}</div>`:''}
+      ${found.type==='comp'?`<div style="font-size:14px;color:#6D28D9;margin-top:4px;font-weight:500">Đi kèm: ${g.name}</div>`:''}
+      <div style="font-family:'Be Vietnam Pro',sans-serif;font-size:14px;color:#aaa;margin-top:6px;letter-spacing:1px">${code}</div>
+      ${g.note?`<div style="margin-top:6px;display:inline-block;background:#FFFBEB;color:#92400E;font-size:14px;padding:2px 10px;border-radius:20px;font-weight:600">${g.note}</div>`:''}
     </div>
     ${hasPhone?`
     <div style="margin-bottom:16px">
-      <div style="font-size:13px;color:#555;text-align:center;margin-bottom:10px">🔢 Nhập 4 số cuối số điện thoại</div>
+      <div style="font-size:15px;color:#555;text-align:center;margin-bottom:10px">🔢 Nhập 4 số cuối số điện thoại</div>
       <input id="uci_phone" type="tel" maxlength="4" placeholder="— — — —"
-        style="width:100%;padding:14px;text-align:center;letter-spacing:10px;font-size:26px;font-family:'JetBrains Mono',monospace;border:2px solid #dde4f0;border-radius:12px;font-family:'JetBrains Mono',monospace"
+        style="width:100%;padding:14px;text-align:center;letter-spacing:10px;font-size:26px;font-family:'Be Vietnam Pro',sans-serif;border:2px solid #dde4f0;border-radius:12px;font-family:'Be Vietnam Pro',sans-serif"
         onkeydown="if(event.key==='Enter')doUrlCI()"/>
-    </div>`:'<div style="font-size:13px;color:#aaa;text-align:center;margin-bottom:16px">Khách không có SĐT — xác nhận trực tiếp.</div>'}
+    </div>`:'<div style="font-size:15px;color:#aaa;text-align:center;margin-bottom:16px">Khách không có SĐT — xác nhận trực tiếp.</div>'}
+    ${useSessionCheckin?`
+    <div style="margin-bottom:12px;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:14px;color:#64748b;margin-bottom:2px">Xác nhận bằng tài khoản đang đăng nhập</div>
+      <div style="font-size:15px;font-weight:700;color:#185FA5">${esc(op.name)}</div>
+    </div>`:`
     <div style="margin-bottom:12px">
-      <div style="font-size:13px;color:#555;text-align:center;margin-bottom:10px">🔑 Nhập mã nhân viên BTC để xác nhận</div>
+      <div style="font-size:15px;color:#555;text-align:center;margin-bottom:10px">🔑 Nhập mã nhân viên BTC để xác nhận</div>
       <input id="uci_btc" type="text" placeholder="Mã BTC (VD: NV001)"
-        style="width:100%;padding:11px 14px;text-align:center;font-family:'JetBrains Mono',monospace;letter-spacing:2px;font-size:16px;text-transform:uppercase;border:2px solid #dde4f0;border-radius:10px"
+        style="width:100%;padding:11px 14px;text-align:center;font-family:'Be Vietnam Pro',sans-serif;letter-spacing:2px;font-size:16px;text-transform:uppercase;border:2px solid #dde4f0;border-radius:10px"
         oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')doUrlCI()"/>
-    </div>
-    <div id="uci_err" style="color:#a32d2d;font-size:12px;text-align:center;margin-bottom:10px"></div>
+    </div>`}
+    <div id="uci_err" style="color:#a32d2d;font-size:14px;text-align:center;margin-bottom:10px"></div>
     <button onclick="doUrlCI()" ${S.urlCIBusy?'disabled':''} style="width:100%;padding:14px;background:${S.urlCIBusy?'#aaa':'#3B6D11'};color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:${S.urlCIBusy?'default':'pointer'};font-family:'Be Vietnam Pro',sans-serif">${S.urlCIBusy?'⏳ Đang xác nhận...':'✅ Xác nhận Check-in'}</button>
   </div>`;
 }
@@ -1490,13 +2499,8 @@ function postUrlCI(){
 }
 
 async function doUrlCI(){
-  const code=S.urlCode;
-  let found=null;
-  for(const g of db.guests){
-    if(g.guestCode===code){found={type:'guest',guest:g,person:g};break}
-    for(const c of(g.companions||[])){if(c.code===code){found={type:'comp',guest:g,person:c};break}}
-    if(found)break;
-  }
+  const code=canonicalTicketCode(S.urlCode);
+  const found=findAnyCode(code);
   if(!found){return}
   const p=found.person;const g=found.guest;
   const ev=db.events.find(e=>e.id===g.eventId);
@@ -1505,12 +2509,17 @@ async function doUrlCI(){
     if(el)el.textContent='⚠️ Sự kiện đã kết thúc. Không thể check-in.';return;
   }
 
-  const btcInput=(document.getElementById('uci_btc')?.value||'').toUpperCase().trim();
-  const btcOk=(ev?.btcMembers||[]).find(m=>m.code===btcInput);
-  if(!btcOk){
-    const el=document.getElementById('uci_err');
-    if(el)el.textContent='⚠️ Mã BTC không đúng hoặc không thuộc sự kiện này.';
-    return;
+  const useSessionCheckin=!!(S.adminOk&&canAccessEvent(g.eventId));
+  let checkinBy=currentCheckinOperator().name;
+  if(!useSessionCheckin){
+    const btcInput=(document.getElementById('uci_btc')?.value||'').toUpperCase().trim();
+    const btcOk=(ev?.btcMembers||[]).find(m=>m.code===btcInput);
+    if(!btcOk){
+      const el=document.getElementById('uci_err');
+      if(el)el.textContent='⚠️ Mã BTC không đúng hoặc không thuộc sự kiện này.';
+      return;
+    }
+    checkinBy=btcInput;
   }
 
   const last4=p.phone?p.phone.replace(/\D/g,'').slice(-4):'';
@@ -1528,13 +2537,13 @@ async function doUrlCI(){
   S.urlCIBusy=true;R();
 
   const now=new Date().toISOString();
-  if(found.type==='guest'){g.checkedIn=true;g.checkinTime=now;g.checkinBy=btcInput}
-  else{p.checkedIn=true;p.checkinTime=now;p.checkinBy=btcInput}
+  if(found.type==='guest'){g.checkedIn=true;g.checkinTime=now;g.checkinBy=checkinBy}
+  else{p.checkedIn=true;p.checkinTime=now;p.checkinBy=checkinBy}
   saveLocalOnly(); // ghi local ngay (localStorage) — không mất dữ liệu nếu mất mạng/đóng tab
 
   // Ghi atomic 1 record lên Supabase, có retry — đây là nguồn xác nhận "thật"
   const patchFields = found.type==='guest'
-    ? {checked_in:true,checkin_time:now,checkin_by:btcInput}
+    ? {checked_in:true,checkin_time:now,checkin_by:checkinBy}
     : {companions:(g.companions||[])}; // companion nằm trong cột JSON companions của Main guest
   const ok = await sbPatchGuest(g.id, patchFields);
 
@@ -1548,32 +2557,46 @@ async function doUrlCI(){
    ============================================================ */
 function rCIView(){
   if(!S.ciOk)return rLock();
-  if(!S.ciState)return rCIIdle();
+  if(!S.ciState)return rCIIdleDesktop();
   const st=S.ciState;
   if(st.step==='verify')return rCIVerify();
   if(st.step==='done')return rCIDone();
   if(st.step==='err')return rCIErr();
-  return rCIIdle();
+  return rCIIdleDesktop();
 }
-function postCI(){setTimeout(()=>{const el=document.getElementById('ci_in')||document.getElementById('ci_ph')||document.getElementById('lock_c');if(el)el.focus()},80)}
+function postCI(){setTimeout(()=>{
+  if(S.view==='checkin'&&S.ciOk&&!S.ciState){
+    if(shouldRunCheckinScanner())startQrScanner();
+    else stopQrScanner();
+    syncCheckinColumnHeight();
+  }
+  const el=firstVisibleElement(['ci_in','ci_ph','lock_ev']);
+  if(el)el.focus()
+},80)}
 
 function rLock(){
+  const events=visibleEvents();
+  const op=S.ciOp||currentCheckinOperator();
   return`<div class="lock">
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="font-size:40px">🔐</div>
-      <div style="font-size:17px;font-weight:800;margin-top:8px">Đăng nhập Check-in</div>
-      <div style="font-size:13px;color:#aaa;margin-top:4px">Chọn sự kiện và nhập mã nhân viên BTC</div>
+    <div class="lock-head">
+      <div class="lock-icon"><span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span></div>
+      <div class="lock-title">App Check-in</div>
+      <div class="lock-subtitle">Chọn sự kiện để bắt đầu phiên check-in.</div>
+      <div class="lock-account"><span class="material-symbols-rounded mi" aria-hidden="true">person</span> ${esc(op.name)}</div>
     </div>
-    <div class="fg"><label>Sự kiện</label><select id="lock_ev" style="width:100%" onchange="S.ciEv=this.value">
-      <option value="">-- Chọn sự kiện --</option>
-      ${db.events.map(e=>`<option value="${e.id}" ${S.ciEv===e.id?'selected':''}>${e.name} (${fmtD(e.date)})</option>`).join('')}
+    <div class="fg lock-field"><label>Sự kiện</label><select id="lock_ev" style="width:100%" onchange="S.ciEv=this.value">
+      <option value="">- Chọn sự kiện -</option>
+      ${events.map(e=>`<option value="${e.id}" ${S.ciEv===e.id?'selected':''}>${e.name} (${fmtD(e.date)})</option>`).join('')}
     </select></div>
-    <div class="fg"><label>Mã nhân viên BTC</label>
-      <input id="lock_c" placeholder="VD: NV001" style="text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:2px;font-size:16px;text-align:center;padding:12px"
-        onkeydown="if(event.key==='Enter')tryUnlock()"/></div>
-    <button class="btn blue full" onclick="tryUnlock()">Vào hệ thống →</button>
+    <button class="btn blue full lock-start-btn" onclick="tryUnlock()">
+      <span>Bắt đầu check-in</span>
+      <span class="material-symbols-rounded mi" aria-hidden="true">arrow_forward</span>
+    </button>
     <div id="lock_err" class="err" style="text-align:center;margin-top:8px"></div>
-    <div style="text-align:center;margin-top:166px"><button class="btn ghost" onclick="backAdmin()">← Về trang quản trị</button></div>
+    <button class="btn ghost lock-back-btn" onclick="backAdmin()">
+      <span class="material-symbols-rounded mi" aria-hidden="true">arrow_back</span>
+      Về trang quản trị
+    </button>
   </div>`;
 }
 
@@ -1591,27 +2614,144 @@ function rCIIdle(){
     <div class="ci-head">
       <button class="btn ghost sm" onclick="backAdmin()">←</button>
       <div style="flex:1"><div style="font-weight:700;font-size:14px">${ev?.name||'Sự kiện'}</div>
-        <div style="font-size:12px;color:#aaa">${p.c}/${p.t} đã check-in · BTC: ${S.ciOp?.name||'—'}</div></div>
-      <button class="btn sm red" onclick="lockOut()">🔒 Khoá</button>
+        <div style="font-size:14px;color:#aaa">${p.c}/${p.t} đã check-in · Phụ trách: ${S.ciOp?.name||checkinByLabel()}</div></div>
+      <button class="btn sm ci-switch-event-btn" onclick="lockOut()">
+        <span class="material-symbols-rounded mi" aria-hidden="true">switch_access_shortcut</span>
+        Đổi sự kiện
+      </button>
     </div>
     <div style="text-align:center;padding:24px 16px">
       <div style="font-size:48px;margin-bottom:12px">📷</div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:4px">Sẵn sàng nhận khách</div>
-      <div style="font-size:13px;color:#aaa;margin-bottom:20px">Nhập mã từ vé (KH chính hoặc người đi kèm)</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">Sẵn sàng nhận khách</div>
+      <div style="font-size:15px;color:#aaa;margin-bottom:20px">Nhập mã từ vé (KH chính hoặc người đi kèm)</div>
       <div style="display:flex;gap:8px;max-width:320px;margin:0 auto">
-        <input id="ci_in" placeholder="Nhập mã KH..." style="flex:1;padding:12px;border:2px solid #dde4f0;border-radius:10px;font-size:14px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')startCI()"/>
+        <input id="ci_in" placeholder="0000-0000" inputmode="numeric" maxlength="9" style="flex:1;padding:12px;border:2px solid #dde4f0;border-radius:10px;font-size:14px;font-family:'Be Vietnam Pro',sans-serif;letter-spacing:2px;text-transform:uppercase" oninput="formatCIInput(this)" onkeydown="if(event.key==='Enter')startCI()"/>
         <button class="btn blue" onclick="startCI()" style="padding:12px 16px">→</button>
       </div>
       <div id="ci_err" class="err" style="text-align:center;margin-top:8px"></div>
     </div>
     ${recent.length?`<div style="max-width:360px;margin:0 auto">
-      <div style="font-size:12px;font-weight:600;color:#aaa;margin-bottom:8px">Vừa check-in</div>
+      <div style="font-size:14px;font-weight:600;color:#aaa;margin-bottom:8px">Vừa check-in</div>
       ${recent.slice(0,8).map(r=>`<div class="recent-item">
-        <div><div style="font-weight:600;font-size:13px">${r.name} <span class="badge ${r.tag==='KH'?'b-blue':'b-purple'}" style="font-size:9px">${r.tag}</span></div>
-          <div style="font-size:11px;color:#aaa">${r.code}</div></div>
-        <div style="font-size:11px;color:#3B6D11;font-weight:600">${fmtTm(r.time)}</div>
+        <div><div style="font-weight:600;font-size:15px">${r.name} <span class="badge ${r.tag==='KH'?'b-blue':'b-purple'}" style="font-size:14px">${r.tag}</span></div>
+          <div style="font-size:14px;color:#aaa">${r.code}</div></div>
+        <div style="font-size:14px;color:#3B6D11;font-weight:600">${fmtTm(r.time)}</div>
       </div>`).join('')}
     </div>`:''}
+  </div>`;
+}
+
+function rCIIdleDesktop(){
+  const ev=db.events.find(e=>e.id===S.ciEv);
+  const p=allPeople(S.ciEv);
+  const gs=egs(S.ciEv);
+  const recent=[];
+  gs.forEach(g=>{
+    if(g.checkedIn)recent.push({name:g.name,code:g.guestCode,time:g.checkinTime,tag:'Khách',tagClass:'b-blue',by:g.checkinBy});
+    (g.companions||[]).forEach(c=>{
+      if(c.checkedIn)recent.push({name:companionNameLabel(c.name),code:c.code,time:c.checkinTime,tag:'Đi kèm',tagClass:'b-purple',by:c.checkinBy});
+    });
+  });
+  recent.sort((a,b)=>new Date(b.time||0)-new Date(a.time||0));
+  const recentQuery=S.ciRecentSearch||'';
+  const recentNeedle=normSearchText(recentQuery).trim();
+  const visibleRecent=recentNeedle
+    ? recent.filter(r=>normSearchText(`${r.name} ${r.code} ${r.by} ${r.tag}`).includes(recentNeedle))
+    : recent;
+  const mobileMode=S.ciMobileMode||'camera';
+  return`<div class="ci-screen ci-desktop">
+    <div class="ci-head ci-topbar">
+      <button class="btn ghost sm ci-back-btn" onclick="backAdmin()" title="Về trang quản trị">
+        <span class="material-symbols-rounded mi" aria-hidden="true">arrow_back</span>
+      </button>
+      <div class="ci-event-meta">
+        <div class="ci-event-name">${esc(ev?.name||'Sự kiện')}</div>
+        <div class="ci-event-sub">${p.c}/${p.t} đã check-in · Phụ trách: ${esc(S.ciOp?.name||checkinByLabel())}</div>
+      </div>
+      <button class="btn sm ci-switch-event-btn" onclick="lockOut()">
+        <span class="material-symbols-rounded mi" aria-hidden="true">switch_access_shortcut</span>
+        Đổi sự kiện
+      </button>
+    </div>
+
+    <div class="ci-grid">
+      <section class="ci-camera-card ci-mobile-mode-${esc(mobileMode)}">
+        <div class="ci-mobile-tabs">
+          <button type="button" class="ci-mobile-tab ${mobileMode==='camera'?'on':''}" onclick="setCIMobileMode('camera')">
+            <span class="material-symbols-rounded mi" aria-hidden="true">photo_camera</span>
+            Camera
+          </button>
+          <button type="button" class="ci-mobile-tab ${mobileMode==='manual'?'on':''}" onclick="setCIMobileMode('manual')">
+            <span class="material-symbols-rounded mi" aria-hidden="true">keyboard</span>
+            Nhập mã
+          </button>
+        </div>
+        <div class="ci-mobile-pane ci-pane-camera">
+          <div class="ci-section-head">
+            <div>
+              <div class="ci-panel-title">Camera quét QR</div>
+              <div class="ci-panel-sub">Đưa mã QR vào khung chữ nhật ở giữa.</div>
+            </div>
+            <span class="ci-live-dot"><span></span> Live</span>
+          </div>
+          <div class="ci-camera-shell">
+            <video id="ci_video" class="ci-video" autoplay muted playsinline></video>
+            <div class="ci-camera-placeholder">
+              <span class="material-symbols-rounded mi" aria-hidden="true">photo_camera</span>
+            </div>
+            <div class="ci-scan-frame" aria-hidden="true">
+              <span class="ci-corner tl"></span><span class="ci-corner tr"></span>
+              <span class="ci-corner bl"></span><span class="ci-corner br"></span>
+            </div>
+          </div>
+          <div id="ci_camera_status" class="ci-camera-status">Đang mở camera...</div>
+        </div>
+        <div class="ci-manual-card ci-manual-inline ci-mobile-pane ci-pane-manual">
+          <div class="ci-panel-title">Nhập mã khách hàng</div>
+          <div class="ci-panel-sub">Dùng khi QR khó đọc hoặc khách cung cấp mã vé.</div>
+          <div class="ci-manual-row">
+            <input id="ci_in" class="ci-code-input" placeholder="0000-0000" autocomplete="off" inputmode="numeric" maxlength="9"
+              oninput="formatCIInput(this)" onkeydown="if(event.key==='Enter')startCI()"/>
+            <button class="btn blue ci-submit-btn" onclick="startCI()" title="Check-in mã này">
+              <span class="material-symbols-rounded mi" aria-hidden="true">arrow_forward</span>
+            </button>
+          </div>
+          <div id="ci_err" class="err ci-manual-error"></div>
+        </div>
+      </section>
+
+      <section class="ci-ops-card">
+        <div class="ci-recent-card">
+          <div class="ci-section-head">
+            <div>
+              <div class="ci-panel-title">Check-in mới nhất</div>
+              <div class="ci-panel-sub">Tự cập nhật realtime, mới nhất ở trên cùng.</div>
+            </div>
+            <span class="badge b-green">${visibleRecent.length}</span>
+          </div>
+          <div class="search-control ci-recent-search ${recentQuery?'has-value':''}">
+            <span class="material-symbols-rounded mi search-leading" aria-hidden="true">search</span>
+            <input id="ci_recent_search" class="search-input" placeholder="Tìm tên, mã, phụ trách..." value="${esc(recentQuery)}"
+              oninput="setCIRecentSearch(this.value,this.selectionStart)">
+            <button type="button" class="search-clear" onclick="clearCIRecentSearch()" title="Xóa tìm kiếm">
+              <span class="material-symbols-rounded mi" aria-hidden="true">close</span>
+            </button>
+          </div>
+          ${visibleRecent.length?`<div class="ci-recent-list">
+            ${visibleRecent.map(r=>`<div class="ci-recent-item">
+              <div class="ci-recent-main">
+                <div class="ci-recent-name">${esc(r.name)} <span class="badge ${r.tagClass}">${esc(r.tag)}</span></div>
+                <div class="ci-recent-code">${esc(r.code||'—')} ${r.by?`· ${esc(r.by)}`:''}</div>
+              </div>
+              <div class="ci-recent-time">${fmtTm(r.time)}</div>
+            </div>`).join('')}
+          </div>`:`<div class="ci-empty">
+            <span class="material-symbols-rounded mi" aria-hidden="true">history</span>
+            <div>${recent.length?'Không tìm thấy check-in phù hợp':'Chưa có khách check-in'}</div>
+          </div>`}
+        </div>
+      </section>
+    </div>
   </div>`;
 }
 
@@ -1622,15 +2762,15 @@ function rCIVerify(){
       <div style="font-size:14px;font-weight:600">Xác minh danh tính</div></div>
     <div style="text-align:center;padding:20px 16px">
       <div style="background:#f4f7fb;border-radius:12px;padding:16px;display:inline-block;min-width:250px;margin-bottom:20px;text-align:left">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#aaa;margin-bottom:6px">XÁC NHẬN CHECK-IN</div>
+        <div style="font-size:14px;font-weight:700;letter-spacing:1px;color:#aaa;margin-bottom:6px">XÁC NHẬN CHECK-IN</div>
         <div style="font-size:18px;font-weight:800">${p.name}</div>
-        <div style="font-size:13px;color:#185FA5;margin-top:4px">Mã: <span style="font-family:'JetBrains Mono',monospace">${st.code}</span></div>
+        <div style="font-size:15px;color:#185FA5;margin-top:4px">Mã: <span style="font-family:'Be Vietnam Pro',sans-serif">${st.code}</span></div>
         ${st.type==='comp'?`<div style="margin-top:6px"><span class="badge b-purple">Đi kèm: ${g.name}</span></div>`:''}
         ${g.note?`<div style="margin-top:6px"><span class="badge b-amber">${g.note}</span></div>`:''}
       </div>
-      <div style="font-size:13px;color:#888;margin-bottom:14px">🔢 Nhập 4 số cuối số điện thoại để xác nhận</div>
+      <div style="font-size:15px;color:#888;margin-bottom:14px">🔢 Nhập 4 số cuối số điện thoại để xác nhận</div>
       <input id="ci_ph" type="tel" maxlength="4" placeholder="— — — —"
-        style="width:180px;padding:16px;text-align:center;letter-spacing:10px;font-size:26px;font-family:'JetBrains Mono',monospace;border:2px solid #dde4f0;border-radius:12px;display:block;margin:0 auto"
+        style="width:180px;padding:16px;text-align:center;letter-spacing:10px;font-size:26px;font-family:'Be Vietnam Pro',sans-serif;border:2px solid #dde4f0;border-radius:12px;display:block;margin:0 auto"
         onkeydown="if(event.key==='Enter')confirmPhone()"/>
       <div id="ph_err" class="err" style="text-align:center;margin-top:8px"></div>
       <div style="margin-top:16px;display:flex;gap:8px;justify-content:center">
@@ -1649,16 +2789,16 @@ function rCIDone(){
     <div style="font-size:22px;font-weight:800;color:#0C447C;margin-bottom:10px">Check-in thành công!</div>
     <div style="font-size:17px;font-weight:600;color:#185FA5;margin-bottom:4px">${p.name}</div>
     ${st.type==='comp'?`<div style="margin-bottom:4px"><span class="badge b-purple">Đi kèm: ${g.name}</span></div>`:''}
-    <div style="font-size:13px;color:#aaa;margin-bottom:4px">${ev?.name||''}</div>
-    ${st.type==='guest'&&(g.companions||[]).length?`<div style="font-size:12px;color:#BA7517;margin-top:10px;padding:8px 16px;background:#FFFBEB;border-radius:8px;display:inline-block">⚠️ ${g.companions.length} người đi kèm cần check-in riêng</div>`:''}
+    <div style="font-size:15px;color:#aaa;margin-bottom:4px">${ev?.name||''}</div>
+    ${st.type==='guest'&&(g.companions||[]).length?`<div style="font-size:14px;color:#BA7517;margin-top:10px;padding:8px 16px;background:#FFFBEB;border-radius:8px;display:inline-block">⚠️ ${g.companions.length} người đi kèm cần check-in riêng</div>`:''}
     ${g.note?`<div style="margin-top:10px;display:inline-block"><span class="badge b-amber">${g.note}</span></div>`:''}
-    <div style="font-size:12px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)} · BTC: ${p.checkinBy||'—'}</div>
-    ${S.ciSyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:12px;padding:10px 14px;border-radius:10px;text-align:left;max-width:360px;margin-left:auto;margin-right:auto">
+    <div style="font-size:14px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)} · BTC: ${p.checkinBy||'—'}</div>
+    ${S.ciSyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:14px;padding:10px 14px;border-radius:10px;text-align:left;max-width:360px;margin-left:auto;margin-right:auto">
       ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng hoặc lỗi Supabase).
       Vui lòng kiểm tra lại kết nối và báo kỹ thuật nếu tình trạng tiếp diễn.
     </div>`:''}
     <div style="margin-top:24px">
-      <button class="btn blue" onclick="nextCI()" style="padding:12px 32px;font-size:15px">📷 Scan vé tiếp theo</button>
+      <button class="btn blue" onclick="nextCI()" style="padding:12px 32px;font-size:16px">📷 Scan vé tiếp theo</button>
     </div>
   </div></div>`;
 }
@@ -1667,7 +2807,7 @@ function rCIErr(){
   return`<div class="ci-screen"><div class="big-result">
     <div class="icon">❌</div>
     <div style="font-size:18px;font-weight:700;color:#a32d2d;margin-bottom:8px">Xác minh thất bại</div>
-    <div style="font-size:13px;color:#888;max-width:280px;margin:0 auto">${S.ciState.msg||'Thông tin không khớp'}</div>
+    <div style="font-size:15px;color:#888;max-width:280px;margin:0 auto">${S.ciState.msg||'Thông tin không khớp'}</div>
     <div style="margin-top:20px"><button class="btn" onclick="cancelCI()" style="padding:10px 24px">← Thử lại</button></div>
   </div></div>`;
 }
@@ -1678,20 +2818,101 @@ function rCIErr(){
 function setTab(t){S.tab=t;R()}
 function openGM(eid){
   const ev=db.events.find(e=>e.id===eid);if(!ev)return;
-  if(ev.eventPw&&!S.unlockedEvs[eid]){S.evUnlockTarget=eid;S.modal='ev_unlock';R();return}
+  if(!canAccessEvent(eid)){alert('Bạn không có quyền xem sự kiện này.');return}
   S.selEv=eid;S.tab='guests';S.search='';S.filter='all';R()}
 function pickEv(v){
   if(!v){S.selEv=null;S.search='';S.filter='all';R();return}
   const ev=db.events.find(e=>e.id===v);if(!ev)return;
-  if(ev.eventPw&&!S.unlockedEvs[v]){S.evUnlockTarget=v;S.modal='ev_unlock';R();return}
+  if(!canAccessEvent(v)){S.selEv=null;S.search='';S.filter='all';R();return}
   S.selEv=v;S.search='';S.filter='all';R()}
-function setSrch(v){S.search=v;R()}
+function setSrch(v,pos){S.search=v;R();refocusInput('guest_search',pos)}
+function setEvSrch(v,pos){S.evSearch=v;R();refocusInput('ev_search',pos)}
+function setCIRecentSearch(v,pos){S.ciRecentSearch=v;R();refocusInput('ci_recent_search',pos)}
+function clearSrch(){S.search='';R();refocusInput('guest_search',0)}
+function clearEvSrch(){S.evSearch='';R();refocusInput('ev_search',0)}
+function clearCIRecentSearch(){S.ciRecentSearch='';R();refocusInput('ci_recent_search',0)}
+function setCIMobileMode(mode){S.ciMobileMode=mode==='manual'?'manual':'camera';R()}
 function setFil(v){S.filter=v;R()}
 function openM(m){S.modal=m;R()}
-function openEdit(id){S.editGid=id;S.modal='edit_pw';R()}
+function openAccount(){S.modal='admin_account';R()}
+function openAccountForm(id=null){S.editAccountId=id;S.modal='account_form';R()}
+function openAccountDel(id){S.delAccountId=id;S.modal='account_del';R()}
+function openGuestDetail(id){S.detailGid=id;S.modal='guest_detail';R()}
+function openCpDetail(gid,cpId){S.cpDetail={gid,cpId};S.modal='cp_detail';R()}
+function openEdit(id){S.editGid=id;S.modal='edit_form';R()}
 function openDel(id){S.delGid=id;S.modal='del_pw';R()}
 function openTickets(id){S.ticketGid=id;S.modal='tickets';R()}
-function closeM(){S.modal=null;S.editGid=null;S.delGid=null;S.cpTicket=null;S.cpEdit=null;S.cpDel=null;S.cpAdd=null;S.adminCI=null;S.cancelTarget=null;S.evUnlockTarget=null;S.editEvId=null;S.importData=null;S.ciUnlockTarget=null;R()}
+function closeM(){S.modal=null;S.editGid=null;S.detailGid=null;S.delGid=null;S.editAccountId=null;S.delAccountId=null;S.cpTicket=null;S.cpDetail=null;S.cpEdit=null;S.cpDel=null;S.cpAdd=null;S.adminCI=null;S.cancelTarget=null;S.evUnlockTarget=null;S.editEvId=null;S.importData=null;S.ciUnlockTarget=null;R()}
+
+function saveAdminPw(){
+  const pw=(document.getElementById('admin_pw_new')?.value||'').trim();
+  const confirm=(document.getElementById('admin_pw_confirm')?.value||'').trim();
+  const err=document.getElementById('admin_pw_err');
+  if(!pw){if(err)err.textContent='⚠️ Vui lòng nhập mật khẩu mới.';return}
+  if(pw!==confirm){if(err)err.textContent='⚠️ Mật khẩu xác nhận không khớp.';return}
+  const accounts=loadAccounts();
+  const idx=accounts.findIndex(acc=>acc.username===normalizeUsername(S.currentUser||LOGIN_USER));
+  if(idx>=0){
+    accounts[idx]={...accounts[idx],password:pw,updatedAt:Date.now()};
+    saveAccounts(accounts);
+  }else{
+    setAdminPw(pw);
+  }
+  keepAdminSession(S.currentUser||LOGIN_USER);
+  S.modal=null;
+  R();
+  alert('Đã đổi mật khẩu tài khoản.');
+}
+
+function saveAccount(){
+  if(!canManageAccounts())return;
+  const isEdit=!!S.editAccountId;
+  const accounts=loadAccounts();
+  const err=document.getElementById('acc_err');
+  const name=(document.getElementById('acc_name')?.value||'').trim();
+  const username=normalizeUsername(document.getElementById('acc_user')?.value||'');
+  const role=document.getElementById('acc_role')?.value||'staff';
+  const pw=(document.getElementById('acc_pw')?.value||'').trim();
+  const pw2=(document.getElementById('acc_pw2')?.value||'').trim();
+  if(!name){if(err)err.textContent='⚠️ Vui lòng nhập họ tên.';return}
+  if(!username){if(err)err.textContent='⚠️ Vui lòng nhập tên đăng nhập.';return}
+  if(!ROLE_DEFS[role]){if(err)err.textContent='⚠️ Vai trò không hợp lệ.';return}
+
+  if(isEdit){
+    const idx=accounts.findIndex(acc=>acc.id===S.editAccountId);
+    if(idx<0){if(err)err.textContent='⚠️ Không tìm thấy tài khoản.';return}
+    const old=accounts[idx];
+    const superCount=accounts.filter(acc=>acc.role==='super_admin').length;
+    if(old.role==='super_admin'&&role!=='super_admin'&&superCount<=1){
+      if(err)err.textContent='⚠️ Cần giữ ít nhất 1 tài khoản Super Admin.';return
+    }
+    if(pw||pw2){
+      if(!pw){if(err)err.textContent='⚠️ Vui lòng nhập mật khẩu mới.';return}
+      if(pw!==pw2){if(err)err.textContent='⚠️ Mật khẩu xác nhận không khớp.';return}
+    }
+    accounts[idx]={...old,name,role,password:pw||old.password,updatedAt:Date.now()};
+  }else{
+    if(accounts.some(acc=>acc.username===username)){if(err)err.textContent='⚠️ Tên đăng nhập đã tồn tại.';return}
+    if(!pw){if(err)err.textContent='⚠️ Vui lòng nhập mật khẩu.';return}
+    accounts.push({id:uid(),username,name,role,password:pw,createdAt:Date.now(),updatedAt:Date.now()});
+  }
+  saveAccounts(accounts);
+  S.modal=null;S.editAccountId=null;R();
+}
+
+function deleteAccount(){
+  if(!canManageAccounts())return;
+  const accounts=loadAccounts();
+  const acc=accounts.find(x=>x.id===S.delAccountId);
+  const err=document.getElementById('acc_del_err');
+  if(!acc)return;
+  if(acc.username===normalizeUsername(S.currentUser)){if(err)err.textContent='⚠️ Không thể xoá tài khoản đang đăng nhập.';return}
+  if(acc.role==='super_admin'&&accounts.filter(x=>x.role==='super_admin').length<=1){
+    if(err)err.textContent='⚠️ Cần giữ ít nhất 1 tài khoản Super Admin.';return
+  }
+  saveAccounts(accounts.filter(x=>x.id!==S.delAccountId));
+  S.modal=null;S.delAccountId=null;R();
+}
 
 /* ============================================================
    WALK-IN FUNCTIONS — tạo KH ngay tại sự kiện trong ngày tổ chức
@@ -1704,8 +2925,8 @@ function openWalkin(){
 
 function openEditEv(id){
   const ev=db.events.find(e=>e.id===id);if(!ev)return;
+  if(!canManageEvents()){alert('Bạn không có quyền chỉnh sửa sự kiện.');return}
   // Sự kiện đã qua ngày vẫn cho phép sửa thông tin tĩnh — chỉ check-in/cancel/add-del mới bị khoá
-  if(ev.eventPw&&!S.unlockedEvs[id]){S.evUnlockTarget=id;S.modal='ev_unlock';R();return;}
   S.editEvId=id;S.modal='edit_ev';R();
 }
 
@@ -1750,21 +2971,30 @@ async function undoCancel(gid,type,cpId){
   const ok=await sbPatchGuest(g.id,patchFields);
   if(!ok)alert('⚠️ Đã khôi phục (Huỷ Cancel) trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
 }
-function goCI(){S.view='checkin';S.ciOk=false;S.ciEv=null;S.ciOp=null;S.ciState=null;R()}
-function backAdmin(){S.view='admin';S.ciOk=false;S.ciState=null;R()}
-function lockOut(){S.ciOk=false;S.ciOp=null;S.ciState=null;R()}
+function goCI(){
+  pushAppRoute('/check');
+  enterCheckPage();
+  R()
+}
+function backAdmin(){pushAppRoute('/');enterDashboardPage();R()}
+function lockOut(){S.ciOk=false;S.ciState=null;R()}
 function cancelCI(){S.ciState=null;S.ciSyncWarn=false;R()}
 function nextCI(){S.ciState=null;S.ciSyncWarn=false;R()}
 
 function addBR(){const w=document.getElementById('btc_w');if(!w)return;const i=w.querySelectorAll('.btc-r').length;
   const d=document.createElement('div');d.className='btc-r';d.id='br_'+i;
-  d.innerHTML=`<input placeholder="Mã NV" id="bc_${i}" style="max-width:110px;font-family:'JetBrains Mono',monospace;text-transform:uppercase"/>
-    <input placeholder="Họ tên BTC" id="bn_${i}"/>
-    <button class="btn xs red" onclick="rmBR(${i})" style="flex-shrink:0">✕</button>`;
-  w.appendChild(d)}
+  d.innerHTML=btcRowHTML({},i).replace(/^<div class="btc-r" id="br_\d+">|<\/div>$/g,'');
+  w.appendChild(d);enhanceDropdowns(d);materializeIcons(d)}
 function rmBR(i){const r=document.getElementById('br_'+i);if(r)r.remove()}
 function getBMs(){const w=document.getElementById('btc_w');if(!w)return[];const ms=[];
-  w.querySelectorAll('.btc-r').forEach(r=>{const c=(r.querySelector('input:first-child')?.value||'').toUpperCase().trim();const n=(r.querySelector('input:nth-child(2)')?.value||'').trim();if(c&&n)ms.push({code:c,name:n})});return ms}
+  const accounts=loadAccounts();
+  const used=new Set();
+  w.querySelectorAll('.btc-r').forEach(r=>{
+    const account=normalizeUsername(r.querySelector('select')?.value||'');
+    if(!account||used.has(account))return;
+    const acc=accounts.find(x=>x.username===account);
+    if(acc){ms.push({code:acc.username.toUpperCase(),name:acc.name,account:acc.username});used.add(account)}
+  });return ms}
 
 function addCR(){const w=document.getElementById('cp_w');if(!w)return;const i=w.querySelectorAll('.cp-r').length;
   const d=document.createElement('div');d.id='cr_'+i;d.className='cp-r';
@@ -1795,38 +3025,30 @@ async function saveEv(){
   const date=document.getElementById('ev_d')?.value;
   const team=document.getElementById('ev_t')?.value?.trim();
   const venue=document.getElementById('ev_v')?.value?.trim();
-  const pwNew=(document.getElementById('ev_pw')?.value||'').trim();
-  const pwNew2=(document.getElementById('ev_pw2')?.value||'').trim();
   const bms=getBMs();
   if(!name){alert('Vui lòng nhập tên sự kiện');return}
   if(!bms.length){alert('Cần ít nhất 1 thành viên BTC');return}
-  const errEl=document.getElementById('ev_pw_err');
 
   if(isEdit){
-    if(pwNew&&pwNew!==pwNew2){if(errEl)errEl.textContent='⚠️ Mật khẩu nhập lại không khớp';return}
     const idx=db.events.findIndex(e=>e.id===S.editEvId);
     if(idx<0)return;
     const existing=db.events[idx];
-    const eventPw=pwNew||existing.eventPw;
-    db.events[idx]={...existing,name,date,team,venue,eventPw,btcMembers:bms};
-    if(pwNew)S.unlockedEvs[S.editEvId]=true;
+    db.events[idx]={...existing,name,date,team,venue,eventPw:'',btcMembers:bms};
     const editedId=S.editEvId;
     saveLocalOnly();S.modal=null;S.editEvId=null;R();
-    const ok=await sbPatchEvent(editedId,{name,date_str:date||null,team:team||null,venue:venue||null,event_pw:eventPw,btc_members:bms});
+    const ok=await sbPatchEvent(editedId,{name,date_str:date||null,team:team||null,venue:venue||null,event_pw:'',btc_members:bms});
     if(!ok)alert('⚠️ Đã lưu sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
   } else {
-    if(!pwNew){if(errEl)errEl.textContent='⚠️ Vui lòng đặt mật khẩu cho sự kiện';return}
-    if(pwNew!==pwNew2){if(errEl)errEl.textContent='⚠️ Mật khẩu nhập lại không khớp';return}
-    const newEv={id:uid(),name,date,team,venue,eventPw:pwNew,btcMembers:bms,createdAt:Date.now()};
+    const newEv={id:uid(),name,date,team,venue,eventPw:'',btcMembers:bms,createdAt:Date.now()};
     db.events.push(newEv);
-    S.unlockedEvs[newEv.id]=true;
     S.selEv=newEv.id;saveLocalOnly();S.modal=null;S.tab='guests';R();
     const ok=await sbUpsertOne('oh_events',evToDb(newEv));
     if(!ok)alert('⚠️ Đã tạo sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại trước khi gửi link cho người khác.');
   }
 }
 
-function delEv(id){if(!confirm('Xoá sự kiện này? Toàn bộ khách cũng bị xoá.'))return;
+function delEv(id){if(!canManageEvents()){alert('Bạn không có quyền xoá sự kiện.');return}
+  if(!confirm('Xoá sự kiện này? Toàn bộ khách cũng bị xoá.'))return;
   db.events=db.events.filter(e=>e.id!==id);db.guests=db.guests.filter(g=>g.eventId!==id);
   if(S.selEv===id)S.selEv=null;saveLocalOnly();sbDel('oh_events',id);R()}
 
@@ -1842,6 +3064,7 @@ async function saveG(){
   const note=document.getElementById('g_note')?.value?.trim();
   if(!name){alert('Vui lòng nhập họ tên KH');return}
   if(!eventId){alert('Vui lòng chọn sự kiện');return}
+  if(!canAccessEvent(eventId)){alert('Bạn không có quyền thao tác với sự kiện này.');return}
   // Sau ngày event: không cho thêm KH mới; nhưng sửa thông tin tĩnh KH hiện có vẫn OK
   if(isEvLocked(getEvById(eventId))&&S.modal!=='edit_g'){alert('Sự kiện đã kết thúc. Không thể thêm khách mới.');closeM();return;}
   const rawComps=getComps('add');
@@ -1881,7 +3104,7 @@ async function saveG(){
 
 function chkEditPw(){
   const pw=document.getElementById('epw')?.value||'';
-  if(pw===ADMIN_PW){S.modal='edit_form';R()}
+  if(pw===getAdminPw()){S.modal='edit_form';R()}
   else{const el=document.getElementById('epw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.'}}
 
 async function doEdit(){
@@ -1909,7 +3132,7 @@ async function doEdit(){
 
 function doDel(){
   const pw=document.getElementById('dpw')?.value||'';
-  if(pw!==ADMIN_PW){const el=document.getElementById('dpw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.';return}
+  if(pw!==getAdminPw()){const el=document.getElementById('dpw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.';return}
   const gid=S.delGid;
   db.guests=db.guests.filter(g=>g.id!==gid);saveLocalOnly();sbDel('oh_guests',gid);S.modal=null;S.delGid=null;R()}
 
@@ -1929,7 +3152,7 @@ async function doCpEdit(){
 
 async function doCpDel(){
   const pw=document.getElementById('cpdpw')?.value||'';
-  if(pw!==ADMIN_PW){const el=document.getElementById('cpdpw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.';return}
+  if(pw!==getAdminPw()){const el=document.getElementById('cpdpw_err');if(el)el.textContent='⚠️ Mật khẩu không đúng.';return}
   const {gid,cpId}=S.cpDel||{};
   const gIdx=db.guests.findIndex(x=>x.id===gid);if(gIdx<0)return;
   db.guests[gIdx].companions=(db.guests[gIdx].companions||[]).filter(x=>x.id!==cpId);
@@ -1962,7 +3185,7 @@ function mkCpQR(){
   const el=document.getElementById('cp_tqr');if(!el)return;
   el.innerHTML='';
   try{new QRCode(el,{text:qrUrl(cp.code),width:160,height:160,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}
-  catch(e){el.innerHTML='<div style="font-size:11px;color:#aaa">QR error</div>'}}
+  catch(e){el.innerHTML='<div style="font-size:14px;color:#aaa">QR error</div>'}}
 
 function dlCpTicket(){
   const {gid,cpId}=S.cpTicket||{};
@@ -1972,15 +3195,15 @@ function dlCpTicket(){
   const ev=db.events.find(e=>e.id===g.eventId);
   const w=window.open('','_blank','width=440,height=560');
   w.document.write(`<!DOCTYPE html><html><head>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:sans-serif;background:#f5f7fb;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+    <style>*{box-sizing:border-box;margin:0;padding:0;font-family:'Be Vietnam Pro',sans-serif}body{font-family:'Be Vietnam Pro',sans-serif;background:#f5f7fb;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
     .tk{background:#fff;border:2px solid #e8eaf0;border-radius:16px;padding:28px 24px 20px;width:320px;text-align:center}
-    .hd{font-size:10px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:10px}
-    .ev{font-size:11px;color:#bbb;margin-bottom:3px}.name{font-size:20px;font-weight:800;margin-bottom:4px}
-    .role{font-size:11px;font-weight:600;background:#F5F3FF;color:#6D28D9;padding:3px 10px;border-radius:10px;display:inline-block;margin-bottom:14px}
-    .code{font-family:monospace;font-size:18px;font-weight:700;letter-spacing:3px;margin:4px 0 12px}
-    .foot{font-size:10px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
+    .hd{font-size:14px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:10px}
+    .ev{font-size:14px;color:#bbb;margin-bottom:3px}.name{font-size:20px;font-weight:800;margin-bottom:4px}
+    .role{font-size:14px;font-weight:600;background:#F5F3FF;color:#6D28D9;padding:3px 10px;border-radius:10px;display:inline-block;margin-bottom:14px}
+    .code{font-family:'Be Vietnam Pro',sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;margin:4px 0 12px}
+    .foot{font-size:14px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
     canvas,img{display:block;margin:0 auto;padding:10px;border:1px solid #eee;border-radius:8px}
-    .btn{margin-top:16px;padding:9px 24px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;font-size:13px;cursor:pointer}
+    .btn{margin-top:16px;padding:9px 24px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;font-size:14px;cursor:pointer}
     @media print{.btn{display:none}body{background:#fff}}</style></head><body>
     <div class="tk"><div class="hd">VÉ THAM DỰ SỰ KIỆN</div>
       <div class="ev">${ev?.name||''}</div>
@@ -2053,7 +3276,7 @@ function mkQRs(){
     const el=document.getElementById('tqr_'+idx);
     if(!el)return;el.innerHTML='';
     try{new QRCode(el,{text:qrUrl(code),width:160,height:160,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}
-    catch(e){el.innerHTML='<div style="font-size:11px;color:#aaa">QR error</div>'}
+    catch(e){el.innerHTML='<div style="font-size:14px;color:#aaa">QR error</div>'}
   });
 }
 
@@ -2062,18 +3285,18 @@ function dlTicket(idx,name,code,role){
   const ev=db.events.find(e=>e.id===g.eventId);
   const w=window.open('','_blank','width=440,height=580');
   w.document.write(`<!DOCTYPE html><html><head><style>
-    *{box-sizing:border-box;margin:0;padding:0}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Be Vietnam Pro',sans-serif}
     body{font-family:'Be Vietnam Pro',sans-serif;background:#f5f7fb;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
-    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=JetBrains+Mono:wght@600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap');
     .ticket{background:#fff;border:2px solid #e8eaf0;border-radius:16px;padding:28px 24px 20px;width:320px;text-align:center}
-    .hd{font-size:10px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:10px}
-    .ev{font-size:11px;color:#bbb;margin-bottom:3px}
+    .hd{font-size:14px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:10px}
+    .ev{font-size:14px;color:#bbb;margin-bottom:3px}
     .name{font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:4px}
-    .role{font-size:11px;font-weight:600;margin-bottom:14px;display:inline-block;padding:3px 10px;border-radius:10px;background:#EFF6FF;color:#185FA5}
+    .role{font-size:14px;font-weight:600;margin-bottom:14px;display:inline-block;padding:3px 10px;border-radius:10px;background:#EFF6FF;color:#185FA5}
     .qr-box{display:inline-block;padding:10px;border:1px solid #eee;border-radius:10px;margin-bottom:8px}
-    .code{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;letter-spacing:3px;margin:4px 0 12px}
-    .foot{font-size:10px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
-    .dl-btn{margin-top:16px;padding:9px 24px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;font-family:sans-serif;font-weight:500}
+    .code{font-family:'Be Vietnam Pro',sans-serif;font-size:18px;font-weight:600;letter-spacing:3px;margin:4px 0 12px}
+    .foot{font-size:14px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
+    .dl-btn{margin-top:16px;padding:9px 24px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;font-size:14px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;font-weight:500}
     .dl-btn:hover{background:#f4f7fb}
     @media print{.dl-btn{display:none}body{background:#fff}}
   </style></head><body>
@@ -2099,15 +3322,15 @@ function printAll(){
     ...(g.companions||[]).map(c=>({name:c.name,code:c.code,role:'Đi kèm: '+g.name}))];
   const w=window.open('','_blank','width=560,height:700');
   w.document.write(`<!DOCTYPE html><html><head><style>
-    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&family=JetBrains+Mono:wght@600&display=swap');
-    *{box-sizing:border-box;margin:0;padding:0}body{font-family:'Be Vietnam Pro',sans-serif;padding:20px;background:#f5f7fb}
+    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap');
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Be Vietnam Pro',sans-serif}body{font-family:'Be Vietnam Pro',sans-serif;padding:20px;background:#f5f7fb}
     .ticket{background:#fff;border:2px solid #e8eaf0;border-radius:14px;padding:24px 20px 16px;text-align:center;margin-bottom:16px;page-break-inside:avoid}
-    .hd{font-size:10px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:8px}
-    .ev{font-size:11px;color:#bbb;margin-bottom:3px}
+    .hd{font-size:14px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:8px}
+    .ev{font-size:14px;color:#bbb;margin-bottom:3px}
     .name{font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:4px}
-    .role{font-size:11px;font-weight:600;margin-bottom:14px;display:inline-block;padding:3px 10px;border-radius:10px;background:#EFF6FF;color:#185FA5}
-    .code{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;letter-spacing:3px;margin:4px 0 12px}
-    .foot{font-size:10px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
+    .role{font-size:14px;font-weight:600;margin-bottom:14px;display:inline-block;padding:3px 10px;border-radius:10px;background:#EFF6FF;color:#185FA5}
+    .code{font-family:'Be Vietnam Pro',sans-serif;font-size:18px;font-weight:600;letter-spacing:3px;margin:4px 0 12px}
+    .foot{font-size:14px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
     canvas,img{display:block;margin:8px auto;width:160px;height:160px}
     @media print{body{background:#fff}}
   </style></head><body>
@@ -2136,29 +3359,55 @@ function tryUnlock(){
   const evSel=document.getElementById('lock_ev');S.ciEv=evSel?.value||S.ciEv;
   if(!S.ciEv){document.getElementById('lock_err').textContent='⚠️ Vui lòng chọn sự kiện';return}
   const ev=db.events.find(e=>e.id===S.ciEv);if(!ev){document.getElementById('lock_err').textContent='Sự kiện không tồn tại';return}
-  const code=(document.getElementById('lock_c')?.value||'').toUpperCase().trim();
-  if(!code){document.getElementById('lock_err').textContent='⚠️ Vui lòng nhập mã nhân viên';return}
-  const member=(ev.btcMembers||[]).find(m=>m.code===code);
-  if(!member){document.getElementById('lock_err').textContent='⚠️ Mã không nằm trong danh sách BTC của sự kiện này';return}
-  S.ciOk=true;S.ciOp=member;S.ciState=null;R()}
+  if(!canAccessEvent(S.ciEv)){document.getElementById('lock_err').textContent='⚠️ Bạn không được phân công vào sự kiện này';return}
+  S.ciOk=true;S.ciOp=currentCheckinOperator();S.ciState=null;R()}
 
-async function startCI(){
-  const code=(document.getElementById('ci_in')?.value||'').toUpperCase().trim();
-  if(!code){document.getElementById('ci_err').textContent='⚠️ Vui lòng nhập mã';return}
+async function startCI(codeOverride=null,opts={}){
+  const code=canonicalTicketCode(codeOverride||document.getElementById('ci_in')?.value||'');
+  const err=document.getElementById('ci_err');
+  if(!code){
+    if(err)err.textContent='Vui lòng nhập mã';
+    return{ok:false,msg:'empty'};
+  }
   const found=findCode(S.ciEv,code);
-  if(!found){document.getElementById('ci_err').textContent='⚠️ Không tìm thấy mã trong sự kiện này';return}
+  if(!found){
+    if(err)err.textContent='Không tìm thấy mã trong sự kiện này';
+    if(opts.fromScan)setCameraStatus(`Không tìm thấy mã ${code}`,'error',2200);
+    return{ok:false,msg:'not_found'};
+  }
   const person=found.person;
-  if(person.checkedIn){document.getElementById('ci_err').textContent='⚠️ Đã check-in lúc '+fmtDT(person.checkinTime);return}
-  if(!person.phone){
+  if(person.checkedIn){
+    const msg='Đã check-in lúc '+fmtDT(person.checkinTime);
+    if(err)err.textContent=msg;
+    if(opts.fromScan)setCameraStatus(`${person.name} đã check-in trước đó`,'error',2200);
+    showCheckinToast(person.name||'Khách mời',false,{
+      title:'Khách đã check-in trước đó',
+      text:person.checkinTime?`Lúc ${fmtDT(person.checkinTime)}`:'Vui lòng kiểm tra lại thông tin khách',
+      icon:'info'
+    });
+    return{ok:false,msg:'already_checked_in',person,guest:found.guest,type:found.type};
+  }
+  if(opts.skipVerify||!person.phone){
     const now=new Date().toISOString();
-    person.checkedIn=true;person.checkinTime=now;person.checkinBy=S.ciOp?.code||'btc';saveLocalOnly();
+    const checkinBy=checkinByLabel();
+    person.checkedIn=true;person.checkinTime=now;person.checkinBy=checkinBy;saveLocalOnly();
     const patchFields = found.type==='guest'
-      ? {checked_in:true,checkin_time:now,checkin_by:person.checkinBy}
+      ? {checked_in:true,checkin_time:now,checkin_by:checkinBy}
       : {companions:(found.guest.companions||[])};
     const ok=await sbPatchGuest(found.guest.id, patchFields);
     S.ciSyncWarn=!ok;
-    S.ciState={step:'done',type:found.type,guest:found.guest,person,code};R();return}
-  S.ciState={step:'verify',type:found.type,guest:found.guest,person,code};R()}
+    if(opts.stayIdle){
+      S.ciState=null;
+      if(opts.fromScan)setCameraStatus('Check-in thành công. Sẵn sàng quét mã tiếp theo.','ready',1800);
+      R();
+    }else{
+      S.ciState={step:'done',type:found.type,guest:found.guest,person,code};R();
+    }
+    return{ok:true,syncOk:ok,type:found.type,guest:found.guest,person,code};
+  }
+  S.ciState={step:'verify',type:found.type,guest:found.guest,person,code};R();
+  return{pending:true,type:found.type,guest:found.guest,person,code};
+}
 
 function confirmPhone(){
   const val=(document.getElementById('ci_ph')?.value||'').trim();
@@ -2173,7 +3422,7 @@ async function finishCI(){
   const st=S.ciState;
   const g=db.guests.find(x=>x.id===st.guest.id);if(!g){S.ciState={step:'err',msg:'Lỗi hệ thống'};R();return}
   const now=new Date().toISOString();
-  const checkinBy=S.ciOp?.code||'btc';
+  const checkinBy=checkinByLabel();
   if(st.type==='guest'){g.checkedIn=true;g.checkinTime=now;g.checkinBy=checkinBy}
   else{const c=(g.companions||[]).find(x=>x.id===st.person.id);if(c){c.checkedIn=true;c.checkinTime=now;c.checkinBy=checkinBy}}
   saveLocalOnly();
@@ -2208,12 +3457,12 @@ function rWalkinM(){
     <div style="background:#EDE9FE;border:1px solid #DDD6FE;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
       <span style="font-size:18px">🚶</span>
       <div>
-        <div style="font-weight:700;font-size:13px;color:#5B21B6">Khách Walk-in — đăng ký tại chỗ ngày ${fmtD(ev?.date)}</div>
-        <div style="font-size:11px;color:#7C3AED">Hệ thống sẽ gắn nhãn Walk-in và tạo mã vào ngay. Không thể thêm Walk-in sau khi sự kiện kết thúc.</div>
+        <div style="font-weight:700;font-size:15px;color:#5B21B6">Khách Walk-in — đăng ký tại chỗ ngày ${fmtD(ev?.date)}</div>
+        <div style="font-size:14px;color:#7C3AED">Hệ thống sẽ gắn nhãn Walk-in và tạo mã vào ngay. Không thể thêm Walk-in sau khi sự kiện kết thúc.</div>
       </div>
     </div>
     <div class="fg"><label>Sự kiện</label>
-      <div style="padding:9px 12px;background:#f4f7fb;border-radius:8px;font-size:13px;color:#555">${ev?.name||'—'} · ${fmtD(ev?.date)}</div>
+      <div style="padding:9px 12px;background:#f4f7fb;border-radius:8px;font-size:15px;color:#555">${ev?.name||'—'} · ${fmtD(ev?.date)}</div>
     </div>
     <div class="sec">Thông tin khách Walk-in</div>
     <div class="g3">
@@ -2565,9 +3814,11 @@ function openCIUnlock(id){S.ciUnlockTarget=id;S.modal='ci_unlock';R()}
 function closeCIUnlock(id){S.unlockedCIEvs[id]=false;R()}
 
 // Expose all functions to window scope (required for Vite module bundling)
-window.R=R; window.doLogin=doLogin; window.doRefresh=doRefresh; window.doUrlCI=doUrlCI;
-window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch;
-window.setFil=setFil; window.openM=openM; window.openEdit=openEdit; window.openDel=openDel;
+window.R=R; window.doLogin=doLogin; window.doLogout=doLogout; window.doRefresh=doRefresh; window.doUrlCI=doUrlCI; window.formatCIInput=formatCIInput;
+window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch; window.setEvSrch=setEvSrch; window.setCIRecentSearch=setCIRecentSearch; window.setCIMobileMode=setCIMobileMode;
+window.clearSrch=clearSrch; window.clearEvSrch=clearEvSrch; window.clearCIRecentSearch=clearCIRecentSearch; window.setFil=setFil; window.openM=openM; window.openAccount=openAccount; window.saveAdminPw=saveAdminPw; window.filterDD=filterDD; window.clearDDSearch=clearDDSearch;
+window.openAccountForm=openAccountForm; window.openAccountDel=openAccountDel; window.saveAccount=saveAccount; window.deleteAccount=deleteAccount;
+window.openGuestDetail=openGuestDetail; window.openCpDetail=openCpDetail; window.openEdit=openEdit; window.openDel=openDel;
 window.openTickets=openTickets; window.closeM=closeM; window.openEditEv=openEditEv;
 window.openCpTicket=openCpTicket; window.openCpEdit=openCpEdit; window.openCpDel=openCpDel;
 window.openAddComp=openAddComp; window.openCancel=openCancel; window.doCancel=doCancel;
@@ -2579,8 +3830,8 @@ window.chkEditPw=chkEditPw; window.doEdit=doEdit; window.doDel=doDel;
 window.doCpEdit=doCpEdit; window.doCpDel=doCpDel; window.doCpAdd=doCpAdd;
 window.mkQRs=mkQRs; window.mkCpQR=mkCpQR; window.dlTicket=dlTicket;
 window.dlCpTicket=dlCpTicket; window.printAll=printAll;
-window.tryUnlock=tryUnlock; window.startCI=startCI; window.confirmPhone=confirmPhone;
-window.doAdminCI=doAdminCI; window.doEvUnlock=doEvUnlock;
+window.tryUnlock=tryUnlock; window.startCI=startCI; window.startQrScanner=startQrScanner; window.confirmPhone=confirmPhone;
+window.doAdminCI=doAdminCI;
 window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=setRptEv;
 window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
 window.downloadExcelTemplate=downloadExcelTemplate; window.commitExcelImport=commitExcelImport;
