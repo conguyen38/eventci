@@ -4,10 +4,15 @@ let sqlClient;
 let schemaReady;
 
 function getSql() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('Missing DATABASE_URL. Add your Neon connection string in Vercel environment variables.');
+  const connectionString =
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.NEON_DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('Missing Neon connection string. Add DATABASE_URL or POSTGRES_URL in Vercel environment variables.');
   }
-  if (!sqlClient) sqlClient = neon(process.env.DATABASE_URL);
+  if (!sqlClient) sqlClient = neon(connectionString);
   return sqlClient;
 }
 
