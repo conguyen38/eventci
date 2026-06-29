@@ -688,7 +688,9 @@ function startAutoRefresh(interval=REALTIME_POLL_MS){
   if(_autoRefresh)clearInterval(_autoRefresh);
   _autoRefresh=setInterval(async()=>{
     if(shouldSkipAutoRefresh())return; // người dùng đang nhập liệu / có form mở -> bỏ qua lượt này
-    await loadData();R();
+    const before=JSON.stringify(db);
+    await loadData();
+    if(JSON.stringify(db)!==before)R();
   },interval);
 }
 
@@ -1166,7 +1168,7 @@ function rLogin(){
           <div class="check-login-qr-sub">Quét mã để mở trang check trên điện thoại</div>
         </div>
       </div>
-      <div id="check_login_qr" class="check-login-qr"></div>
+      <div id="check_login_qr" class="check-login-qr">${checkPageQRHTML()}</div>
       <div id="check_login_qr_url" class="check-login-qr-url">${esc(checkPageUrl())}</div>
     </div>
   </div>`;
@@ -1174,16 +1176,41 @@ function rLogin(){
 function checkPageUrl(){
   return new URL(appRoutePath('/check'), window.location.origin).href;
 }
+let _checkPageQRCache={url:'',src:''};
+function checkPageQRSrc(){
+  const url=checkPageUrl();
+  if(_checkPageQRCache.url===url&&_checkPageQRCache.src)return _checkPageQRCache.src;
+  if(typeof QRCode==='undefined')return'';
+  const holder=document.createElement('div');
+  try{
+    new QRCode(holder,{text:url,width:184,height:184,colorDark:'#071025',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+    const canvas=holder.querySelector('canvas');
+    const img=holder.querySelector('img');
+    const src=canvas?.toDataURL('image/png')||img?.src||'';
+    if(src)_checkPageQRCache={url,src};
+    return src;
+  }catch(e){
+    console.warn('Không tạo được QR mobile check-in:',e);
+    return'';
+  }
+}
+function checkPageQRHTML(){
+  const src=checkPageQRSrc();
+  return src
+    ? `<img class="check-login-qr-img" src="${esc(src)}" alt="QR Mobile Check-in" />`
+    : `<div class="check-login-qr-fallback">QR</div>`;
+}
 function renderCheckPageQR(id){
   const el=document.getElementById(id);
   if(!el||typeof QRCode==='undefined')return;
+  if(el.dataset.qrUrl===checkPageUrl())return;
   el.innerHTML='';
   new QRCode(el,{text:checkPageUrl(),width:184,height:184,colorDark:'#071025',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  el.dataset.qrUrl=checkPageUrl();
 }
 function postLogin(){
   if(!isCheckRoute())return;
   materializeIcons(document.getElementById('root'));
-  renderCheckPageQR('check_login_qr');
 }
 function doLogin(){
   const user=(document.getElementById('login_user')?.value||'').trim();
@@ -2628,7 +2655,6 @@ function rCIView(){
 }
 function postCI(){setTimeout(()=>{
   if(S.view==='checkin'&&!S.ciOk){
-    renderCheckPageQR('lock_check_qr');
   }
   if(S.view==='checkin'&&S.ciOk&&!S.ciState){
     if(shouldRunCheckinScanner())startQrScanner();
@@ -2672,7 +2698,7 @@ function rLock(){
           <div class="check-login-qr-sub">Quét mã để mở công cụ check-in trên điện thoại</div>
         </div>
       </div>
-      <div id="lock_check_qr" class="check-login-qr"></div>
+      <div id="lock_check_qr" class="check-login-qr">${checkPageQRHTML()}</div>
       <div class="check-login-qr-url">${esc(checkPageUrl())}</div>
     </div>
   </div>`;
