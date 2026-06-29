@@ -1,5 +1,6 @@
 node_modules/
 dist/
 .codex-vite.*.log
+.vite-dev.*.log
 vite-local*.log
 .DS_Store

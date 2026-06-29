@@ -1,5 +1,9 @@
 {
   "rewrites": [
+    { "source": "/bao-cao", "destination": "/dashboard.html" },
+    { "source": "/bao-cao/", "destination": "/dashboard.html" },
+    { "source": "/bao-cao/:eventId", "destination": "/dashboard.html" },
+    { "source": "/bao-cao/:eventId/", "destination": "/dashboard.html" },
     { "source": "/check", "destination": "/index.html" }
   ]
 }

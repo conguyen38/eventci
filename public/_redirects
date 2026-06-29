@@ -1,2 +1,5 @@
+/bao-cao /dashboard.html 200
+/bao-cao/ /dashboard.html 200
+/bao-cao/* /dashboard.html 200
 /check /index.html 200
 /* /index.html 200

@@ -1298,10 +1298,16 @@ function rAdmin(){
           <div>
             <div class="admin-title">${pageTitle}</div>
           </div>
-          <button class="btn" onclick="goCI()">
-            <span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span>
-            Mở App Check-in
-          </button>
+          <div class="admin-header-actions">
+            ${S.tab==='guests'&&S.selEv&&canAccessEvent(S.selEv)?`<button class="btn" onclick="openReportAccess()">
+              <span class="material-symbols-rounded mi" aria-hidden="true">monitoring</span>
+              Dashboard live
+            </button>`:''}
+            <button class="btn" onclick="goCI()">
+              <span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span>
+              Mở App Check-in
+            </button>
+          </div>
         </header>
         <main class="admin-content">
           ${S.tab==='events'?rEvTab():''}
@@ -1351,25 +1357,37 @@ function rEvTab(){
   </div>
     ${allEvents.length===0?`<div class="empty">📭 Chưa có sự kiện nào được phân công.</div>`:''}
     ${allEvents.length>0&&sorted.length===0?`<div class="empty">Không tìm thấy sự kiện phù hợp.</div>`:''}
-    ${sorted.map(ev=>{const p=allPeople(ev.id);const btcN=(ev.btcMembers||[]).length;const locked=isEvLocked(ev);
-      return`<div class="ev-item" onclick="openGM('${ev.id}')">
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:16px">${ev.name} ${locked?'<span style="font-size:14px;font-weight:600;background:#FEF2F2;color:#B91C1C;padding:2px 7px;border-radius:10px;vertical-align:middle">Đã kết thúc</span>':''}</div>
-          <div class="ev-meta">
-            <span>📅 ${fmtD(ev.date)}</span>
-            <span>🏢 ${ev.team||'—'}</span>
-            ${ev.venue?`<span>📍 ${ev.venue}</span>`:''}
-            <span>👥 ${p.t} người</span>
-            <span>✅ ${p.c}/${p.t}</span>
-            <span>🔑 ${btcN} BTC</span>
+    ${sorted.map(ev=>{const p=allPeople(ev.id);const locked=isEvLocked(ev);const pct=p.t>0?Math.round(p.c/p.t*100):0;
+      const statusText=locked?'Đã đóng':p.c===p.t&&p.t>0?'Hoàn tất':p.c>0?`${p.c} đã vào`:'Chờ';
+      const statusCls=locked?'b-gray':p.c===p.t&&p.t>0?'b-green':p.c>0?'b-blue':'b-gray';
+      return`<div class="ev-item" onclick="openGM('${jsStr(ev.id)}')">
+        <div class="ev-main">
+          <div class="ev-head">
+            <div class="ev-title">${esc(ev.name||'Sự kiện chưa đặt tên')}</div>
+            ${locked?'<span class="badge ev-ended">Đã kết thúc</span>':''}
           </div>
-          <div class="pb"><div class="pb-fill" style="width:${p.t>0?Math.round(p.c/p.t*100):0}%;background:${locked?'#aaa':'#3B6D11'}"></div></div>
+          <div class="ev-meta">
+            <span class="ev-chip"><span class="material-symbols-rounded mi" aria-hidden="true">calendar_month</span>${fmtD(ev.date)}</span>
+            ${ev.team?`<span class="ev-chip"><span class="material-symbols-rounded mi" aria-hidden="true">apartment</span>${esc(ev.team)}</span>`:''}
+            <span class="ev-chip"><span class="material-symbols-rounded mi" aria-hidden="true">groups</span>${p.t} người</span>
+          </div>
+          ${ev.venue?`<div class="ev-venue" title="${esc(ev.venue)}"><span class="material-symbols-rounded mi" aria-hidden="true">location_on</span><span>${esc(ev.venue)}</span></div>`:''}
+          <div class="ev-progress-row">
+            <div class="ev-progress-copy">
+              <span>Check-in</span>
+              <strong>${p.c}/${p.t}</strong>
+              <span>${pct}%</span>
+            </div>
+            <div class="pb ev-progress"><div class="pb-fill" style="width:${pct}%;background:${locked?'#94a3b8':'var(--primary-blue)'}"></div></div>
+          </div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap" onclick="event.stopPropagation()">
-          <span class="badge ${locked?'b-gray':p.c===p.t&&p.t>0?'b-green':p.c>0?'b-blue':'b-gray'}">${locked?'Đã đóng':p.c===p.t&&p.t>0?'Hoàn tất':p.c>0?p.c+' đã vào':'Chờ'}</span>
-          <button class="btn sm" onclick="openGM('${ev.id}')">📋 Khách</button>
-          ${canManage?`<button class="btn sm" onclick="openEditEv('${ev.id}')">✏️ Sửa</button>
-          <button class="btn sm red" onclick="delEv('${ev.id}')">🗑️</button>`:''}
+        <div class="ev-side" onclick="event.stopPropagation()">
+          <span class="badge ${statusCls} ev-status">${statusText}</span>
+          <div class="ev-actions">
+            <button class="btn sm ev-icon-btn" onclick="openReportAccess('${jsStr(ev.id)}')" title="Dashboard live" aria-label="Dashboard live"><span class="material-symbols-rounded mi" aria-hidden="true">monitoring</span></button>
+            ${canManage?`<button class="btn sm ev-icon-btn" onclick="openEditEv('${jsStr(ev.id)}')" title="Sửa sự kiện" aria-label="Sửa sự kiện"><span class="material-symbols-rounded mi" aria-hidden="true">edit</span></button>
+            <button class="btn sm red ev-delete-btn" onclick="delEv('${jsStr(ev.id)}')" title="Xóa sự kiện"><span class="material-symbols-rounded mi" aria-hidden="true">delete</span></button>`:''}
+          </div>
         </div>
       </div>`;}).join('')}`;
 }
@@ -1523,13 +1541,17 @@ function rGTab(){
           </select>
         </div>
         <div class="guest-actions">
-          ${evLocked?'':
-            `<button class="btn green sm" onclick="openImportExcel()"><span class="material-symbols-rounded mi" aria-hidden="true">file_download</span>Import Excel</button>`
-          }
-          ${p.t > 0 ? `<button class="btn sm" onclick="expCSV()"><span class="material-symbols-rounded mi" aria-hidden="true">download</span>Xuất CSV</button>` : ''}
-          ${p.t > 0 ? `<button class="btn blue sm" onclick="downloadAllQRsZip()" id="zip_btn"><span class="material-symbols-rounded mi" aria-hidden="true">folder_zip</span>Tải QR hàng loạt</button>` : ''}
-          ${evLocked?'':`<button class="btn blue sm" onclick="openM('add_g')"><span class="material-symbols-rounded mi" aria-hidden="true">person_add</span>Thêm KH đăng ký</button>`}
-          ${evWalkinDay?`<button class="btn sm guest-walkin-btn" onclick="openWalkin()"><span class="material-symbols-rounded mi" aria-hidden="true">directions_walk</span>Walk-in</button>`:''}
+          <div class="guest-actions-left">
+            ${evLocked?'':
+              `<button class="btn green sm" onclick="openImportExcel()"><span class="material-symbols-rounded mi" aria-hidden="true">file_download</span>Import Excel</button>`
+            }
+            ${p.t > 0 ? `<button class="btn sm" onclick="expCSV()"><span class="material-symbols-rounded mi" aria-hidden="true">download</span>Xuất CSV</button>` : ''}
+            ${p.t > 0 ? `<button class="btn sm" onclick="downloadAllQRsZip()" id="zip_btn"><span class="material-symbols-rounded mi" aria-hidden="true">folder_zip</span>Tải QR hàng loạt</button>` : ''}
+          </div>
+          <div class="guest-actions-right">
+            ${evLocked?'':`<button class="btn blue sm" onclick="openM('add_g')"><span class="material-symbols-rounded mi" aria-hidden="true">person_add</span>Thêm KH đăng ký</button>`}
+            ${evWalkinDay?`<button class="btn sm guest-walkin-btn" onclick="openWalkin()"><span class="material-symbols-rounded mi" aria-hidden="true">directions_walk</span>Walk-in</button>`:''}
+          </div>
         </div>
       </div>
     </div>
@@ -1588,7 +1610,7 @@ function rGTab(){
                 ${isCancelled?`<span class="cancelled-badge">🚫 Cancel</span>${g.cancelNote?`<div class="cancel-note">${g.cancelNote}</div>`:''}`:
                   `${comps.length?`<div class="sub">+${comps.length} đi kèm</div>`:''}
                    ${g.note?`<div class="sub" style="font-style:italic">${g.note}</div>`:''}
-                   ${evLocked?'':`<button class="btn xs" onclick="openAddComp('${g.id}')" style="margin-top:5px;color:#185FA5;border-color:#b3d4f5">+ thêm đi kèm</button>`}`}
+                   ${evLocked?'':`<button class="btn xs" onclick="openAddComp('${g.id}')" style="margin-top:5px;color:#185FA5;border-color:#b3d4f5">+ Thêm đi kèm</button>`}`}
               </td>
               <td><span class="mono">${g.guestCode}</span></td>
               <td style="color:#888;font-size:14px">${g.phone||'—'}</td>
@@ -1920,6 +1942,7 @@ function rModal(){
   if(S.modal==='import_preview')return wrapModal(rImportPreviewM(),'lg');
   if(S.modal==='walkin')return wrapModal(rWalkinM(),'lg');
   if(S.modal==='ci_unlock')return wrapModal(rCIUnlockM(),'sm');
+  if(S.modal==='report_access')return wrapModal(rReportAccessM());
   if(S.modal==='admin_account')return wrapModal(rAdminAccountM(),'sm');
   if(S.modal==='account_form')return wrapModal(rAccountFormM(),'sm');
   if(S.modal==='account_del')return wrapModal(rAccountDelM(),'sm');
@@ -1939,6 +1962,36 @@ function rAdminAccountM(){
     <div class="mf">
       <button class="btn" onclick="closeM()">Huỷ</button>
       <button class="btn blue" onclick="saveAdminPw()">💾 Lưu mật khẩu</button>
+    </div>`;
+}
+
+function reportUrl(eventId){
+  return new URL(`/bao-cao/${encodeURIComponent(eventId||'')}`, window.location.origin).href;
+}
+
+function rReportAccessM(){
+  const ev=getEvById(S.selEv);
+  if(!ev)return`<div class="mh">Không tìm thấy sự kiện</div>`;
+  const url=reportUrl(ev.id);
+  const hasDashboard=!!ev.eventPw;
+  return`<div class="mh"><span class="material-symbols-rounded mi" aria-hidden="true">monitoring</span>${hasDashboard?'Sửa mã truy cập dashboard':'Tạo dashboard live'}</div>
+    <div style="font-size:15px;color:#64748b;margin-bottom:14px;line-height:1.45">${hasDashboard
+      ?`Dashboard live của sự kiện <b>${esc(ev.name)}</b> đã được tạo. Link này được giữ cố định; bạn chỉ có thể sửa mã truy cập.`
+      :`Sự kiện <b>${esc(ev.name)}</b> chưa có dashboard live. Đặt mã truy cập để tạo dashboard và mở link báo cáo.`}</div>
+    <div class="fg"><label>Link dashboard</label>
+      <div class="copy-field">
+        <input id="report_url" value="${esc(url)}" readonly onclick="this.select()" />
+        <button type="button" class="copy-field-btn" onclick="copyReportLink()" title="Copy link" aria-label="Copy link"><span class="material-symbols-rounded mi" aria-hidden="true">content_copy</span></button>
+        <span id="report_copy_tip" class="copy-tip">Đã copy</span>
+      </div>
+    </div>
+    <div class="fg"><label>Mã truy cập *</label>
+      <input id="report_pw" value="${esc(ev.eventPw||'')}" placeholder="VD: 123456 hoặc SKBH2026" autofocus onkeydown="if(event.key==='Enter')saveReportAccess()" />
+    </div>
+    <div id="report_err" class="err"></div>
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Huỷ</button>
+      <button class="btn blue" onclick="saveReportAccess()"><span class="material-symbols-rounded mi" aria-hidden="true">open_in_new</span>${hasDashboard?'Lưu & mở dashboard':'Tạo & mở dashboard'}</button>
     </div>`;
 }
 
@@ -2973,6 +3026,12 @@ async function switchCICamera(){
 }
 function setFil(v){S.filter=v;R()}
 function openM(m){S.modal=m;R()}
+function openReportAccess(eventId=null){
+  const id=eventId||S.selEv;
+  if(id)S.selEv=id;
+  S.modal='report_access';
+  R();
+}
 function openAccount(){S.modal='admin_account';R()}
 function openAccountForm(id=null){S.editAccountId=id;S.modal='account_form';R()}
 function openAccountDel(id){S.delAccountId=id;S.modal='account_del';R()}
@@ -2982,6 +3041,22 @@ function openEdit(id){S.editGid=id;S.modal='edit_form';R()}
 function openDel(id){S.delGid=id;S.modal='del_pw';R()}
 function openTickets(id){S.ticketGid=id;S.modal='tickets';R()}
 function closeM(){S.modal=null;S.editGid=null;S.detailGid=null;S.delGid=null;S.editAccountId=null;S.delAccountId=null;S.cpTicket=null;S.cpDetail=null;S.cpEdit=null;S.cpDel=null;S.cpAdd=null;S.adminCI=null;S.cancelTarget=null;S.evUnlockTarget=null;S.editEvId=null;S.importData=null;S.ciUnlockTarget=null;R()}
+
+async function copyReportLink(){
+  const input=document.getElementById('report_url');
+  const url=input?.value||reportUrl(S.selEv);
+  try{
+    await navigator.clipboard.writeText(url);
+  }catch(e){
+    if(input){input.select();document.execCommand?.('copy')}
+  }
+  const tip=document.getElementById('report_copy_tip');
+  if(tip){
+    tip.classList.add('show');
+    clearTimeout(tip._hideT);
+    tip._hideT=setTimeout(()=>tip.classList.remove('show'),1400);
+  }
+}
 
 function saveAdminPw(){
   const pw=(document.getElementById('admin_pw_new')?.value||'').trim();
@@ -3181,18 +3256,34 @@ async function saveEv(){
     const idx=db.events.findIndex(e=>e.id===S.editEvId);
     if(idx<0)return;
     const existing=db.events[idx];
-    db.events[idx]={...existing,name,date,team,venue,eventPw:'',btcMembers:bms};
+    db.events[idx]={...existing,name,date,team,venue,eventPw:existing.eventPw||'',btcMembers:bms};
     const editedId=S.editEvId;
     saveLocalOnly();S.modal=null;S.editEvId=null;R();
-    const ok=await sbPatchEvent(editedId,{name,date_str:date||null,team:team||null,venue:venue||null,event_pw:'',btc_members:bms});
-    if(!ok)alert('⚠️ Đã lưu sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
+    const ok=await sbPatchEvent(editedId,{name,date_str:date||null,team:team||null,venue:venue||null,event_pw:existing.eventPw||'',btc_members:bms});
+    if(!ok)console.warn('Đã lưu sự kiện local nhưng chưa đồng bộ lên hệ thống trung tâm.');
   } else {
     const newEv={id:uid(),name,date,team,venue,eventPw:'',btcMembers:bms,createdAt:Date.now()};
     db.events.push(newEv);
     S.selEv=newEv.id;saveLocalOnly();S.modal=null;S.tab='guests';R();
     const ok=await sbUpsertOne('oh_events',evToDb(newEv));
-    if(!ok)alert('⚠️ Đã tạo sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối trước khi gửi link cho người khác.');
+    if(!ok)console.warn('Đã tạo sự kiện local nhưng chưa đồng bộ lên hệ thống trung tâm.');
   }
+}
+
+async function saveReportAccess(){
+  const ev=getEvById(S.selEv);
+  if(!ev)return;
+  const pw=document.getElementById('report_pw')?.value?.trim();
+  const err=document.getElementById('report_err');
+  if(!pw){if(err)err.textContent='Vui lòng nhập mã truy cập dashboard.';return}
+  ev.eventPw=pw;
+  saveLocalOnly();
+  const url=reportUrl(ev.id);
+  S.modal=null;
+  R();
+  const ok=await sbPatchEvent(ev.id,{event_pw:pw});
+  if(!ok)console.warn('Đã lưu mã dashboard local nhưng chưa đồng bộ lên hệ thống trung tâm.');
+  window.open(url,'_blank','noopener');
 }
 
 function delEv(id){if(!canManageEvents()){alert('Bạn không có quyền xoá sự kiện.');return}
@@ -4008,7 +4099,7 @@ function closeCIUnlock(id){S.unlockedCIEvs[id]=false;R()}
 // Expose all functions to window scope (required for Vite module bundling)
 window.R=R; window.doLogin=doLogin; window.doLogout=doLogout; window.doRefresh=doRefresh; window.doUrlCI=doUrlCI; window.formatCIInput=formatCIInput;
 window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch; window.setEvSrch=setEvSrch; window.setCIRecentSearch=setCIRecentSearch; window.setCIMobileMode=setCIMobileMode; window.switchCICamera=switchCICamera;
-window.clearSrch=clearSrch; window.clearEvSrch=clearEvSrch; window.clearCIRecentSearch=clearCIRecentSearch; window.setFil=setFil; window.openM=openM; window.openAccount=openAccount; window.saveAdminPw=saveAdminPw; window.filterDD=filterDD; window.clearDDSearch=clearDDSearch;
+window.clearSrch=clearSrch; window.clearEvSrch=clearEvSrch; window.clearCIRecentSearch=clearCIRecentSearch; window.setFil=setFil; window.openM=openM; window.openReportAccess=openReportAccess; window.copyReportLink=copyReportLink; window.saveReportAccess=saveReportAccess; window.openAccount=openAccount; window.saveAdminPw=saveAdminPw; window.filterDD=filterDD; window.clearDDSearch=clearDDSearch;
 window.openAccountForm=openAccountForm; window.openAccountDel=openAccountDel; window.saveAccount=saveAccount; window.deleteAccount=deleteAccount;
 window.openGuestDetail=openGuestDetail; window.openCpDetail=openCpDetail; window.openEdit=openEdit; window.openDel=openDel;
 window.openTickets=openTickets; window.closeM=closeM; window.openEditEv=openEditEv;

@@ -3,67 +3,93 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
 <title>OneHousing — Dashboard Báo cáo Sự kiện</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..600,0..1,0&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
-    --blue:#185FA5; --blue-light:#E6F1FB; --blue-dark:#0C447C;
+    --primary-blue:#256fe6; --primary-blue-hover:#1f63d8; --primary-blue-ring:rgba(37,111,230,.12);
+    --blue:var(--primary-blue); --blue-light:#EFF6FF; --blue-dark:#1f63d8;
     --green:#3B6D11; --green-light:#EAF3DE;
     --red:#B91C1C; --red-light:#FEF2F2;
     --amber:#BA7517; --amber-light:#FAEEDA;
-    --gray:#888780; --gray-light:#F1EFE8;
-    --ink:#1a1a1a; --sub:#888; --border:#eaecf0; --bg:#F7F8FA;
+    --gray:#64748b; --gray-light:#f8fafc;
+    --ink:#071025; --sub:#7f8a9c; --muted:#98a4b6; --border:#e2e8f0; --bg:#f5f7fb;
   }
   *{box-sizing:border-box}
-  body{margin:0;font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--ink)}
-  .wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
-  .topbar{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:24px}
-  .brand{display:flex;align-items:center;gap:12px}
-  .brand .logo{width:40px;height:40px;border-radius:10px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px}
-  .brand h1{font-size:18px;font-weight:800;margin:0}
-  .brand .tag{font-size:12px;color:var(--sub);margin-top:2px}
+  body{margin:0;font-family:'Be Vietnam Pro',sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.5}
+  .wrap{max-width:1240px;min-height:100vh;margin:0 auto;padding:24px 20px 40px;display:flex;flex-direction:column}
+  .topbar{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;margin-bottom:18px;box-shadow:0 1px 4px rgba(15,23,42,.04)}
+  .brand{display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+  .brand .logo{width:148px;height:auto;display:block;object-fit:contain;flex-shrink:0}
+  .brand-text{padding-left:0}
+  .brand h1{font-size:24px;font-weight:800;line-height:1.2;margin:0;color:var(--ink)}
+  .brand .tag{font-size:14px;font-weight:500;color:var(--muted);margin-top:4px}
+  .report-controls{text-align:right;display:grid;gap:8px;justify-items:end}
   .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  select,.btn{font-family:inherit;font-size:13px;border:1px solid var(--border);border-radius:10px;padding:9px 14px;background:#fff;color:var(--ink);cursor:pointer}
-  select{min-width:260px;font-weight:600}
-  .btn{display:flex;align-items:center;gap:6px;font-weight:600}
-  .btn:hover{background:#f5f6f8}
-  .updated{font-size:11px;color:#bbb;margin-top:6px}
+  select,.btn{font-family:inherit;font-size:14px;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;background:#fff;color:var(--ink);cursor:pointer;transition:border-color .15s,box-shadow .15s,background .15s,color .15s}
+  select{min-width:320px;font-weight:600;outline:none}
+  select:focus{border-color:var(--primary-blue);box-shadow:0 0 0 3px var(--primary-blue-ring)}
+  #evSelect{display:none}
+  .dash-dd{position:relative;width:360px;max-width:100%}
+  .dash-dd-btn{width:100%;min-height:48px;padding:9px 12px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;color:var(--ink);font-family:inherit;font-size:14px;font-weight:500;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s,background .15s}
+  .dash-dd-btn:hover{background:#f8fafc;border-color:#b9c7da}
+  .dash-dd.open .dash-dd-btn{border-color:var(--primary-blue);box-shadow:0 0 0 3px var(--primary-blue-ring)}
+  .dash-dd-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dash-dd-caret{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;font-size:22px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;word-wrap:normal;direction:ltr;-webkit-font-feature-settings:'liga';-webkit-font-smoothing:antialiased;font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24;color:#64748b;transition:transform .15s;flex-shrink:0}
+  .dash-dd.open .dash-dd-caret{transform:rotate(180deg)}
+  .dash-dd-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:30;display:none;max-height:260px;overflow:auto;padding:6px;background:#fff;border:1px solid #d7e0ec;border-radius:10px;box-shadow:0 16px 38px rgba(15,23,42,.14)}
+  .dash-dd.open .dash-dd-menu{display:block}
+  .dash-dd-option{width:100%;min-height:38px;padding:8px 10px;border:0;border-radius:7px;background:transparent;color:#0f172a;font-family:inherit;font-size:14px;font-weight:500;text-align:left;display:flex;align-items:center;cursor:pointer;transition:background .12s,color .12s}
+  .dash-dd-option:hover{background:#EFF6FF;color:var(--primary-blue)}
+  .dash-dd-option.selected{background:var(--primary-blue);color:#fff}
+  .btn{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+  .btn:hover{background:#f4f7fb}
+  .btn.primary{background:var(--primary-blue);border-color:var(--primary-blue);color:#fff}
+  .btn.primary:hover{background:var(--primary-blue-hover);border-color:var(--primary-blue-hover)}
+  .updated{font-size:12px;font-weight:600;color:var(--muted)}
+  .live-pill{min-height:38px;padding:0 12px;border:1px solid #bfdbfe;border-radius:999px;background:#eff6ff;color:var(--primary-blue);font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+  .live-pill i{width:8px;height:8px;border-radius:50%;background:var(--primary-blue);box-shadow:0 0 0 4px var(--primary-blue-ring)}
+  .live-pill.off{border-color:#bfdbfe;background:#eff6ff;color:var(--primary-blue)}
+  .live-pill.off i{background:var(--primary-blue);box-shadow:0 0 0 4px var(--primary-blue-ring)}
 
-  .state{text-align:center;padding:80px 20px;color:#aaa}
+  .state{text-align:center;padding:56px 20px;color:var(--muted);font-weight:600}
   .state .ico{font-size:40px;margin-bottom:10px}
+  .report-main{flex:1}
 
   .grid-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
-  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 18px}
-  .card .lbl{font-size:12px;color:var(--sub);margin-bottom:6px}
-  .card .val{font-size:28px;font-weight:800;line-height:1.1}
-  .card .sub{font-size:11px;color:#aaa;margin-top:4px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(15,23,42,.04)}
+  .card .lbl{font-size:13px;font-weight:700;color:var(--sub);margin-bottom:8px}
+  .card .val{font-size:30px;font-weight:800;line-height:1.1;color:var(--ink)}
+  .card .sub{font-size:12px;color:var(--muted);margin-top:6px;font-weight:500}
   .card.accent-blue{border-left:4px solid var(--blue)}
   .card.accent-green{border-left:4px solid var(--green)}
   .card.accent-gray{border-left:4px solid var(--gray)}
   .card.accent-red{border-left:4px solid var(--red)}
 
-  .section{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:18px}
-  .section h2{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:#999;margin:0 0 14px}
+  .section{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:18px;box-shadow:0 1px 4px rgba(15,23,42,.04)}
+  .section h2{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#64748b;margin:0 0 14px}
   @media(max-width:880px){
     .grid-stats{grid-template-columns:repeat(2,1fr)}
   }
   .chart-box{position:relative;width:100%}
   .chart-box canvas{max-width:100%!important;max-height:100%!important}
-  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--sub)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--sub);font-weight:600}
   .legend span{display:flex;align-items:center;gap:6px}
   .legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
 
   .donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
-  .donut-center .pct{font-size:28px;font-weight:800;color:var(--green)}
-  .donut-center .lbl{font-size:11px;color:#aaa;margin-top:2px}
+  .donut-center .pct{font-size:28px;font-weight:800;color:var(--primary-blue)}
+  .donut-center .lbl{font-size:11px;color:var(--muted);margin-top:2px}
 
   .donut-grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:auto auto auto;gap:18px}
   .donut-item{display:grid;grid-template-rows:subgrid;grid-row:span 3}
-  .donut-title{font-size:12px;font-weight:600;color:var(--sub);text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center}
+  .donut-title{font-size:12px;font-weight:700;color:#64748b;text-align:center;min-height:32px;display:flex;align-items:center;justify-content:center}
   .donut-item .legend{justify-content:center;align-content:start;font-size:11px;gap:6px 12px;min-height:24px}
   @media(max-width:1100px){
     .donut-grid{grid-template-columns:repeat(2,1fr)}
@@ -72,11 +98,38 @@
     .donut-grid{grid-template-columns:1fr}
   }
 
-  .footer-note{font-size:11px;color:#bbb;text-align:center;margin-top:24px}
+  .footer-note{font-size:12px;color:var(--muted);text-align:center;margin-top:24px}
 
-  .toggle-btn{font-family:inherit;font-size:12px;font-weight:600;border:none;border-radius:7px;padding:6px 12px;background:transparent;color:var(--sub);cursor:pointer}
-  .toggle-btn.active{background:var(--bg);color:var(--ink)}
+  .toggle-btn{font-family:inherit;font-size:12px;font-weight:700;border:none;border-radius:7px;padding:6px 12px;background:transparent;color:var(--sub);cursor:pointer}
+  .toggle-btn:hover{background:#f4f7fb;color:var(--ink)}
+  .toggle-btn.active{background:#eff6ff;color:var(--primary-blue)}
   .view-toggle{display:inline-flex;background:#fff;border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
+  .lock-report{width:100%;max-width:460px;margin:40px auto 0}
+  .lock-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:28px;box-shadow:0 1px 4px rgba(15,23,42,.04)}
+  .lock-mark{width:52px;height:52px;border-radius:14px;background:#eff6ff;color:var(--primary-blue);display:flex;align-items:center;justify-content:center;margin:0 0 18px}
+  .lock-mark .mi{font-family:'Material Symbols Rounded';font-weight:400;font-style:normal;font-size:30px;line-height:1;font-variation-settings:'FILL' 0,'wght' 500,'GRAD' 0,'opsz' 24}
+  .lock-title{font-size:20px;font-weight:800;color:var(--ink);line-height:1.3;margin-bottom:6px}
+  .lock-desc{font-size:14px;font-weight:500;color:var(--sub);line-height:1.5;margin-bottom:18px}
+  .lock-field{margin-bottom:10px}
+  .lock-input{width:100%;height:50px;padding:0 14px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;color:var(--ink);font-family:inherit;font-size:16px;font-weight:600;outline:none;transition:border-color .15s,box-shadow .15s}
+  .lock-input:focus{border-color:var(--primary-blue);box-shadow:0 0 0 3px var(--primary-blue-ring)}
+  .lock-error{min-height:20px;margin:6px 0 12px;color:#b91c1c;font-size:13px;font-weight:600}
+  .lock-submit{width:100%;height:48px;justify-content:center;background:var(--primary-blue);border-color:var(--primary-blue);color:#fff;font-weight:800}
+  .lock-submit:hover{background:var(--primary-blue-hover);border-color:var(--primary-blue-hover)}
+  @media(max-width:720px){
+    .wrap{padding:18px 14px 44px}
+    .topbar{padding:16px}
+    .brand{align-items:flex-start;flex-direction:column;gap:10px}
+    .brand h1{font-size:20px}
+    .report-controls{width:100%;text-align:left;justify-items:stretch}
+    .controls,select,.btn,.dash-dd,.live-pill{width:100%}
+    .live-pill{justify-content:center}
+    select{min-width:0}
+    .grid-stats{grid-template-columns:1fr}
+    .section{padding:16px}
+    .lock-report{margin-top:20px}
+    .lock-card{padding:22px}
+  }
 </style>
 </head>
 <body>
@@ -84,21 +137,29 @@
 
   <div class="topbar">
     <div class="brand">
-      <div class="logo">OH</div>
-      <div>
+      <img class="logo" src="/images/logo-oh-header.png" alt="OneHousing" />
+      <div class="brand-text">
         <h1>Dashboard Báo cáo Sự kiện</h1>
         <div class="tag">OneHousing — Chỉ xem (Read-only)</div>
       </div>
     </div>
-    <div style="text-align:right">
+    <div class="report-controls">
       <div class="controls">
         <select id="evSelect"></select>
-        <button class="btn" id="refreshBtn" onclick="loadData()">↻ Làm mới</button>
+        <div class="dash-dd" id="eventDD">
+          <button type="button" class="dash-dd-btn" onclick="toggleEventDD(event)">
+            <span class="dash-dd-label" id="eventDDLabel">Chọn sự kiện</span>
+            <span class="dash-dd-caret" aria-hidden="true">keyboard_arrow_down</span>
+          </button>
+          <div class="dash-dd-menu" id="eventDDMenu"></div>
+        </div>
+        <span class="live-pill" id="realtimeStatus"><i></i>Live</span>
       </div>
       <div class="updated" id="updatedAt"></div>
     </div>
   </div>
 
+  <main class="report-main">
   <div id="loadingState" class="state">
     <div class="ico">⏳</div>
     <div>Đang tải dữ liệu...</div>
@@ -114,16 +175,16 @@
     <div>Sự kiện này chưa có khách mời nào</div>
   </div>
 
-  <div id="lockState" style="display:none;max-width:360px;margin:60px auto">
-    <div class="card" style="text-align:center;padding:28px 24px">
-      <div style="font-size:32px;margin-bottom:10px">🔒</div>
-      <div style="font-weight:800;font-size:15px;margin-bottom:4px" id="lockEvName"></div>
-      <div style="font-size:12px;color:var(--sub);margin-bottom:18px">Báo cáo sự kiện này được bảo vệ. Vui lòng nhập mật khẩu để xem.</div>
-      <input type="password" id="lockPwInput" placeholder="Nhập mật khẩu..."
-        style="width:100%;font-size:15px;padding:11px 14px;text-align:center;letter-spacing:2px;border:1px solid var(--border);border-radius:10px;font-family:inherit;margin-bottom:10px"
-        onkeydown="if(event.key==='Enter')checkEventPassword()"/>
-      <div id="lockErr" style="color:var(--red);font-size:12px;margin-bottom:10px;min-height:16px"></div>
-      <button class="btn" style="width:100%;justify-content:center;font-weight:700" onclick="checkEventPassword()">Xem báo cáo →</button>
+  <div id="lockState" class="lock-report" style="display:none">
+    <div class="lock-card">
+      <div class="lock-mark"><span class="mi" aria-hidden="true">lock</span></div>
+      <div class="lock-title" id="lockEvName"></div>
+      <div class="lock-desc" id="lockDesc">Báo cáo sự kiện này được bảo vệ. Vui lòng nhập mật khẩu để xem.</div>
+      <div class="lock-field" id="lockPwWrap">
+        <input type="password" id="lockPwInput" class="lock-input" placeholder="Nhập mật khẩu" onkeydown="if(event.key==='Enter')checkEventPassword()"/>
+      </div>
+      <div id="lockErr" class="lock-error"></div>
+      <button class="btn lock-submit" id="lockSubmit" onclick="checkEventPassword()">Xem báo cáo</button>
     </div>
   </div>
 
@@ -140,12 +201,12 @@
         <div class="val" id="kpiAllTotal">—</div>
         <div class="sub" id="kpiAllSub"></div>
       </div>
-      <div class="card accent-green">
+      <div class="card accent-blue">
         <div class="lbl">Showup rate — KH (Main)</div>
         <div class="val" id="kpiMainShowup">—</div>
         <div class="sub" id="kpiMainShowupSub"></div>
       </div>
-      <div class="card accent-green">
+      <div class="card accent-blue">
         <div class="lbl">Showup rate — Tổng người</div>
         <div class="val" id="kpiAllShowup">—</div>
         <div class="sub" id="kpiAllShowupSub"></div>
@@ -228,76 +289,249 @@
     </div>
 
   </div>
+  </main>
 
   <div class="footer-note">Dữ liệu đồng bộ trực tiếp từ hệ thống Check-in OneHousing · Chỉ phục vụ mục đích xem báo cáo</div>
 </div>
 
 <script>
-const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendtYW5jaWVlbWVmY3ZndGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODQyMTksImV4cCI6MjA5NTk2MDIxOX0.WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
-const SB_HDR = { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
+const API_BASE = window.location.origin;
+const SYNC_INTERVAL_MS = 2500;
+const LOCAL_STORAGE_KEY = 'oh_ci_v5';
 
 const COLORS = {
-  ok:'#3B6D11', okBg:'#EAF3DE',
-  pending:'#EF9F27', pendingBg:'#FAEEDA',
-  cancel:'#B91C1C', cancelBg:'#FEF2F2',
-  blue:'#185FA5', blueBg:'#E6F1FB',
-  series:['#185FA5','#3B6D11','#BA7517','#993556','#534AB7','#0F6E56','#D85A30']
+  ok:'#256fe6', okBg:'#EFF6FF',
+  pending:'#60a5fa', pendingBg:'#DBEAFE',
+  cancel:'#1e3a8a', cancelBg:'#E0F2FE',
+  blue:'#256fe6', blueBg:'#EFF6FF',
+  series:['#256fe6','#1d4ed8','#3b82f6','#60a5fa','#93c5fd','#1e40af','#0f5ea8','#38bdf8']
 };
 
-const BRANCH_COLORS = ['#4C9AFF','#36C5A0','#FFAB4C','#FF7A8A','#9E7BFF','#5ED3D3','#FFD166','#7BCB6A','#F4789E','#6FA8DC'];
+const BRANCH_COLORS = ['#1e3a8a','#1e40af','#1d4ed8','#256fe6','#3b82f6','#60a5fa','#7dd3fc','#93c5fd','#bfdbfe','#0ea5e9'];
 
 const STATUS = {
-  showup:{ key:'showup', pctKey:'showupPct', label:'Show up', color:'#3B6D11' },
-  noshow:{ key:'noshow', pctKey:'noshowPct', label:'No show', color:'#EF9F27' },
-  cancel:{ key:'cancel', pctKey:'cancelPct', label:'Cancel', color:'#B91C1C' }
+  showup:{ key:'showup', pctKey:'showupPct', label:'Show up', color:'#256fe6' },
+  noshow:{ key:'noshow', pctKey:'noshowPct', label:'No show', color:'#60a5fa' },
+  cancel:{ key:'cancel', pctKey:'cancelPct', label:'Cancel', color:'#1e3a8a' }
 };
 
 let viewModes = { region:'all', branch:'all', sih:'all' };
 if(window.ChartDataLabels) Chart.register(ChartDataLabels);
 Chart.defaults.set('plugins.datalabels', { display:false });
+Chart.defaults.animation = false;
+if(Chart.defaults.transitions?.active?.animation) Chart.defaults.transitions.active.animation.duration = 0;
+if(Chart.defaults.transitions?.resize?.animation) Chart.defaults.transitions.resize.animation.duration = 0;
 let currentGuests = [];
 
 let events = [];
 let guests = [];
 let charts = {};
 let unlockedEvs = {};
+let syncTimer = null;
+let syncBusy = false;
+let lastDataSignature = '';
+let missingRouteEventId = '';
+
+function localEventToApi(e){
+  return {
+    id:e.id,
+    name:e.name,
+    date_str:e.date || null,
+    team:e.team || null,
+    venue:e.venue || null,
+    event_pw:e.eventPw || '',
+    btc_members:e.btcMembers || [],
+    created_at:e.createdAt || Date.now()
+  };
+}
+function localGuestToApi(g){
+  return {
+    id:g.id,
+    event_id:g.eventId,
+    guest_code:g.guestCode,
+    system_code:g.systemCode || null,
+    name:g.name,
+    phone:g.phone || null,
+    prm_name:g.prmName || null,
+    tcb_region:g.tcbRegion || null,
+    unit:g.unit || null,
+    sih_name:g.sihName || null,
+    note:g.note || null,
+    companions:g.companions || [],
+    checked_in:!!g.checkedIn,
+    checkin_time:g.checkinTime || null,
+    checkin_by:g.checkinBy || null,
+    cancelled:!!g.cancelled,
+    cancel_note:g.cancelNote || null,
+    walkin:!!g.walkin,
+    created_at:g.createdAt || Date.now()
+  };
+}
+function loadLocalDashboardData(){
+  try{
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const local = raw ? JSON.parse(raw) : null;
+    if(!local || !Array.isArray(local.events) || !Array.isArray(local.guests)) return false;
+    events = local.events.map(localEventToApi);
+    guests = local.guests.map(localGuestToApi);
+    return true;
+  }catch(e){
+    console.warn('Không đọc được dữ liệu local dashboard:', e);
+    return false;
+  }
+}
 
 function fmtPct(n){ return (Math.round(n*10)/10).toLocaleString('vi-VN') + '%'; }
 function fmtNum(n){ return n.toLocaleString('vi-VN'); }
+function escHtml(v){
+  return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function getReportEventIdFromPath(){
+  const path = (window.location.pathname || '').replace(/\/+$/,'');
+  const match = path.match(/^\/bao-cao\/(.+)$/);
+  return match ? decodeURIComponent(match[1].split('/')[0]) : '';
+}
+function setReportEventPath(eventId, replace=false){
+  if(!eventId) return;
+  const next = `/bao-cao/${encodeURIComponent(eventId)}`;
+  if(window.location.pathname === next) return;
+  history[replace?'replaceState':'pushState']({},'',next);
+}
+function dataSignature(){
+  return JSON.stringify({
+    events: events.map(e=>[e.id,e.name,e.date_str,e.team,e.venue,e.event_pw,e.created_at]),
+    guests: guests.map(g=>[
+      g.id,g.event_id,g.tcb_region,g.unit,g.sih_name,g.checked_in,g.checkin_time,g.checkin_by,g.cancelled,g.cancel_note,
+      JSON.stringify(g.companions||[])
+    ])
+  });
+}
 
-async function loadData(){
-  document.getElementById('loadingState').style.display='block';
-  document.getElementById('errorState').style.display='none';
-  document.getElementById('emptyState').style.display='none';
-  document.getElementById('content').style.display='none';
-  try{
-    const [evRes, gRes] = await Promise.all([
-      fetch(`${SB_URL}/rest/v1/oh_events?select=*&order=created_at.desc`, {headers:SB_HDR}),
-      fetch(`${SB_URL}/rest/v1/oh_guests?select=*`, {headers:SB_HDR})
-    ]);
-    if(!evRes.ok || !gRes.ok) throw new Error('Lỗi kết nối Supabase');
-    events = await evRes.json();
-    guests = await gRes.json();
+function toggleEventDD(event){
+  event.stopPropagation();
+  document.getElementById('eventDD')?.classList.toggle('open');
+}
+function closeEventDD(){
+  document.getElementById('eventDD')?.classList.remove('open');
+}
+function selectEventDD(value){
+  const sel = document.getElementById('evSelect');
+  sel.value = value;
+  missingRouteEventId = '';
+  closeEventDD();
+  setReportEventPath(value);
+  renderEventDropdown();
+  sel.dispatchEvent(new Event('change', {bubbles:true}));
+}
+function renderEventDropdown(){
+  const sel = document.getElementById('evSelect');
+  const label = document.getElementById('eventDDLabel');
+  const menu = document.getElementById('eventDDMenu');
+  if(!sel || !label || !menu) return;
+  const opts = Array.from(sel.options);
+  const current = opts.find(o=>o.value===sel.value) || opts[0];
+  label.textContent = missingRouteEventId ? 'Không tìm thấy sự kiện' : (current?.textContent || 'Chọn sự kiện');
+  menu.innerHTML = opts.map(o=>`
+    <button type="button" class="dash-dd-option ${o.value===sel.value?'selected':''}" data-value="${escHtml(o.value)}">${escHtml(o.textContent)}</button>
+  `).join('');
+  menu.querySelectorAll('.dash-dd-option').forEach(btn=>{
+    btn.addEventListener('click', event=>{
+      event.stopPropagation();
+      selectEventDD(btn.dataset.value || '');
+    });
+  });
+}
 
-    const sel = document.getElementById('evSelect');
-    const prevVal = sel.value;
-    sel.innerHTML = events.map(e=>`<option value="${e.id}">${e.name}${e.date_str?' — '+formatDate(e.date_str):''}${e.event_pw&&!unlockedEvs[e.id]?' 🔒':''}</option>`).join('');
-    if(prevVal && events.some(e=>e.id===prevVal)) sel.value = prevVal;
+function refreshEventSelector(){
+  const sel = document.getElementById('evSelect');
+  const prevVal = sel.value;
+  const pathEventId = getReportEventIdFromPath();
+  missingRouteEventId = '';
+  sel.innerHTML = events.map(e=>{
+    const label = `${e.name}${e.date_str?' — '+formatDate(e.date_str):''}`;
+    return `<option value="${escHtml(e.id)}">${escHtml(label)}</option>`;
+  }).join('');
+  if(pathEventId && events.some(e=>e.id===pathEventId)) sel.value = pathEventId;
+  else if(pathEventId){
+    sel.value = '';
+    missingRouteEventId = pathEventId;
+    renderEventDropdown();
+    return;
+  }
+  else if(prevVal && events.some(e=>e.id===prevVal)) sel.value = prevVal;
+  else if(events[0]) sel.value = events[0].id;
+  if(sel.value) setReportEventPath(sel.value, true);
+  renderEventDropdown();
+}
 
-    document.getElementById('updatedAt').textContent = 'Cập nhật lần cuối: ' + new Date().toLocaleString('vi-VN');
+function finishDataRender(sourceLabel){
+  const signature = dataSignature();
+  if(signature === lastDataSignature){
+    refreshEventSelector();
+    setSyncStatus('Live', sourceLabel.includes('Neon'));
+    document.getElementById('updatedAt').textContent = `${sourceLabel}: ` + new Date().toLocaleString('vi-VN');
     document.getElementById('loadingState').style.display='none';
+    return;
+  }
+  lastDataSignature = signature;
+  refreshEventSelector();
+  document.getElementById('updatedAt').textContent = `${sourceLabel}: ` + new Date().toLocaleString('vi-VN');
+  document.getElementById('loadingState').style.display='none';
+  if(!events.length){
+    document.getElementById('errorMsg').textContent = 'Chưa có sự kiện nào trong hệ thống';
+    document.getElementById('errorState').style.display='block';
+    return;
+  }
+  render();
+}
 
-    if(!events.length){
-      document.getElementById('errorMsg').textContent = 'Chưa có sự kiện nào trong hệ thống';
-      document.getElementById('errorState').style.display='block';
+function setSyncStatus(text, ok=true){
+  const el = document.getElementById('realtimeStatus');
+  if(!el) return;
+  el.classList.toggle('off', !ok);
+  el.innerHTML = `<i></i>${escHtml(text)}`;
+}
+
+function startBackgroundSync(){
+  if(syncTimer) return;
+  setSyncStatus('Live');
+  syncTimer = setInterval(()=>loadData({silent:true}), SYNC_INTERVAL_MS);
+}
+
+async function loadData({silent=false}={}){
+  if(syncBusy) return;
+  syncBusy = true;
+  if(!silent){
+    document.getElementById('loadingState').style.display='block';
+    document.getElementById('errorState').style.display='none';
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('content').style.display='none';
+  }
+  try{
+    const syncRes = await fetch(`${API_BASE}/api/sync`, {cache:'no-store'});
+    if(!syncRes.ok) throw new Error('Lỗi kết nối Neon API');
+    const payload = await syncRes.json();
+    if(!payload?.ok) throw new Error(payload?.error || 'Neon API trả về dữ liệu không hợp lệ');
+    events = payload.events || [];
+    guests = payload.guests || [];
+
+    setSyncStatus('Live');
+    finishDataRender('Đồng bộ Neon');
+  }catch(e){
+    if(loadLocalDashboardData()){
+      setSyncStatus('Live', false);
+      finishDataRender('Dữ liệu từ trang quản lý');
       return;
     }
-    render();
-  }catch(e){
-    document.getElementById('loadingState').style.display='none';
-    document.getElementById('errorMsg').textContent = 'Không thể tải dữ liệu — vui lòng thử Làm mới. (' + e.message + ')';
-    document.getElementById('errorState').style.display='block';
+    if(!silent){
+      document.getElementById('loadingState').style.display='none';
+      document.getElementById('errorMsg').textContent = 'Không thể tải dữ liệu — hãy chạy bằng Vercel dev/deploy để có /api/sync, hoặc mở trang quản lý trước để có dữ liệu local. (' + e.message + ')';
+      document.getElementById('errorState').style.display='block';
+    }else{
+      setSyncStatus('Live', false);
+    }
+  }finally{
+    syncBusy = false;
   }
 }
 
@@ -322,21 +556,52 @@ function checkEventPassword(){
   render();
 }
 
+function showLockPanel(ev, mode='locked'){
+  document.getElementById('lockEvName').textContent = ev?.name || 'Dashboard live';
+  document.getElementById('lockErr').textContent='';
+  const desc=document.getElementById('lockDesc');
+  const field=document.getElementById('lockPwWrap');
+  const submit=document.getElementById('lockSubmit');
+  const mark=document.querySelector('.lock-mark .mi');
+  if(mode==='missing'){
+    if(mark)mark.textContent='monitoring';
+    if(desc)desc.textContent='Dashboard live cho sự kiện này chưa được tạo. Vui lòng tạo dashboard và mã truy cập từ trang quản lý khách mời.';
+    if(field)field.style.display='none';
+    if(submit)submit.style.display='none';
+  }else{
+    if(mark)mark.textContent='lock';
+    if(desc)desc.textContent='Báo cáo sự kiện này được bảo vệ. Vui lòng nhập mật khẩu để xem.';
+    if(field)field.style.display='';
+    if(submit)submit.style.display='';
+    const pwInput = document.getElementById('lockPwInput');
+    pwInput.value='';
+    requestAnimationFrame(()=>pwInput.focus());
+  }
+  document.getElementById('lockState').style.display='block';
+}
+
 function render(){
   const evId = document.getElementById('evSelect').value;
   const ev = events.find(e=>e.id===evId);
 
   document.getElementById('lockState').style.display='none';
+  document.getElementById('errorState').style.display='none';
   document.getElementById('emptyState').style.display='none';
   document.getElementById('content').style.display='none';
 
+  if(missingRouteEventId){
+    document.getElementById('errorMsg').textContent = `Không tìm thấy sự kiện với ID: ${missingRouteEventId}`;
+    document.getElementById('errorState').style.display='block';
+    return;
+  }
+
+  if(ev && !ev.event_pw){
+    showLockPanel(ev,'missing');
+    return;
+  }
+
   if(ev?.event_pw && !unlockedEvs[evId]){
-    document.getElementById('lockEvName').textContent = ev.name;
-    const pwInput = document.getElementById('lockPwInput');
-    pwInput.value='';
-    document.getElementById('lockErr').textContent='';
-    document.getElementById('lockState').style.display='block';
-    pwInput.focus();
+    showLockPanel(ev,'locked');
     return;
   }
 
@@ -359,7 +624,7 @@ function render(){
 
   // ---- Main + Companion stats ----
   // Lưu ý: companions là 1 JSON column lưu nguyên object JS (camelCase) từ hệ thống check-in,
-  // khác với các cột cấp cao nhất của Main (snake_case từ Supabase REST).
+  // khác với các cột cấp cao nhất của Main (snake_case từ Neon API).
   let totalAll=0, ciAll=0, cnAll=0;
   gs.forEach(g=>{
     totalAll++; if(g.checked_in) ciAll++; if(g.cancelled) cnAll++;
@@ -588,7 +853,7 @@ const DATALABEL_CFG = {
     const v = ctx.dataset.data[ctx.dataIndex];
     return v >= 8;
   },
-  color:(ctx)=> ctx.dataset.backgroundColor===STATUS.noshow.color ? '#412402' : '#fff',
+  color:'#fff',
   font:{ size:11, weight:600 },
   formatter:(value, ctx)=>{
     const counts = ctx.dataset._counts;
@@ -789,9 +1054,18 @@ function renderSihChart(groups){
   });
 }
 
-document.getElementById('evSelect').addEventListener('change', render);
+document.addEventListener('click', closeEventDD);
+document.getElementById('evSelect').addEventListener('change', ()=>{
+  setReportEventPath(document.getElementById('evSelect').value);
+  renderEventDropdown();
+  render();
+});
+window.addEventListener('popstate', ()=>{
+  refreshEventSelector();
+  render();
+});
 loadData();
-setInterval(loadData, 60000);
+startBackgroundSync();
 </script>
 </body>
 </html>
