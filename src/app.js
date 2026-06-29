@@ -32,12 +32,25 @@ function defaultAdminAccount(){
   return{id:'admin',username:LOGIN_USER,name:'Administrator',role:'super_admin',password:getAdminPw(),createdAt:Date.now(),updatedAt:Date.now()};
 }
 function saveAccounts(accounts){
-  const clean=accounts.map(acc=>({
-    ...acc,
-    username:normalizeUsername(acc.username),
-    role:ROLE_DEFS[acc.role]?acc.role:'staff',
-    updatedAt:acc.updatedAt||Date.now()
-  }));
+  let superSeen=false;
+  const clean=accounts.map(acc=>{
+    let role=ROLE_DEFS[acc.role]?acc.role:'staff';
+    if(role==='super_admin'){
+      if(superSeen)role='manager';
+      else superSeen=true;
+    }
+    return{
+      ...acc,
+      username:normalizeUsername(acc.username),
+      role,
+      updatedAt:acc.updatedAt||Date.now()
+    };
+  });
+  if(!clean.some(acc=>acc.role==='super_admin')){
+    const adminIdx=clean.findIndex(acc=>acc.username===LOGIN_USER);
+    if(adminIdx>=0)clean[adminIdx]={...clean[adminIdx],role:'super_admin'};
+    else clean.unshift(defaultAdminAccount());
+  }
   localStorage.setItem(ADMIN_ACCOUNTS_SK,JSON.stringify(clean));
   const admin=clean.find(acc=>acc.username===LOGIN_USER);
   if(admin?.password)setAdminPw(admin.password);
@@ -47,19 +60,33 @@ function loadAccounts(){
     const raw=localStorage.getItem(ADMIN_ACCOUNTS_SK);
     let accounts=raw?JSON.parse(raw):[];
     if(!Array.isArray(accounts))accounts=[];
+    let superSeen=false;
     accounts=accounts
       .filter(acc=>acc&&acc.username)
-      .map(acc=>({
-        id:acc.id||uid(),
-        username:normalizeUsername(acc.username),
-        name:acc.name||acc.fullName||acc.username,
-        role:ROLE_DEFS[acc.role]?acc.role:'staff',
-        password:acc.password||'',
-        createdAt:acc.createdAt||Date.now(),
-        updatedAt:acc.updatedAt||Date.now()
-      }));
+      .map(acc=>{
+        let role=ROLE_DEFS[acc.role]?acc.role:'staff';
+        if(role==='super_admin'){
+          if(superSeen)role='manager';
+          else superSeen=true;
+        }
+        return{
+          id:acc.id||uid(),
+          username:normalizeUsername(acc.username),
+          name:acc.name||acc.fullName||acc.username,
+          role,
+          password:acc.password||'',
+          createdAt:acc.createdAt||Date.now(),
+          updatedAt:acc.updatedAt||Date.now()
+        };
+      });
     if(!accounts.some(acc=>acc.username===LOGIN_USER)){
       accounts.unshift(defaultAdminAccount());
+      saveAccounts(accounts);
+    }else if(!accounts.some(acc=>acc.role==='super_admin')){
+      const adminIdx=accounts.findIndex(acc=>acc.username===LOGIN_USER);
+      accounts[adminIdx]={...accounts[adminIdx],role:'super_admin'};
+      saveAccounts(accounts);
+    }else if(accounts.filter(acc=>acc.role==='super_admin').length>1){
       saveAccounts(accounts);
     }
     return accounts;
@@ -76,8 +103,26 @@ function findAccount(username){
 function currentAccount(){
   return findAccount(S.currentUser)||findAccount(LOGIN_USER);
 }
-function canManageAccounts(){
+function isSuperAdmin(){
   return currentAccount()?.role==='super_admin';
+}
+function isManager(){
+  return currentAccount()?.role==='manager';
+}
+function canManageAccounts(){
+  const role=currentAccount()?.role;
+  return role==='super_admin'||role==='manager';
+}
+function canManageAccountTarget(acc){
+  if(!acc)return false;
+  if(isSuperAdmin())return true;
+  if(isManager())return acc.role==='manager'||acc.role==='staff';
+  return false;
+}
+function canAssignAccountRole(role,target=null){
+  if(!ROLE_DEFS[role])return false;
+  if(role==='super_admin')return !!target&&target.role==='super_admin'&&isSuperAdmin();
+  return canManageAccounts();
 }
 function keepAdminSession(username=LOGIN_USER){
   try{localStorage.setItem(ADMIN_SESSION_SK,JSON.stringify({until:Date.now()+ADMIN_SESSION_MS,user:normalizeUsername(username)||LOGIN_USER}))}catch(e){}
@@ -144,6 +189,10 @@ function focusDDSearch(dd){
 }
 function closeDropdowns(){
   document.querySelectorAll('.dd.open').forEach(dd=>dd.classList.remove('open'));
+}
+function closeDropdownsOnOutsidePointer(event){
+  if(event.target?.closest?.('.dd'))return;
+  closeDropdowns();
 }
 function toggleDD(id,event){
   if(event)event.stopPropagation();
@@ -297,6 +346,7 @@ function enhanceDropdowns(root=document.getElementById('root')){
     sync();
   });
 }
+document.addEventListener('pointerdown',closeDropdownsOnOutsidePointer,true);
 document.addEventListener('click',closeDropdowns);
 
 const MI_BY_EMOJI={
@@ -379,22 +429,10 @@ function ensureMaterialIconObserver(root=document.getElementById('root')){
 /* ============================================================
    SUPABASE CONFIG — điền thông tin của bạn vào đây
    ============================================================ */
-const SB_URL = "https://kpzwmancieemefcvgtkm.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtwendtYW5jaWVlbWVmY3ZndGttIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODQyMTksImV4cCI6MjA5NTk2MDIxOX0.WviBlyBg9Ji9kARXUyP_87muq8oGLVX6_0T0FNtKqTI";
-const SB_HDR = {
-  "Content-Type": "application/json",
-  "apikey": SB_KEY,
-  "Authorization": `Bearer ${SB_KEY}`,
-  "Prefer": "return=minimal"
-};
-const SB_ON = true;
+const API_ON = true;
+const API_BASE = '';
+const REALTIME_POLL_MS = 2500;
 
-// Khởi tạo Supabase Client cho tính năng Realtime — lắng nghe thay đổi từ thiết bị khác qua WebSocket
-// LƯU Ý: cần thêm thẻ <script src="https://unpkg.com/@supabase/supabase-js@2"></script> vào file HTML
-// (TRƯỚC thẻ <script src="app.js">), nếu chưa có thì biến này sẽ là null và Realtime tự động bỏ qua.
-const supabaseClient = (typeof supabase !== 'undefined' && supabase.createClient)
-  ? supabase.createClient(SB_URL, SB_KEY)
-  : null;
 
 /* ============================================================
    BASE URL — URL GitHub Pages sau khi deploy
@@ -413,21 +451,20 @@ function loadLocal(){try{const r=localStorage.getItem(SK);return r?JSON.parse(r)
 
 async function sbLoad(){
   try{
-    const[er,gr]=await Promise.all([
-      fetch(`${SB_URL}/rest/v1/oh_events?select=*&order=created_at.desc`,{headers:SB_HDR}),
-      fetch(`${SB_URL}/rest/v1/oh_guests?select=*`,{headers:SB_HDR})
-    ]);
-    const evs=await er.json();const gs=await gr.json();
+    const res=await fetch(`${API_BASE}/api/sync`,{headers:{'Accept':'application/json'}});
+    if(!res.ok)throw new Error(`API sync HTTP ${res.status}`);
+    const payload=await res.json();
+    const evs=payload.events;const gs=payload.guests;
     if(Array.isArray(evs)&&Array.isArray(gs)){
       db.events=evs.map(dbToEv);db.guests=gs.map(dbToG);
       localStorage.setItem(SK,JSON.stringify(db));
       return true;
     }
-  }catch(e){console.warn('Supabase load lỗi, dùng localStorage:',e)}
+  }catch(e){console.warn('API load lỗi, dùng localStorage:',e)}
   return false;
 }
 
-/* ⚠️ LEGACY — save()/sbSync() POST NGUYÊN MẢNG db.events + db.guests lên Supabase mỗi lần gọi.
+/* LEGACY — save()/sbSync() POST NGUYÊN MẢNG db.events + db.guests lên API mỗi lần gọi.
    Đây chính là nguồn gốc gây mất/đè check-in khi nhiều thiết bị thao tác đồng thời (last-write-wins
    trên toàn bộ tập dữ liệu — thiết bị A check-in xong, thiết bị B sync đè bằng bản local cũ của B,
    xoá mất check-in của A). Sau bản cập nhật Mục tiêu 1 (tách saveLocalOnly/sync theo phạm vi hẹp),
@@ -438,7 +475,7 @@ async function sbLoad(){
 let _syncT=null;
 function save(){
   try{localStorage.setItem(SK,JSON.stringify(db))}catch(e){}
-  if(!SB_ON)return;
+  if(!API_ON)return;
   if(_syncT)clearTimeout(_syncT);
   _syncT=setTimeout(sbSync,600);
 }
@@ -447,51 +484,64 @@ async function sbSync(){
   _syncT=null;
   try{
     if(db.events.length){
-      await fetch(`${SB_URL}/rest/v1/oh_events`,{
+      await fetch(`${API_BASE}/api/events`,{
         method:'POST',
-        headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates'},
+        headers:{'Content-Type':'application/json'},
         body:JSON.stringify(db.events.map(evToDb))
       });
     }
     if(db.guests.length){
-      await fetch(`${SB_URL}/rest/v1/oh_guests`,{
+      await fetch(`${API_BASE}/api/guests`,{
         method:'POST',
-        headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates'},
+        headers:{'Content-Type':'application/json'},
         body:JSON.stringify(db.guests.map(gToDb))
       });
     }
-  }catch(e){console.warn('Supabase sync lỗi:',e)}
+  }catch(e){console.warn('API sync lỗi:',e)}
 }
 
 // HÀM MỚI: chỉ ghi local (localStorage), KHÔNG kích hoạt sync nguyên mảng — dùng cho mọi thao tác
-// sửa/xoá/check-in để tránh đè dữ liệu chéo. Phần đồng bộ thật lên Supabase đi qua sbPatchGuest/
+// sửa/xoá/check-in để tránh đè dữ liệu chéo. Phần đồng bộ thật lên API đi qua sbPatchGuest/
 // sbPatchEvent/sbUpsertOne/sbUpsertMany ngay sau lệnh gọi hàm này tại từng nơi gọi.
 function saveLocalOnly() {
   try{localStorage.setItem(SK,JSON.stringify(db))}catch(e){}
 }
 
-async function sbDel(table,id){
-  if(!SB_ON)return;
-  try{await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:SB_HDR})}
-  catch(e){console.warn('Supabase delete lỗi:',e)}
+function apiPathForTable(table){
+  if(table==='oh_events')return'/api/events';
+  if(table==='oh_guests')return'/api/guests';
+  throw new Error(`Unknown table: ${table}`);
 }
 
-/* PATCH 1 record duy nhất lên Supabase theo id — dùng cho check-in tại sự kiện.
+async function apiJson(path, options={}){
+  const res=await fetch(`${API_BASE}${path}`,{
+    ...options,
+    headers:{'Content-Type':'application/json','Accept':'application/json',...(options.headers||{})}
+  });
+  if(!res.ok)throw new Error(`API HTTP ${res.status}`);
+  return res;
+}
+
+async function sbDel(table,id){
+  if(!API_ON)return;
+  try{await apiJson(`${apiPathForTable(table)}?id=${encodeURIComponent(id)}`,{method:'DELETE'})}
+  catch(e){console.warn('API delete lỗi:',e)}
+}
+
+/* PATCH 1 record duy nhất lên API theo id — dùng cho check-in tại sự kiện.
    Tránh việc POST nguyên mảng db.guests (sbSync) có thể bị nhiều máy ghi đè
    chéo lên nhau khi check-in đồng thời (race condition).
    Có retry với backoff; trả về true/false để UI biết đã ghi nhận thành công hay chưa. */
 async function sbPatchGuest(guestId, fields, retries=3){
-  if(!SB_ON)return true; // không dùng Supabase (chạy local) -> coi như OK
+  if(!API_ON)return true;
   for(let attempt=1;attempt<=retries;attempt++){
     try{
-      const res=await fetch(`${SB_URL}/rest/v1/oh_guests?id=eq.${guestId}`,{
+      await apiJson(`/api/guests?id=${encodeURIComponent(guestId)}`,{
         method:'PATCH',
-        headers:{...SB_HDR,'Prefer':'return=minimal'},
         body:JSON.stringify(fields)
       });
-      if(res.ok)return true;
-      console.warn('sbPatchGuest lỗi HTTP',res.status);
-    }catch(e){console.warn('sbPatchGuest lỗi mạng:',e)}
+      return true;
+    }catch(e){console.warn('sbPatchGuest lỗi:',e)}
     if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
   }
   return false;
@@ -501,17 +551,15 @@ async function sbPatchGuest(guestId, fields, retries=3){
    Dùng cho saveEv() (chỉnh sửa sự kiện) thay vì save() cũ vốn POST nguyên cả 2 mảng
    db.events + db.guests mỗi lần đổi 1 sự kiện (kéo theo rủi ro đè check-in không liên quan). */
 async function sbPatchEvent(eventId, fields, retries=3){
-  if(!SB_ON)return true;
+  if(!API_ON)return true;
   for(let attempt=1;attempt<=retries;attempt++){
     try{
-      const res=await fetch(`${SB_URL}/rest/v1/oh_events?id=eq.${eventId}`,{
+      await apiJson(`/api/events?id=${encodeURIComponent(eventId)}`,{
         method:'PATCH',
-        headers:{...SB_HDR,'Prefer':'return=minimal'},
         body:JSON.stringify(fields)
       });
-      if(res.ok)return true;
-      console.warn('sbPatchEvent lỗi HTTP',res.status);
-    }catch(e){console.warn('sbPatchEvent lỗi mạng:',e)}
+      return true;
+    }catch(e){console.warn('sbPatchEvent lỗi:',e)}
     if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
   }
   return false;
@@ -520,17 +568,15 @@ async function sbPatchEvent(eventId, fields, retries=3){
 /* UPSERT đúng 1 record mới (sự kiện hoặc khách mới tạo) — KHÔNG đụng tới các row khác.
    Thay thế việc gọi sbSync() (POST nguyên mảng) mỗi khi tạo mới 1 sự kiện/1 khách. */
 async function sbUpsertOne(table, row, retries=3){
-  if(!SB_ON)return true;
+  if(!API_ON)return true;
   for(let attempt=1;attempt<=retries;attempt++){
     try{
-      const res=await fetch(`${SB_URL}/rest/v1/${table}`,{
+      await apiJson(apiPathForTable(table),{
         method:'POST',
-        headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates,return=minimal'},
         body:JSON.stringify([row])
       });
-      if(res.ok)return true;
-      console.warn('sbUpsertOne lỗi HTTP',res.status);
-    }catch(e){console.warn('sbUpsertOne lỗi mạng:',e)}
+      return true;
+    }catch(e){console.warn('sbUpsertOne lỗi:',e)}
     if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
   }
   return false;
@@ -539,17 +585,15 @@ async function sbUpsertOne(table, row, retries=3){
 /* UPSERT nhiều record cùng lúc, nhưng CHỈ gồm các row được truyền vào (vd: danh sách khách vừa
    import từ Excel) — không kéo theo toàn bộ db.guests như sbSync() cũ. */
 async function sbUpsertMany(table, rows, retries=3){
-  if(!SB_ON || !rows.length)return true;
+  if(!API_ON || !rows.length)return true;
   for(let attempt=1;attempt<=retries;attempt++){
     try{
-      const res=await fetch(`${SB_URL}/rest/v1/${table}`,{
+      await apiJson(apiPathForTable(table),{
         method:'POST',
-        headers:{...SB_HDR,'Prefer':'resolution=merge-duplicates,return=minimal'},
         body:JSON.stringify(rows)
       });
-      if(res.ok)return true;
-      console.warn('sbUpsertMany lỗi HTTP',res.status);
-    }catch(e){console.warn('sbUpsertMany lỗi mạng:',e)}
+      return true;
+    }catch(e){console.warn('sbUpsertMany lỗi:',e)}
     if(attempt<retries)await new Promise(r=>setTimeout(r,attempt*500));
   }
   return false;
@@ -560,12 +604,12 @@ let db={events:[],guests:[]};
 function qrUrl(code){return BASE_URL+'/?code='+encodeURIComponent(code)}
 
 async function loadData(){
-  if(SB_ON){const ok=await sbLoad();if(!ok){const loc=loadLocal();db.events=loc.events;db.guests=loc.guests;}}
+  if(API_ON){const ok=await sbLoad();if(!ok){const loc=loadLocal();db.events=loc.events;db.guests=loc.guests;}}
   else{const loc=loadLocal();db.events=loc.events;db.guests=loc.guests;}
 }
 
 /* isEvLocked — ngày > ngày event → khoá check-in / cancel / thêm-xoá khách / import.
-   Sửa thông tin tĩnh (tên, SĐT, PRM, vùng, đơn vị, SIH, note, systemCode) vẫn cho phép. */
+   Sửa thông tin tĩnh (tên, SĐT, PRM, vùng, đơn vị, SIH, note) vẫn cho phép. */
 function isEvLocked(ev){
   if(!ev?.date)return false;
   const today=new Date().toISOString().slice(0,10);
@@ -636,16 +680,16 @@ function syncPageFromRoute(){
   R();
 }
 
-/* ⚠️ LEGACY — polling 15s. Mục tiêu 2 thay cơ chế này bằng Realtime (initSupabaseRealtime bên dưới).
+/* Đồng bộ nền gần realtime qua Vercel API + Neon.
    Giữ lại định nghĩa hàm để dự phòng (vd: nếu cần bật lại polling làm lưới an toàn thì gọi startAutoRefresh()
    thủ công), nhưng KHÔNG còn được gọi tự động trong init() nữa. */
 let _autoRefresh=null;
-function startAutoRefresh(){
+function startAutoRefresh(interval=REALTIME_POLL_MS){
   if(_autoRefresh)clearInterval(_autoRefresh);
   _autoRefresh=setInterval(async()=>{
     if(shouldSkipAutoRefresh())return; // người dùng đang nhập liệu / có form mở -> bỏ qua lượt này
     await loadData();R();
-  },15000);
+  },interval);
 }
 
 /* Tránh việc auto-refresh (hoặc Realtime reconnect bên dưới) ghi đè dữ liệu đang nhập hoặc làm mất
@@ -668,8 +712,8 @@ async function doRefresh(){
 }
 
 /* MỤC TIÊU 2 — Đồng bộ Realtime qua WebSocket thay cho polling 15s. Lắng nghe cả UPDATE, INSERT, DELETE
-   trên bảng oh_guests (bản trước chỉ có UPDATE — khách mới thêm/khách bị xoá ở thiết bị khác không tự
-   thấy, phải đợi bấm "Làm mới" tay). Có cơ chế tự kết nối lại khi rớt kênh (wifi venue chập chờn),
+   trên bảng oh_guests và oh_events để mọi máy tự cập nhật trong lúc vận hành check-in.
+   Có cơ chế tự kết nối lại khi rớt kênh (wifi venue chập chờn),
    vì polling dự phòng đã tắt nên nếu không tự hồi phục thì máy sẽ "đứng hình" mà không có cảnh báo gì. */
 let _realtimeChannel = null;
 let _realtimeRetryCount = 0;
@@ -684,69 +728,15 @@ let _qrLastAt = 0;
 let _cameraStatusResetT = null;
 let _ciHeightObserver = null;
 
-function initSupabaseRealtime() {
-  if (!supabaseClient || !SB_ON) {
-    console.warn("⚠️ Không khởi tạo được Realtime — thiếu supabaseClient (kiểm tra lại thẻ <script> supabase-js trong HTML).");
-    return;
-  }
-  console.log("Bắt đầu kết nối Realtime từ Supabase...");
-
-  _realtimeChannel = supabaseClient
-    .channel('public:oh_guests')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'oh_guests' }, payload => {
-      const updatedGuest = dbToG(payload.new);
-      const index = db.guests.findIndex(g => g.id === updatedGuest.id);
-      if (index !== -1) {
-        db.guests[index] = updatedGuest;
-        saveLocalOnly();
-        if (typeof R === 'function') R();
-        console.log(`📡 Realtime cập nhật trạng thái khách: ${updatedGuest.name}`);
-      }
-    })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'oh_guests' }, payload => {
-      const newGuest = dbToG(payload.new);
-      if (!db.guests.some(g => g.id === newGuest.id)) {
-        db.guests.push(newGuest);
-        saveLocalOnly();
-        if (typeof R === 'function') R();
-        console.log(`📡 Realtime: khách mới từ thiết bị khác — ${newGuest.name}`);
-      }
-    })
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'oh_guests' }, payload => {
-      const deletedId = payload.old?.id;
-      if (deletedId) {
-        db.guests = db.guests.filter(g => g.id !== deletedId);
-        saveLocalOnly();
-        if (typeof R === 'function') R();
-        console.log(`📡 Realtime: khách đã bị xoá từ thiết bị khác — ${deletedId}`);
-      }
-    })
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log("✅ Kết nối Realtime thành công! Đang lắng nghe thay đổi...");
-        _realtimeRetryCount = 0;
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        console.warn(`⚠️ Realtime mất kết nối (${status}). Sẽ thử kết nối lại...`);
-        scheduleRealtimeReconnect();
-      }
-    });
+function initRealtimeSync() {
+  if(_realtimeChannel)return;
+  _realtimeChannel={mode:'api-polling'};
+  startAutoRefresh(REALTIME_POLL_MS);
+  console.log('Bật đồng bộ nền qua Vercel API + Neon.');
 }
 
 function scheduleRealtimeReconnect(){
-  if (_realtimeReconnectT) return; // đã có lịch reconnect đang chờ, không chồng thêm lịch khác
-  _realtimeRetryCount++;
-  const delay = Math.min(30000, 2000 * _realtimeRetryCount); // tăng dần theo số lần thử, tối đa 30s
-  _realtimeReconnectT = setTimeout(async () => {
-    _realtimeReconnectT = null;
-    console.log(`🔄 Đang thử kết nối lại Realtime (lần ${_realtimeRetryCount})...`);
-    if (_realtimeChannel) {
-      try { await supabaseClient.removeChannel(_realtimeChannel); } catch(e) {}
-      _realtimeChannel = null;
-    }
-    // Làm mới toàn bộ dữ liệu 1 lần để bắt kịp các thay đổi đã xảy ra trong lúc mất kết nối
-    if (!shouldSkipAutoRefresh()) { await loadData(); R(); }
-    initSupabaseRealtime();
-  }, delay);
+  initRealtimeSync();
 }
 
 function extractTicketCode(raw){
@@ -922,9 +912,19 @@ async function init(){
   const urlCode=new URLSearchParams(window.location.search).get('code');
   const checkRoute=isCheckRoute();
   const root=document.getElementById('root');
-  root.innerHTML=`<div style="max-width:360px;margin:80px auto;text-align:center;font-family:'Be Vietnam Pro',sans-serif"><div style="font-size:40px;margin-bottom:12px">⏳</div><div style="font-size:14px;color:#aaa;margin-top:8px">Đang tải...</div></div>`;
+  root.innerHTML=`<div class="app-loading" role="status" aria-live="polite">
+    <div class="app-loading-panel">
+      <img class="app-loading-logo" src="${assetUrl('images/logo-oh-header.png')}" alt="OneHousing" />
+      <div class="app-loading-mark">
+        <span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span>
+      </div>
+      <div class="app-loading-title">Đang khởi động hệ thống</div>
+      <div class="app-loading-subtitle">Đồng bộ dữ liệu check-in...</div>
+      <div class="app-loading-bar" aria-hidden="true"><span></span></div>
+    </div>
+  </div>`;
   await loadData();
-  if(SB_ON) initSupabaseRealtime(); // thay cho startAutoRefresh() cũ
+  if(API_ON) initRealtimeSync();
   const sessionUser=getAdminSessionUser();
   S.adminOk=!!sessionUser;
   S.currentUser=sessionUser;
@@ -1054,6 +1054,16 @@ function genCode(eid){
   while(used.has(code)&&t<200);
   return code;
 }
+function genSystemCode(){
+  const used=new Set(db.guests.map(g=>String(g.systemCode||'').trim().toUpperCase()).filter(Boolean));
+  let n=db.guests.length+1;
+  let code;
+  do{
+    code=`CUS-${String(n).padStart(6,'0')}`;
+    n++;
+  }while(used.has(code));
+  return code;
+}
 function findCode(eid,code){
   const needle=canonicalTicketCode(code);
   for(const g of db.guests.filter(x=>x.eventId===eid)){
@@ -1117,7 +1127,7 @@ function R(){
   const wantsScanner=S.adminOk&&shouldRunCheckinScanner();
   if(!wantsScanner){stopQrScanner();clearCheckinColumnHeight();}
   if(S.view==='url_ci'){root.innerHTML=rUrlCI();enhanceDropdowns(root);materializeIcons(root);postUrlCI();return} 
-  if(!S.adminOk){root.innerHTML=rLogin();enhanceDropdowns(root);materializeIcons(root);return}
+  if(!S.adminOk){root.innerHTML=rLogin();enhanceDropdowns(root);materializeIcons(root);postLogin();return}
   if(S.view==='checkin'){root.innerHTML=rCIView();enhanceDropdowns(root);materializeIcons(root);postCI();return}
   root.innerHTML=rAdmin();
   enhanceDropdowns(root);
@@ -1129,7 +1139,7 @@ function R(){
    ADMIN LOGIN
    ============================================================ */
 function rLogin(){
-  return`<div class="login-box">
+  const box=`<div class="login-box">
     <div class="login-brand">
       <img class="login-logo-img" src="${assetUrl('images/logo-oh-header.png')}" alt="OneHousing" />
     </div>
@@ -1145,6 +1155,35 @@ function rLogin(){
     <div id="login_err" class="login-error"></div>
     <button class="btn blue full login-submit" onclick="doLogin()">Đăng nhập</button>
   </div>`;
+  if(!isCheckRoute())return box;
+  return`<div class="check-login-layout">
+    ${box}
+    <div class="check-login-qr-card">
+      <div class="check-login-qr-head">
+        <span class="material-symbols-rounded mi" aria-hidden="true">qr_code_2</span>
+        <div>
+          <div class="check-login-qr-title">Mobile Check-in</div>
+          <div class="check-login-qr-sub">Quét mã để mở trang check trên điện thoại</div>
+        </div>
+      </div>
+      <div id="check_login_qr" class="check-login-qr"></div>
+      <div id="check_login_qr_url" class="check-login-qr-url">${esc(checkPageUrl())}</div>
+    </div>
+  </div>`;
+}
+function checkPageUrl(){
+  return new URL(appRoutePath('/check'), window.location.origin).href;
+}
+function renderCheckPageQR(id){
+  const el=document.getElementById(id);
+  if(!el||typeof QRCode==='undefined')return;
+  el.innerHTML='';
+  new QRCode(el,{text:checkPageUrl(),width:184,height:184,colorDark:'#071025',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+}
+function postLogin(){
+  if(!isCheckRoute())return;
+  materializeIcons(document.getElementById('root'));
+  renderCheckPageQR('check_login_qr');
 }
 function doLogin(){
   const user=(document.getElementById('login_user')?.value||'').trim();
@@ -1178,7 +1217,6 @@ function rAdmin(){
   const me=currentAccount();
   const initial=(me?.name||me?.username||'A').trim().slice(0,1).toUpperCase();
   const showPermissions=canManageAccounts();
-  const eventCount=visibleEvents().length;
   return`
     <div class="admin-layout">
       <aside class="side-nav no-print" aria-label="Điều hướng quản trị">
@@ -1207,7 +1245,6 @@ function rAdmin(){
         <header class="admin-header no-print">
           <div>
             <div class="admin-title">${pageTitle}</div>
-            <div class="admin-subtitle">OneHousing · ${eventCount} sự kiện</div>
           </div>
           <button class="btn" onclick="goCI()">
             <span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span>
@@ -1247,7 +1284,10 @@ function rEvTab(){
     .filter(ev=>!q||[ev.name,ev.team,ev.venue,ev.date,fmtD(ev.date)].some(v=>(v||'').toLowerCase().includes(q)))
     .sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
   return`<div class="topbar">
-    <div style="font-weight:700">Danh sách sự kiện</div>
+    <div>
+      <div style="font-weight:700">Danh sách sự kiện</div>
+      <div style="font-size:14px;color:#98a4b6;margin-top:3px">Tổng số sự kiện hiện có: ${allEvents.length}</div>
+    </div>
     <div class="event-toolbar">
       <div class="search-control event-search ${S.evSearch?'has-value':''}">
         <span class="material-symbols-rounded mi search-leading" aria-hidden="true">search</span>
@@ -1289,7 +1329,7 @@ function rPermissionTab(){
   if(!canManageAccounts()){
     return`<div class="card" style="text-align:center;padding:32px">
       <div style="font-weight:700;margin-bottom:4px">Không có quyền truy cập</div>
-      <div style="font-size:15px;color:#888">Chỉ tài khoản Super Admin mới được quản lý phân quyền.</div>
+      <div style="font-size:15px;color:#888">Chỉ tài khoản Super Admin hoặc Quản lý mới được quản lý phân quyền.</div>
     </div>`;
   }
   const roles=[
@@ -1305,7 +1345,7 @@ function rPermissionTab(){
       name:'Quản lý',
       badge:'Vận hành',
       desc:'Điều phối sự kiện, theo dõi dữ liệu và xử lý danh sách khách.',
-      perms:['Tạo và chỉnh sửa sự kiện','Quản lý danh sách khách','Xem báo cáo sự kiện','Mở check-in bù khi được cấp quyền']
+      perms:['Tạo và chỉnh sửa sự kiện','Quản lý danh sách khách','Tạo tài khoản Quản lý/Nhân viên','Xoá Quản lý/Nhân viên khác']
     },
     {
       icon:'badge',
@@ -1318,8 +1358,24 @@ function rPermissionTab(){
   const roleRank={super_admin:1,manager:2,staff:3};
   const accounts=loadAccounts().sort((a,b)=>(roleRank[a.role]||9)-(roleRank[b.role]||9)||a.username.localeCompare(b.username));
   const current=normalizeUsername(S.currentUser);
-  const superCount=accounts.filter(acc=>acc.role==='super_admin').length;
-  return`<div class="topbar">
+  const roleSection=`<div class="perm-section-title">Nhóm quyền</div>
+  <div class="role-grid">
+    ${roles.map(role=>`<div class="role-card">
+      <div class="role-head">
+        <div class="role-icon"><span class="material-symbols-rounded mi" aria-hidden="true">${role.icon}</span></div>
+        <div>
+          <div class="role-title">${role.name}</div>
+          <div class="role-desc">${role.desc}</div>
+        </div>
+      </div>
+      <span class="role-badge">${role.badge}</span>
+      <div class="role-perms">
+        ${role.perms.map(p=>`<div class="role-perm"><span class="material-symbols-rounded mi" aria-hidden="true">check_circle</span><span>${p}</span></div>`).join('')}
+      </div>
+    </div>`).join('')}
+  </div>`;
+  return`${roleSection}
+  <div class="topbar" style="margin-top:24px">
     <div style="font-weight:700">Danh sách tài khoản</div>
     <button class="btn blue sm" onclick="openAccountForm()">+ Tạo tài khoản</button>
   </div>
@@ -1335,8 +1391,10 @@ function rPermissionTab(){
       <tbody>
         ${accounts.map(acc=>{
           const isCurrent=acc.username===current;
-          const isLastSuper=acc.role==='super_admin'&&superCount<=1;
-          const lockDelete=isCurrent||isLastSuper;
+          const isSuper=acc.role==='super_admin';
+          const canManageTarget=canManageAccountTarget(acc);
+          const lockEdit=!canManageTarget;
+          const lockDelete=isCurrent||isSuper||!canManageTarget;
           return`<tr>
             <td><span class="mono">${esc(acc.username)}</span>${isCurrent?` <span class="badge b-blue" style="margin-left:6px">Đang dùng</span>`:''}</td>
             <td>${esc(acc.name)}</td>
@@ -1344,31 +1402,14 @@ function rPermissionTab(){
             <td style="color:#888">${fmtD(acc.createdAt)}</td>
             <td>
               <div class="account-actions">
-                <button class="btn sm" onclick="openAccountForm('${acc.id}')">✏️ Sửa</button>
-                <button class="btn sm red" onclick="openAccountDel('${acc.id}')" ${lockDelete?'disabled':''} title="${isCurrent?'Không thể xoá tài khoản đang đăng nhập':isLastSuper?'Cần giữ ít nhất 1 Super Admin':'Xoá tài khoản'}">🗑️ Xoá</button>
+                <button class="btn sm" onclick="openAccountForm('${acc.id}')" ${lockEdit?'disabled':''} title="${lockEdit?'Không có quyền sửa tài khoản này':'Sửa tài khoản'}">✏️ Sửa</button>
+                <button class="btn sm red" onclick="openAccountDel('${acc.id}')" ${lockDelete?'disabled':''} title="${isCurrent?'Không thể xoá tài khoản đang đăng nhập':isSuper?'Super Admin là tài khoản duy nhất của hệ thống':!canManageTarget?'Không có quyền xoá tài khoản này':'Xoá tài khoản'}">🗑️ Xoá</button>
               </div>
             </td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>
-  </div>
-
-  <div class="perm-section-title">Nhóm quyền</div>
-  <div class="role-grid">
-    ${roles.map(role=>`<div class="role-card">
-      <div class="role-head">
-        <div class="role-icon"><span class="material-symbols-rounded mi" aria-hidden="true">${role.icon}</span></div>
-        <div>
-          <div class="role-title">${role.name}</div>
-          <div class="role-desc">${role.desc}</div>
-        </div>
-      </div>
-      <span class="role-badge">${role.badge}</span>
-      <div class="role-perms">
-        ${role.perms.map(p=>`<div class="role-perm"><span class="material-symbols-rounded mi" aria-hidden="true">check_circle</span><span>${p}</span></div>`).join('')}
-      </div>
-    </div>`).join('')}
   </div>`;
 }
 
@@ -1400,13 +1441,20 @@ function rGTab(){
   const ciUnlocked = !!S.unlockedCIEvs[ev.id]; // true khi Admin đã mở check-in bù
 
   return`
+    <div class="guest-backbar">
+      <button class="btn sm" onclick="setTab('events')">
+        <span class="material-symbols-rounded mi" aria-hidden="true">arrow_back</span>
+        Về danh sách sự kiện
+      </button>
+    </div>
+    <div class="stats guest-stats">
+      <div class="stat"><div class="n">${p.t}</div><div class="l">Tổng</div></div>
+      <div class="stat"><div class="n" style="color:#3B6D11">${p.c}</div><div class="l">✅ Đã vào</div></div>
+      <div class="stat"><div class="n" style="color:#aaa">${p.p}</div><div class="l">⏳ Chưa</div></div>
+      <div class="stat"><div class="n" style="color:#B91C1C">${p.x}</div><div class="l">🚫 Cancel</div></div>
+      <div class="stat"><div class="n">${p.t>0?Math.round(p.c/p.t*100):0}%</div><div class="l">Tỷ lệ vào</div></div>
+    </div>
     <div class="guest-toolbar">
-      <div class="guest-toolbar-head">
-        <div class="guest-event-group">
-          <div class="guest-toolbar-label">Sự kiện đang quản lý</div>
-          ${evSel}
-        </div>
-      </div>
       <div class="guest-toolbar-body">
         <div class="guest-filter-group">
           <div class="search-control guest-search-input ${S.search?'has-value':''}">
@@ -1423,11 +1471,9 @@ function rGTab(){
           </select>
         </div>
         <div class="guest-actions">
-          <button id="refresh_btn" class="btn sm" onclick="doRefresh()" title="Làm mới dữ liệu"><span class="material-symbols-rounded mi" aria-hidden="true">refresh</span>Làm mới</button>
-          ${evLocked?'':`
-            <button class="btn green sm" onclick="triggerExcelImport()"><span class="material-symbols-rounded mi" aria-hidden="true">file_download</span>Import Excel</button>
-            <button class="btn sm" onclick="downloadExcelTemplate()"><span class="material-symbols-rounded mi" aria-hidden="true">description</span>Mẫu Excel</button>
-          `}
+          ${evLocked?'':
+            `<button class="btn green sm" onclick="openImportExcel()"><span class="material-symbols-rounded mi" aria-hidden="true">file_download</span>Import Excel</button>`
+          }
           ${p.t > 0 ? `<button class="btn sm" onclick="expCSV()"><span class="material-symbols-rounded mi" aria-hidden="true">download</span>Xuất CSV</button>` : ''}
           ${p.t > 0 ? `<button class="btn blue sm" onclick="downloadAllQRsZip()" id="zip_btn"><span class="material-symbols-rounded mi" aria-hidden="true">folder_zip</span>Tải QR hàng loạt</button>` : ''}
           ${evLocked?'':`<button class="btn blue sm" onclick="openM('add_g')"><span class="material-symbols-rounded mi" aria-hidden="true">person_add</span>Thêm KH đăng ký</button>`}
@@ -1440,7 +1486,7 @@ function rGTab(){
       <span style="font-size:20px">📋</span>
       <div style="flex:1">
         <div style="font-weight:600;font-size:15px;color:#92400E">Sự kiện đã kết thúc — Chế độ chỉnh sửa hậu sự kiện</div>
-        <div style="font-size:14px;color:#aaa">Check-in, Cancel, Thêm/Xoá khách đã bị khoá từ ngày ${fmtD(ev.date)}. Vẫn có thể <b>sửa thông tin</b> (PRM, vùng, đơn vị, SIH, ghi chú, systemCode, tên, SĐT).</div>
+        <div style="font-size:14px;color:#aaa">Check-in, Cancel, Thêm/Xoá khách đã bị khoá từ ngày ${fmtD(ev.date)}. Vẫn có thể <b>sửa thông tin</b> (PRM, vùng, đơn vị, SIH, ghi chú, tên, SĐT).</div>
       </div>
       ${ciUnlocked
         ?`<div style="display:flex;align-items:center;gap:6px;background:#FEF3C7;border:1px solid #FCD34D;border-radius:8px;padding:6px 12px">
@@ -1451,13 +1497,6 @@ function rGTab(){
         :`<button class="btn sm" onclick="openCIUnlock('${ev.id}')" style="background:#D97706;color:#fff;border-color:#D97706;white-space:nowrap">🔓 Mở check-in bù</button>`
       }
     </div>`:''}
-    <div class="stats guest-stats">
-      <div class="stat"><div class="n">${p.t}</div><div class="l">Tổng</div></div>
-      <div class="stat"><div class="n" style="color:#3B6D11">${p.c}</div><div class="l">✅ Đã vào</div></div>
-      <div class="stat"><div class="n" style="color:#aaa">${p.p}</div><div class="l">⏳ Chưa</div></div>
-      <div class="stat"><div class="n" style="color:#B91C1C">${p.x}</div><div class="l">🚫 Cancel</div></div>
-      <div class="stat"><div class="n">${p.t>0?Math.round(p.c/p.t*100):0}%</div><div class="l">Tỷ lệ vào</div></div>
-    </div>
     <div class="card-tight guest-table-card">
       <div class="guest-table-scroll">
         <table class="tbl guest-table">
@@ -1499,7 +1538,7 @@ function rGTab(){
                    ${g.note?`<div class="sub" style="font-style:italic">${g.note}</div>`:''}
                    ${evLocked?'':`<button class="btn xs" onclick="openAddComp('${g.id}')" style="margin-top:5px;color:#185FA5;border-color:#b3d4f5">+ thêm đi kèm</button>`}`}
               </td>
-              <td><span class="mono">${g.guestCode}</span>${g.systemCode?`<div style="font-size:14px;color:#aaa;margin-top:2px">Mã HT: ${g.systemCode}</div>`:''}</td>
+              <td><span class="mono">${g.guestCode}</span></td>
               <td style="color:#888;font-size:14px">${g.phone||'—'}</td>
               <td><div style="font-size:14px">${g.prmName||'—'}</div><div class="sub">${g.tcbRegion||''}</div></td>
               <td style="font-size:14px;color:#888">${g.unit||'—'}</td>
@@ -1566,16 +1605,14 @@ function rRTab(){
     <option value="">- Tất cả sự kiện -</option>
     ${events.map(e=>`<option value="${e.id}" ${S.rptEv===e.id?'selected':''}>${e.name}${isEvLocked(e)?' 🔐':''}</option>`).join('')}
   </select>`;
-  const refreshBtn=`<button id="refresh_btn" class="btn sm" onclick="doRefresh()">🔄 Làm mới</button>`;
-
   const overviewHtml=`
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-weight:700">📊 Tổng quan sự kiện</div>${refreshBtn}</div>${evSel}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-weight:700">📊 Tổng quan sự kiện</div></div>${evSel}
       </div>
       ${events.map(ev=>{const p=allPeople(ev.id);const r=p.t?Math.round(p.c/p.t*100):0;
         const locked=false;
-        return`<div style="padding:10px 0;border-bottom:1px solid #f0f0f0">
+        return`<div class="report-overview-row">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
             <div><div style="font-weight:600;font-size:15px">${ev.name}${locked?' 🔒':''}</div>
               <div style="font-size:14px;color:#aaa">${fmtD(ev.date)}${ev.team?' · '+ev.team:''}</div></div>
@@ -1827,6 +1864,7 @@ function rModal(){
   if(S.modal==='cp_add')return wrapModal(rCpAddM());
   if(S.modal==='admin_ci')return wrapModal(rAdminCIM(),'sm');
   if(S.modal==='cancel')return wrapModal(rCancelM(),'sm');
+  if(S.modal==='import_source')return wrapModal(rImportSourceM(),'lg');
   if(S.modal==='import_preview')return wrapModal(rImportPreviewM(),'lg');
   if(S.modal==='walkin')return wrapModal(rWalkinM(),'lg');
   if(S.modal==='ci_unlock')return wrapModal(rCIUnlockM(),'sm');
@@ -1852,8 +1890,10 @@ function rAdminAccountM(){
     </div>`;
 }
 
-function roleOptions(selected){
-  return Object.entries(ROLE_DEFS).map(([value,info])=>`<option value="${value}" ${selected===value?'selected':''}>${info.label}</option>`).join('');
+function roleOptions(selected,target=null){
+  return Object.entries(ROLE_DEFS)
+    .filter(([value])=>canAssignAccountRole(value,target))
+    .map(([value,info])=>`<option value="${value}" ${selected===value?'selected':''}>${info.label}</option>`).join('');
 }
 
 function rAccountFormM(){
@@ -1861,13 +1901,15 @@ function rAccountFormM(){
   const isEdit=!!S.editAccountId;
   const acc=isEdit?loadAccounts().find(x=>x.id===S.editAccountId):null;
   if(isEdit&&!acc)return'<div class="mh">Không tìm thấy tài khoản</div>';
+  if(isEdit&&!canManageAccountTarget(acc))return'<div class="mh">Không có quyền sửa tài khoản này</div>';
+  const selectedRole=acc?.role||'staff';
   return`<div class="mh">${isEdit?'✏️ Chỉnh sửa tài khoản':'👤 Tạo tài khoản mới'}</div>
     <div class="fg"><label>Họ tên *</label>
       <input id="acc_name" value="${esc(acc?.name||'')}" placeholder="VD: Nguyễn Văn A" autofocus /></div>
     <div class="fg"><label>Tên đăng nhập *</label>
       <input id="acc_user" value="${esc(acc?.username||'')}" placeholder="vd: nguyenvana" ${isEdit?'disabled':''} autocomplete="off" /></div>
     <div class="fg"><label>Vai trò *</label>
-      <select id="acc_role">${roleOptions(acc?.role||'staff')}</select></div>
+      <select id="acc_role" ${selectedRole==='super_admin'?'disabled':''}>${roleOptions(selectedRole,acc)}</select></div>
     <div class="fg"><label>${isEdit?'Mật khẩu mới':'Mật khẩu'} ${isEdit?'<span style="font-weight:400;color:#aaa">(để trống nếu giữ nguyên)</span>':'*'}</label>
       <input id="acc_pw" type="password" placeholder="${isEdit?'Nhập nếu muốn đổi mật khẩu':'Nhập mật khẩu'}" autocomplete="new-password" onkeydown="if(event.key==='Enter'&&!${isEdit})saveAccount()" /></div>
     ${isEdit?`<div class="fg"><label>Xác nhận mật khẩu <span style="font-weight:400;color:#aaa">(nếu đổi)</span></label>
@@ -1882,6 +1924,7 @@ function rAccountFormM(){
 function rAccountDelM(){
   const acc=loadAccounts().find(x=>x.id===S.delAccountId);
   if(!acc)return'<div class="mh">Không tìm thấy tài khoản</div>';
+  if(!canManageAccountTarget(acc)||acc.role==='super_admin')return'<div class="mh">Không có quyền xoá tài khoản này</div>';
   return`<div class="mh">🗑️ Xoá tài khoản</div>
     <div style="font-size:15px;color:#555;margin-bottom:12px">Bạn chắc chắn muốn xoá tài khoản <b>${esc(acc.name)}</b> — <span class="mono">${esc(acc.username)}</span>?</div>
     <div id="acc_del_err" class="err"></div>
@@ -1898,12 +1941,12 @@ function rAddEvM(){
   return`<div class="mh">${isEdit?'✏️ Chỉnh sửa sự kiện':'📅 Tạo sự kiện mới'}</div>
     <div class="g2">
       <div class="fg sp"><label>Tên sự kiện *</label><input id="ev_n" placeholder="VD: OneHousing Elite Night — The Global City" value="${ev?.name||''}"/></div>
-      <div class="fg"><label>Thời gian tổ chức</label><input id="ev_d" type="date" value="${ev?.date||''}"/></div>
-      <div class="fg"><label>Team tổ chức</label><input id="ev_t" placeholder="VD: Marketing Miền Nam" value="${ev?.team||''}"/></div>
-      <div class="fg sp"><label>Địa điểm</label><input id="ev_v" placeholder="VD: The Global City Ballroom" value="${ev?.venue||''}"/></div>
+      <div class="fg"><label>Thời gian tổ chức *</label><input id="ev_d" type="date" value="${ev?.date||''}"/></div>
+      <div class="fg"><label>Team tổ chức *</label><input id="ev_t" placeholder="VD: Marketing Miền Nam" value="${ev?.team||''}"/></div>
+      <div class="fg sp"><label>Địa điểm *</label><input id="ev_v" placeholder="VD: The Global City Ballroom" value="${ev?.venue||''}"/></div>
     </div>
     <div class="sec">🔑 Phân công nhân viên / BTC</div>
-    <div style="font-size:14px;color:#aaa;margin-bottom:8px">Chọn tài khoản nhân viên cần phân công. Tài khoản được chọn sẽ chỉ nhìn thấy sự kiện này.</div>
+    <div style="font-size:14px;color:#aaa;margin-bottom:8px">Có thể phân công nhân viên/BTC phụ trách sự kiện. Nếu để trống, người tạo vẫn có thể quản lý và vận hành sự kiện.</div>
     <div id="btc_w">
       ${btcList.map((m,i)=>btcRowHTML(m,i)).join('')}
     </div>
@@ -1915,17 +1958,15 @@ function rAddEvM(){
 }
 
 function rAddGM(){
-  const g=S.modal==='edit_g'&&S.editGid?db.guests.find(x=>x.id===S.editGid):{};
-  const comps=g?.companions?.length?g.companions:[{name:'',phone:''}];
-  const events=visibleEvents();
+  const isEdit=S.modal==='edit_g';
+  const g=isEdit&&S.editGid?db.guests.find(x=>x.id===S.editGid):{};
+  const comps=isEdit?(g?.companions||[]):[]; 
   return`<div class="mh">${S.modal==='edit_g'?'✏️ Chỉnh sửa khách mời':'👤 Thêm khách mời mới'}</div>
-    <div class="fg"><label>Sự kiện *</label><select id="g_ev">${events.map(e=>`<option value="${e.id}" ${(S.selEv===e.id||g?.eventId===e.id)?'selected':''}>${e.name}</option>`).join('')}</select></div>
     ${S.modal==='edit_g'?`<div style="margin-bottom:10px"><span style="font-size:14px;color:#aaa">Mã KH:</span> <span class="mono">${g?.guestCode||''}</span> <span style="font-size:14px;color:#ccc">(cố định, không thay đổi)</span></div>`:''}
     <div class="sec">Thông tin khách hàng chính</div>
-    <div class="g3">
+    <div class="g2">
       <div class="fg"><label>Họ và tên KH *</label><input id="g_n" placeholder="Nguyễn Văn A" value="${g?.name||''}"/></div>
       <div class="fg"><label>Số điện thoại *</label><input id="g_ph" type="tel" placeholder="09xxxxxxxx" value="${g?.phone||''}"/></div>
-      <div class="fg"><label>Mã Hệ thống <span style="font-weight:400;color:#aaa">(OneHousing)</span></label><input id="g_syscode" placeholder="VD: OH-00123" value="${g?.systemCode||''}"/></div>
     </div>
     <div class="sec">👥 Người đi kèm <span style="text-transform:none;letter-spacing:0;font-weight:400">(mỗi người có QR & check-in riêng)</span></div>
     <div id="cp_w">
@@ -2039,10 +2080,9 @@ function rGuestDetailM(){
       ${detailField('Địa điểm',ev?.venue)}
     </div>
     <div class="sec">Thông tin khách hàng chính</div>
-    <div class="g3">
+    <div class="g2">
       ${detailField('Họ và tên KH',g.name)}
       ${detailField('Số điện thoại',g.phone)}
-      ${detailField('Mã hệ thống',g.systemCode)}
     </div>
     <div class="sec">Thông tin chăm sóc</div>
     <div class="g3">
@@ -2146,10 +2186,9 @@ function rEditFormM(){
   return`<div class="mh">✏️ Chỉnh sửa — ${g.name}</div>
     <div style="margin-bottom:12px"><span class="mono">${g.guestCode}</span> <span style="font-size:14px;color:#ccc">(mã cố định)</span></div>
     <div class="sec">Thông tin khách hàng chính</div>
-    <div class="g3">
+    <div class="g2">
       <div class="fg"><label>Họ và tên KH</label><input id="eg_n" value="${g.name||''}"/></div>
       <div class="fg"><label>Số điện thoại</label><input id="eg_ph" type="tel" value="${g.phone||''}"/></div>
-      <div class="fg"><label>Mã Hệ thống <span style="font-weight:400;color:#aaa">(OneHousing)</span></label><input id="eg_syscode" value="${g.systemCode||''}"/></div>
     </div>
     <div class="sec">Người đi kèm</div>
     <div id="ecp_w">
@@ -2331,6 +2370,30 @@ function rCancelM(){
     </div>`;
 }
 
+function rImportSourceM(){
+  return`<div class="mh">📥 Import danh sách khách</div>
+    <div style="font-size:14px;color:#7f8a9c;margin-bottom:14px">Tải file Excel/CSV lên hoặc nhập link Google Sheet/public sheet đã mở quyền xem công khai.</div>
+    <button type="button" class="import-dropzone" onclick="triggerExcelImport()" ondragover="handleImportDrag(event,true)" ondragleave="handleImportDrag(event,false)" ondrop="handleImportDrop(event)">
+      <span class="material-symbols-rounded mi" aria-hidden="true">upload_file</span>
+      <span class="import-drop-title">Kéo thả file Excel vào đây</span>
+      <span class="import-drop-sub">hoặc bấm để chọn file từ máy (.xlsx, .xls, .csv)</span>
+    </button>
+    <div class="import-modal-actions">
+      <button class="btn" onclick="downloadExcelTemplate()"><span class="material-symbols-rounded mi" aria-hidden="true">description</span>Tải mẫu Excel</button>
+    </div>
+    <div class="sec">Import từ public sheet</div>
+    <div class="fg">
+      <label>Link Google Sheet / CSV public</label>
+      <input id="public_sheet_url" placeholder="Dán link Google Sheet public hoặc file CSV..." onkeydown="if(event.key==='Enter')importPublicSheet()"/>
+    </div>
+    <div style="font-size:14px;color:#98a4b6;margin-top:-4px">Sheet cần các cột: Loại Khách, Họ và Tên, Số Điện Thoại, Tên PRM, Vùng TCB, Đơn vị, Tên SIH, Note.</div>
+    <div id="import_source_err" class="err"></div>
+    <div class="mf">
+      <button class="btn" onclick="closeM()">Huỷ</button>
+      <button class="btn green" onclick="importPublicSheet()"><span class="material-symbols-rounded mi" aria-hidden="true">cloud_download</span>Import từ link</button>
+    </div>`;
+}
+
 /* Modal xem trước dữ liệu khi Import Excel */
 function rImportPreviewM(){
   const data = S.importData || [];
@@ -2341,7 +2404,7 @@ function rImportPreviewM(){
       <table class="tbl">
         <thead>
           <tr>
-            <th>Loại</th><th>Họ và tên</th><th>Số điện thoại</th><th>Tên PRM</th><th>Vùng TCB</th><th>Đơn vị</th><th>Tên SIH</th><th>Ghi chú</th><th>Mã Hệ thống</th>
+            <th>Loại</th><th>Họ và tên</th><th>Số điện thoại</th><th>Tên PRM</th><th>Vùng TCB</th><th>Đơn vị</th><th>Tên SIH</th><th>Ghi chú</th>
           </tr>
         </thead>
         <tbody>
@@ -2355,7 +2418,6 @@ function rImportPreviewM(){
               <td>${r.unit||'—'}</td>
               <td>${r.sihName||'—'}</td>
               <td style="color:#aaa;font-style:italic">${r.note||'—'}</td>
-              <td style="font-family:'Be Vietnam Pro',sans-serif;font-size:14px">${r.type==='Main'?(r.systemCode||'—'):'—'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -2541,7 +2603,7 @@ async function doUrlCI(){
   else{p.checkedIn=true;p.checkinTime=now;p.checkinBy=checkinBy}
   saveLocalOnly(); // ghi local ngay (localStorage) — không mất dữ liệu nếu mất mạng/đóng tab
 
-  // Ghi atomic 1 record lên Supabase, có retry — đây là nguồn xác nhận "thật"
+  // Ghi atomic 1 record lên API, có retry — đây là nguồn xác nhận "thật"
   const patchFields = found.type==='guest'
     ? {checked_in:true,checkin_time:now,checkin_by:checkinBy}
     : {companions:(g.companions||[])}; // companion nằm trong cột JSON companions của Main guest
@@ -2565,6 +2627,9 @@ function rCIView(){
   return rCIIdleDesktop();
 }
 function postCI(){setTimeout(()=>{
+  if(S.view==='checkin'&&!S.ciOk){
+    renderCheckPageQR('lock_check_qr');
+  }
   if(S.view==='checkin'&&S.ciOk&&!S.ciState){
     if(shouldRunCheckinScanner())startQrScanner();
     else stopQrScanner();
@@ -2577,26 +2642,39 @@ function postCI(){setTimeout(()=>{
 function rLock(){
   const events=visibleEvents();
   const op=S.ciOp||currentCheckinOperator();
-  return`<div class="lock">
-    <div class="lock-head">
-      <div class="lock-icon"><span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span></div>
-      <div class="lock-title">App Check-in</div>
-      <div class="lock-subtitle">Chọn sự kiện để bắt đầu phiên check-in.</div>
-      <div class="lock-account"><span class="material-symbols-rounded mi" aria-hidden="true">person</span> ${esc(op.name)}</div>
+  return`<div class="lock-layout">
+    <div class="lock">
+      <div class="lock-head">
+        <div class="lock-icon"><span class="material-symbols-rounded mi" aria-hidden="true">qr_code_scanner</span></div>
+        <div class="lock-title">App Check-in</div>
+        <div class="lock-subtitle">Chọn sự kiện để bắt đầu phiên check-in.</div>
+        <div class="lock-account"><span class="material-symbols-rounded mi" aria-hidden="true">person</span> ${esc(op.name)}</div>
+      </div>
+      <div class="fg lock-field"><label>Sự kiện</label><select id="lock_ev" style="width:100%" onchange="S.ciEv=this.value">
+        <option value="">- Chọn sự kiện -</option>
+        ${events.map(e=>`<option value="${e.id}" ${S.ciEv===e.id?'selected':''}>${e.name} (${fmtD(e.date)})</option>`).join('')}
+      </select></div>
+      <button class="btn blue full lock-start-btn" onclick="tryUnlock()">
+        <span>Bắt đầu check-in</span>
+        <span class="material-symbols-rounded mi" aria-hidden="true">arrow_forward</span>
+      </button>
+      <div id="lock_err" class="err" style="text-align:center;margin-top:8px"></div>
+      <button class="btn ghost lock-back-btn" onclick="doLogout()">
+        <span class="material-symbols-rounded mi" aria-hidden="true">logout</span>
+        Đăng xuất
+      </button>
     </div>
-    <div class="fg lock-field"><label>Sự kiện</label><select id="lock_ev" style="width:100%" onchange="S.ciEv=this.value">
-      <option value="">- Chọn sự kiện -</option>
-      ${events.map(e=>`<option value="${e.id}" ${S.ciEv===e.id?'selected':''}>${e.name} (${fmtD(e.date)})</option>`).join('')}
-    </select></div>
-    <button class="btn blue full lock-start-btn" onclick="tryUnlock()">
-      <span>Bắt đầu check-in</span>
-      <span class="material-symbols-rounded mi" aria-hidden="true">arrow_forward</span>
-    </button>
-    <div id="lock_err" class="err" style="text-align:center;margin-top:8px"></div>
-    <button class="btn ghost lock-back-btn" onclick="backAdmin()">
-      <span class="material-symbols-rounded mi" aria-hidden="true">arrow_back</span>
-      Về trang quản trị
-    </button>
+    <div class="lock-qr-card">
+      <div class="check-login-qr-head">
+        <span class="material-symbols-rounded mi" aria-hidden="true">qr_code_2</span>
+        <div>
+          <div class="check-login-qr-title">Mobile Check-in</div>
+          <div class="check-login-qr-sub">Quét mã để mở công cụ check-in trên điện thoại</div>
+        </div>
+      </div>
+      <div id="lock_check_qr" class="check-login-qr"></div>
+      <div class="check-login-qr-url">${esc(checkPageUrl())}</div>
+    </div>
   </div>`;
 }
 
@@ -2612,7 +2690,7 @@ function rCIIdle(){
   recent.sort((a,b)=>new Date(b.time)-new Date(a.time));
   return`<div class="ci-screen">
     <div class="ci-head">
-      <button class="btn ghost sm" onclick="backAdmin()">←</button>
+      <button class="btn ghost sm" onclick="doLogout()" title="Đăng xuất"><span class="material-symbols-rounded mi" aria-hidden="true">logout</span></button>
       <div style="flex:1"><div style="font-weight:700;font-size:14px">${ev?.name||'Sự kiện'}</div>
         <div style="font-size:14px;color:#aaa">${p.c}/${p.t} đã check-in · Phụ trách: ${S.ciOp?.name||checkinByLabel()}</div></div>
       <button class="btn sm ci-switch-event-btn" onclick="lockOut()">
@@ -2661,8 +2739,8 @@ function rCIIdleDesktop(){
   const mobileMode=S.ciMobileMode||'camera';
   return`<div class="ci-screen ci-desktop">
     <div class="ci-head ci-topbar">
-      <button class="btn ghost sm ci-back-btn" onclick="backAdmin()" title="Về trang quản trị">
-        <span class="material-symbols-rounded mi" aria-hidden="true">arrow_back</span>
+      <button class="btn ghost sm ci-back-btn" onclick="doLogout()" title="Đăng xuất">
+        <span class="material-symbols-rounded mi" aria-hidden="true">logout</span>
       </button>
       <div class="ci-event-meta">
         <div class="ci-event-name">${esc(ev?.name||'Sự kiện')}</div>
@@ -2794,7 +2872,7 @@ function rCIDone(){
     ${g.note?`<div style="margin-top:10px;display:inline-block"><span class="badge b-amber">${g.note}</span></div>`:''}
     <div style="font-size:14px;color:#bbb;margin-top:12px">Ghi nhận lúc: ${fmtDT(p.checkinTime)} · BTC: ${p.checkinBy||'—'}</div>
     ${S.ciSyncWarn?`<div style="margin-top:14px;background:#FEF2F2;color:#B91C1C;font-size:14px;padding:10px 14px;border-radius:10px;text-align:left;max-width:360px;margin-left:auto;margin-right:auto">
-      ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng hoặc lỗi Supabase).
+      ⚠️ Đã ghi nhận check-in trên thiết bị này, nhưng <b>chưa đồng bộ được lên hệ thống trung tâm</b> (có thể do mất mạng hoặc lỗi API).
       Vui lòng kiểm tra lại kết nối và báo kỹ thuật nếu tình trạng tiếp diễn.
     </div>`:''}
     <div style="margin-top:24px">
@@ -2882,9 +2960,13 @@ function saveAccount(){
     const idx=accounts.findIndex(acc=>acc.id===S.editAccountId);
     if(idx<0){if(err)err.textContent='⚠️ Không tìm thấy tài khoản.';return}
     const old=accounts[idx];
-    const superCount=accounts.filter(acc=>acc.role==='super_admin').length;
-    if(old.role==='super_admin'&&role!=='super_admin'&&superCount<=1){
-      if(err)err.textContent='⚠️ Cần giữ ít nhất 1 tài khoản Super Admin.';return
+    if(!canManageAccountTarget(old)){if(err)err.textContent='⚠️ Không có quyền sửa tài khoản này.';return}
+    if(!canAssignAccountRole(role,old)){if(err)err.textContent='⚠️ Không thể gán vai trò này.';return}
+    if(old.role==='super_admin'&&role!=='super_admin'){
+      if(err)err.textContent='⚠️ Super Admin là tài khoản duy nhất của hệ thống.';return
+    }
+    if(old.role!=='super_admin'&&role==='super_admin'){
+      if(err)err.textContent='⚠️ Không thể tạo thêm Super Admin.';return
     }
     if(pw||pw2){
       if(!pw){if(err)err.textContent='⚠️ Vui lòng nhập mật khẩu mới.';return}
@@ -2892,6 +2974,8 @@ function saveAccount(){
     }
     accounts[idx]={...old,name,role,password:pw||old.password,updatedAt:Date.now()};
   }else{
+    if(role==='super_admin'){if(err)err.textContent='⚠️ Super Admin chỉ có 1 tài khoản duy nhất trên hệ thống.';return}
+    if(!canAssignAccountRole(role)){if(err)err.textContent='⚠️ Không thể gán vai trò này.';return}
     if(accounts.some(acc=>acc.username===username)){if(err)err.textContent='⚠️ Tên đăng nhập đã tồn tại.';return}
     if(!pw){if(err)err.textContent='⚠️ Vui lòng nhập mật khẩu.';return}
     accounts.push({id:uid(),username,name,role,password:pw,createdAt:Date.now(),updatedAt:Date.now()});
@@ -2907,8 +2991,11 @@ function deleteAccount(){
   const err=document.getElementById('acc_del_err');
   if(!acc)return;
   if(acc.username===normalizeUsername(S.currentUser)){if(err)err.textContent='⚠️ Không thể xoá tài khoản đang đăng nhập.';return}
-  if(acc.role==='super_admin'&&accounts.filter(x=>x.role==='super_admin').length<=1){
-    if(err)err.textContent='⚠️ Cần giữ ít nhất 1 tài khoản Super Admin.';return
+  if(acc.role==='super_admin'){
+    if(err)err.textContent='⚠️ Super Admin là tài khoản duy nhất của hệ thống.';return
+  }
+  if(!canManageAccountTarget(acc)){
+    if(err)err.textContent='⚠️ Không có quyền xoá tài khoản này.';return
   }
   saveAccounts(accounts.filter(x=>x.id!==S.delAccountId));
   S.modal=null;S.delAccountId=null;R();
@@ -2953,7 +3040,7 @@ async function doCancel(){
   }
   saveLocalOnly();S.modal=null;S.cancelTarget=null;R();
   const ok=await sbPatchGuest(g.id,patchFields);
-  if(!ok)alert('⚠️ Đã ghi nhận Cancel trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+  if(!ok)alert('⚠️ Đã ghi nhận Cancel trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
 }
 async function undoCancel(gid,type,cpId){
   const g=db.guests.find(x=>x.id===gid);if(!g)return;
@@ -2969,12 +3056,10 @@ async function undoCancel(gid,type,cpId){
   }
   saveLocalOnly();R();
   const ok=await sbPatchGuest(g.id,patchFields);
-  if(!ok)alert('⚠️ Đã khôi phục (Huỷ Cancel) trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+  if(!ok)alert('⚠️ Đã khôi phục (Huỷ Cancel) trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
 }
 function goCI(){
-  pushAppRoute('/check');
-  enterCheckPage();
-  R()
+  window.open(new URL(appRoutePath('/check'), window.location.origin).href,'_blank','noopener');
 }
 function backAdmin(){pushAppRoute('/');enterDashboardPage();R()}
 function lockOut(){S.ciOk=false;S.ciState=null;R()}
@@ -3027,7 +3112,9 @@ async function saveEv(){
   const venue=document.getElementById('ev_v')?.value?.trim();
   const bms=getBMs();
   if(!name){alert('Vui lòng nhập tên sự kiện');return}
-  if(!bms.length){alert('Cần ít nhất 1 thành viên BTC');return}
+  if(!date){alert('Vui lòng chọn thời gian tổ chức');return}
+  if(!team){alert('Vui lòng nhập team tổ chức');return}
+  if(!venue){alert('Vui lòng nhập địa điểm');return}
 
   if(isEdit){
     const idx=db.events.findIndex(e=>e.id===S.editEvId);
@@ -3037,13 +3124,13 @@ async function saveEv(){
     const editedId=S.editEvId;
     saveLocalOnly();S.modal=null;S.editEvId=null;R();
     const ok=await sbPatchEvent(editedId,{name,date_str:date||null,team:team||null,venue:venue||null,event_pw:'',btc_members:bms});
-    if(!ok)alert('⚠️ Đã lưu sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+    if(!ok)alert('⚠️ Đã lưu sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
   } else {
     const newEv={id:uid(),name,date,team,venue,eventPw:'',btcMembers:bms,createdAt:Date.now()};
     db.events.push(newEv);
     S.selEv=newEv.id;saveLocalOnly();S.modal=null;S.tab='guests';R();
     const ok=await sbUpsertOne('oh_events',evToDb(newEv));
-    if(!ok)alert('⚠️ Đã tạo sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại trước khi gửi link cho người khác.');
+    if(!ok)alert('⚠️ Đã tạo sự kiện trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối trước khi gửi link cho người khác.');
   }
 }
 
@@ -3053,17 +3140,17 @@ function delEv(id){if(!canManageEvents()){alert('Bạn không có quyền xoá s
   if(S.selEv===id)S.selEv=null;saveLocalOnly();sbDel('oh_events',id);R()}
 
 async function saveG(){
-  const eventId=document.getElementById('g_ev')?.value;
+  const editingGuest=S.modal==='edit_g'&&S.editGid?db.guests.find(g=>g.id===S.editGid):null;
+  const eventId=editingGuest?.eventId||S.selEv;
   const name=document.getElementById('g_n')?.value?.trim();
   const phone=document.getElementById('g_ph')?.value?.trim();
-  const systemCode=document.getElementById('g_syscode')?.value?.trim();
   const prmName=document.getElementById('g_prm')?.value?.trim();
   const tcbRegion=document.getElementById('g_reg')?.value?.trim();
   const unit=document.getElementById('g_unit')?.value?.trim();
   const sihName=document.getElementById('g_sih')?.value?.trim();
   const note=document.getElementById('g_note')?.value?.trim();
   if(!name){alert('Vui lòng nhập họ tên KH');return}
-  if(!eventId){alert('Vui lòng chọn sự kiện');return}
+  if(!eventId){alert('Chưa có sự kiện đang mở để thêm khách.');return}
   if(!canAccessEvent(eventId)){alert('Bạn không có quyền thao tác với sự kiện này.');return}
   // Sau ngày event: không cho thêm KH mới; nhưng sửa thông tin tĩnh KH hiện có vẫn OK
   if(isEvLocked(getEvById(eventId))&&S.modal!=='edit_g'){alert('Sự kiện đã kết thúc. Không thể thêm khách mới.');closeM();return;}
@@ -3080,6 +3167,7 @@ async function saveG(){
         if(match)return{...match,phone:rc.phone};
         return{id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}});
       const walkinEdit=!!(document.getElementById('g_walkin')?.checked??ex?.walkin);
+      const systemCode=ex.systemCode||genSystemCode();
       db.guests[idx]={...ex,eventId,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,walkin:walkinEdit,companions:newComps};
       S.ticketGid=S.editGid;
       isEditMode=true;
@@ -3088,7 +3176,7 @@ async function saveG(){
   } else {
     const guestCode=genCode(eventId);
     const companions=rawComps.map(rc=>({id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}));
-    const ng={id:uid(),eventId,guestCode,systemCode,name,phone,prmName,tcbRegion,unit,sihName,note,companions,checkedIn:false,checkinTime:null,checkinBy:null,createdAt:Date.now()};
+    const ng={id:uid(),eventId,guestCode,systemCode:genSystemCode(),name,phone,prmName,tcbRegion,unit,sihName,note,companions,checkedIn:false,checkinTime:null,checkinBy:null,createdAt:Date.now()};
     db.guests.push(ng);
     S.ticketGid=ng.id;
     newGuestRow=ng;
@@ -3099,7 +3187,7 @@ async function saveG(){
   const ok=isEditMode
     ? await sbPatchGuest(ticketGid,editedFields)
     : await sbUpsertOne('oh_guests',gToDb(newGuestRow));
-  if(!ok)alert('⚠️ Đã lưu khách trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại trước khi phát vé.');
+  if(!ok)alert('⚠️ Đã lưu khách trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối trước khi phát vé.');
 }
 
 function chkEditPw(){
@@ -3112,7 +3200,7 @@ async function doEdit(){
   const idx=db.guests.indexOf(g);
   const name=document.getElementById('eg_n')?.value?.trim()||g.name;
   const phone=document.getElementById('eg_ph')?.value?.trim()||g.phone;
-  const systemCode=document.getElementById('eg_syscode')?.value?.trim();
+  const systemCode=g.systemCode||genSystemCode();
   const prmName=document.getElementById('eg_prm')?.value?.trim();
   const tcbRegion=document.getElementById('eg_reg')?.value?.trim();
   const unit=document.getElementById('eg_unit')?.value?.trim();
@@ -3127,7 +3215,7 @@ async function doEdit(){
   db.guests[idx]={...g,name,phone,systemCode,prmName,tcbRegion,unit,sihName,note,walkin,companions:updComps};
   saveLocalOnly();S.modal=null;S.editGid=null;R();
   const ok=await sbPatchGuest(g.id,{name,phone,system_code:systemCode,prm_name:prmName,tcb_region:tcbRegion,unit,sih_name:sihName,note,walkin,companions:updComps});
-  if(!ok)alert('⚠️ Đã lưu thay đổi trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+  if(!ok)alert('⚠️ Đã lưu thay đổi trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
 }
 
 function doDel(){
@@ -3147,7 +3235,7 @@ async function doCpEdit(){
   db.guests[idx].companions[cpIdx]={...db.guests[idx].companions[cpIdx],name,phone};
   saveLocalOnly();S.modal=null;S.cpEdit=null;R();
   const ok=await sbPatchGuest(g.id,{companions:db.guests[idx].companions});
-  if(!ok)alert('⚠️ Đã sửa người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+  if(!ok)alert('⚠️ Đã sửa người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
 }
 
 async function doCpDel(){
@@ -3158,7 +3246,7 @@ async function doCpDel(){
   db.guests[gIdx].companions=(db.guests[gIdx].companions||[]).filter(x=>x.id!==cpId);
   saveLocalOnly();S.modal=null;S.cpDel=null;R();
   const ok=await sbPatchGuest(db.guests[gIdx].id,{companions:db.guests[gIdx].companions});
-  if(!ok)alert('⚠️ Đã xoá người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+  if(!ok)alert('⚠️ Đã xoá người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
 }
 
 async function doCpAdd(){
@@ -3174,7 +3262,7 @@ async function doCpAdd(){
   S.cpTicket={gid,cpId:newCp.id};S.cpAdd=null;S.modal='cp_ticket';R();
   setTimeout(()=>mkCpQR(),120);
   const ok=await sbPatchGuest(db.guests[gIdx].id,{companions:db.guests[gIdx].companions});
-  if(!ok)alert('⚠️ Đã thêm người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.');
+  if(!ok)alert('⚠️ Đã thêm người đi kèm trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.');
 }
 
 function mkCpQR(){
@@ -3235,7 +3323,7 @@ async function togCI(gid,type,cid){
       ? {checked_in:false,checkin_time:null,checkin_by:null}
       : {companions:(g.companions||[])};
     const ok = await sbPatchGuest(g.id, patchFields);
-    if(!ok)alert(`⚠️ Đã huỷ check-in của "${personName}" trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại.`);
+    if(!ok)alert(`⚠️ Đã huỷ check-in của "${personName}" trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối; hệ thống sẽ tự cập nhật realtime khi đồng bộ thành công.`);
     return;
   }
   S.adminCI={gid,type,cpId:cid||null};S.modal='admin_ci';R();
@@ -3266,7 +3354,7 @@ async function doAdminCI(){
     ? {checked_in:true,checkin_time:now,checkin_by:'admin'}
     : {companions:(g.companions||[])};
   const ok = await sbPatchGuest(g.id, patchFields);
-  if(!ok)alert(`⚠️ Đã ghi nhận check-in cho "${personName}" trên thiết bị này, nhưng CHƯA đồng bộ được lên hệ thống trung tâm (có thể do mất mạng hoặc lỗi Supabase).\n\nVui lòng bấm "Làm mới" ngay để kiểm tra lại — nếu không, trạng thái check-in này có thể bị mất khi làm mới dữ liệu.`);
+  if(!ok)alert(`⚠️ Đã ghi nhận check-in cho "${personName}" trên thiết bị này, nhưng CHƯA đồng bộ được lên hệ thống trung tâm (có thể do mất mạng hoặc lỗi API).\n\nVui lòng kiểm tra kết nối trước khi tiếp tục để tránh lệch dữ liệu giữa các thiết bị.`);
 }
 
 function mkQRs(){
@@ -3435,7 +3523,7 @@ async function finishCI(){
 
 function expCSV(){
   const ev=db.events.find(e=>e.id===S.selEv);
-  const rows=[['STT','Loại','Mã','Mã Hệ thống','Họ tên','SĐT','KH gốc (nếu đi kèm)','PRM','Vùng TCB','Đơn vị','SIH','Note','Walk-in','Trạng thái','Giờ check-in','BTC','Lý do cancel']];
+  const rows=[['STT','Loại','Mã','Customer ID','Họ tên','SĐT','KH gốc (nếu đi kèm)','PRM','Vùng TCB','Đơn vị','SIH','Note','Walk-in','Trạng thái','Giờ check-in','BTC','Lý do cancel']];
   let n=0;
   egs(S.selEv).forEach(g=>{n++;
     const gStatus=g.cancelled?'Cancel':g.checkedIn?'Đã vào':'Chưa';
@@ -3465,10 +3553,9 @@ function rWalkinM(){
       <div style="padding:9px 12px;background:#f4f7fb;border-radius:8px;font-size:15px;color:#555">${ev?.name||'—'} · ${fmtD(ev?.date)}</div>
     </div>
     <div class="sec">Thông tin khách Walk-in</div>
-    <div class="g3">
+    <div class="g2">
       <div class="fg"><label>Họ và tên *</label><input id="wi_n" placeholder="Nguyễn Văn A" autofocus/></div>
       <div class="fg"><label>Số điện thoại</label><input id="wi_ph" type="tel" placeholder="09xxxxxxxx"/></div>
-      <div class="fg"><label>Mã Hệ thống <span style="font-weight:400;color:#aaa">(nếu có)</span></label><input id="wi_syscode" placeholder="OH-xxxxx"/></div>
     </div>
     <div class="sec">Người đi kèm <span style="text-transform:none;letter-spacing:0;font-weight:400">(tuỳ chọn)</span></div>
     <div id="wi_cp_w"></div>
@@ -3520,7 +3607,6 @@ async function saveWalkin(){
   const name=(document.getElementById('wi_n')?.value||'').trim();
   if(!name){alert('Vui lòng nhập họ tên khách Walk-in');return;}
   const phone=(document.getElementById('wi_ph')?.value||'').trim();
-  const systemCode=(document.getElementById('wi_syscode')?.value||'').trim();
   const prmName=(document.getElementById('wi_prm')?.value||'').trim();
   const tcbRegion=(document.getElementById('wi_reg')?.value||'').trim();
   const unit=(document.getElementById('wi_unit')?.value||'').trim();
@@ -3530,7 +3616,7 @@ async function saveWalkin(){
   const guestCode=genCode(eventId);
   const companions=rawComps.map(rc=>({id:uid(),name:rc.name,phone:rc.phone,code:genCode(eventId),checkedIn:false,checkinTime:null,checkinBy:null}));
   const ng={
-    id:uid(),eventId,guestCode,systemCode,name,phone,prmName,tcbRegion,unit,sihName,
+    id:uid(),eventId,guestCode,systemCode:genSystemCode(),name,phone,prmName,tcbRegion,unit,sihName,
     note:note?note:'[Walk-in]',
     walkin:true,  // ← flag Walk-in
     companions,checkedIn:false,checkinTime:null,checkinBy:null,createdAt:Date.now()
@@ -3539,7 +3625,7 @@ async function saveWalkin(){
   S.ticketGid=ng.id;
   saveLocalOnly();S.modal='tickets';R();
   const ok=await sbUpsertOne('oh_guests',gToDb(ng));
-  if(!ok)alert('⚠️ Đã tạo Walk-in trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng bấm "Làm mới" để kiểm tra lại trước khi phát vé.');
+  if(!ok)alert('⚠️ Đã tạo Walk-in trên thiết bị này nhưng CHƯA đồng bộ lên hệ thống trung tâm. Vui lòng kiểm tra kết nối trước khi phát vé.');
 }
 
 /* ============================================================
@@ -3549,12 +3635,12 @@ async function saveWalkin(){
 /* 1. Tải file Mẫu Excel đúng cấu trúc quy định */
 function downloadExcelTemplate() {
   const headers = [
-    ["Loại Khách (Gõ 'Main' hoặc 'Companion')", "Họ và Tên (*)", "Số Điện Thoại", "Tên PRM (Sales TCB)", "Vùng TCB", "Đơn vị (CN/PGD)", "Tên SIH (Sales OH)", "Note / Lưu ý", "Mã Hệ thống (OneHousing - chỉ áp dụng cho Main)"]
+    ["Loại Khách (Gõ 'Main' hoặc 'Companion')", "Họ và Tên (*)", "Số Điện Thoại", "Tên PRM (Sales TCB)", "Vùng TCB", "Đơn vị (CN/PGD)", "Tên SIH (Sales OH)", "Note / Lưu ý"]
   ];
   const sampleData = [
-    ["Main", "Nguyễn Văn A", "0901234567", "Lê PRM", "Vùng 1", "CN Sài Gòn", "Trần SIH", "Khách VIP bàn đầu", "OH-00123"],
-    ["Companion", "Nguyễn Văn B (Đi kèm A)", "0907654321", "", "", "", "", "Đi cùng xe ông A", ""],
-    ["Main", "Phạm Thị C", "0911223344", "Nguyễn PRM", "Vùng 2", "CN Hà Nội", "Vũ SIH", "", "OH-00456"]
+    ["Main", "Nguyễn Văn A", "0901234567", "Lê PRM", "Vùng 1", "CN Sài Gòn", "Trần SIH", "Khách VIP bàn đầu"],
+    ["Companion", "Nguyễn Văn B (Đi kèm A)", "0907654321", "", "", "", "", "Đi cùng xe ông A"],
+    ["Main", "Phạm Thị C", "0911223344", "Nguyễn PRM", "Vùng 2", "CN Hà Nội", "Vũ SIH", ""]
   ];
   const ws = XLSX.utils.aoa_to_sheet(headers.concat(sampleData));
   const wb = XLSX.utils.book_new();
@@ -3562,63 +3648,108 @@ function downloadExcelTemplate() {
   XLSX.writeFile(wb, "OneHousing_Template_ImportKhach.xlsx");
 }
 
+function openImportExcel(){
+  S.modal='import_source';
+  R();
+}
+
 /* 2. Kích hoạt nút chọn File */
 function triggerExcelImport() {
   document.getElementById('excel_file_input').click();
 }
 
-/* 3. Đọc dữ liệu từ File Excel đã tải lên và hiển thị màn hình Preview */
-function handleExcelImport(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+function parseImportRows(rawRows){
+  if(!rawRows||rawRows.length<=1)throw new Error('File/Sheet trống hoặc thiếu dữ liệu.');
+  const parsedGuests=[];
+  for(let i=1;i<rawRows.length;i++){
+    const row=rawRows[i];
+    if(!row?.[1]||String(row[1]).trim()==='')continue;
+    parsedGuests.push({
+      type:(String(row[0]||'').trim().toLowerCase()==='companion')?'Companion':'Main',
+      name:String(row[1]).trim(),
+      phone:row[2]?String(row[2]).trim():'',
+      prmName:row[3]?String(row[3]).trim():'',
+      tcbRegion:row[4]?String(row[4]).trim():'',
+      unit:row[5]?String(row[5]).trim():'',
+      sihName:row[6]?String(row[6]).trim():'',
+      note:row[7]?String(row[7]).trim():''
+    });
+  }
+  if(parsedGuests.length===0)throw new Error('Không tìm thấy dữ liệu khách hàng hợp lệ.');
+  return parsedGuests;
+}
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, {type: 'array'});
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const rawRows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+function showImportPreview(parsedGuests){
+  S.importData=parsedGuests;
+  S.modal='import_preview';
+  R();
+}
 
-      if (rawRows.length <= 1) {
-        alert("File Excel trống hoặc thiếu dữ liệu!");
-        return;
-      }
+function importWorkbookToPreview(workbook){
+  const firstSheetName=workbook.SheetNames[0];
+  const worksheet=workbook.Sheets[firstSheetName];
+  const rawRows=XLSX.utils.sheet_to_json(worksheet,{header:1});
+  showImportPreview(parseImportRows(rawRows));
+}
 
-      const parsedGuests = [];
-      // Bỏ qua dòng tiêu đề thứ 0
-      for (let i = 1; i < rawRows.length; i++) {
-        const row = rawRows[i];
-        if (!row[1] || String(row[1]).trim() === "") continue; // Bỏ qua nếu ko có tên
-
-        parsedGuests.push({
-          type: (String(row[0]).trim().toLowerCase() === 'companion') ? 'Companion' : 'Main',
-          name: String(row[1]).trim(),
-          phone: row[2] ? String(row[2]).trim() : '',
-          prmName: row[3] ? String(row[3]).trim() : '',
-          tcbRegion: row[4] ? String(row[4]).trim() : '',
-          unit: row[5] ? String(row[5]).trim() : '',
-          sihName: row[6] ? String(row[6]).trim() : '',
-          note: row[7] ? String(row[7]).trim() : '',
-          systemCode: row[8] ? String(row[8]).trim() : ''
-        });
-      }
-
-      if (parsedGuests.length === 0) {
-        alert("Không tìm thấy dữ liệu khách hàng hợp lệ trong file Excel!");
-        return;
-      }
-
-      S.importData = parsedGuests;
-      S.modal = 'import_preview';
-      R();
-    } catch(err) {
-      alert("Đã xảy ra lỗi khi đọc file Excel! Chi tiết: " + err.message);
+function handleImportFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const workbook=XLSX.read(data,{type:'array'});
+      importWorkbookToPreview(workbook);
+    }catch(err){
+      alert('Đã xảy ra lỗi khi đọc file Excel/CSV! Chi tiết: '+err.message);
     }
-    event.target.value = ''; // Reset input file
   };
   reader.readAsArrayBuffer(file);
+}
+
+/* 3. Đọc dữ liệu từ File Excel đã tải lên và hiển thị màn hình Preview */
+function handleExcelImport(event) {
+  handleImportFile(event.target.files?.[0]);
+  event.target.value='';
+}
+
+function handleImportDrag(event,isDragging){
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.classList.toggle('dragging',!!isDragging);
+}
+
+function handleImportDrop(event){
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.classList.remove('dragging');
+  const file=event.dataTransfer?.files?.[0];
+  handleImportFile(file);
+}
+
+function publicSheetCsvUrl(rawUrl){
+  const url=new URL(rawUrl);
+  const sheetId=url.pathname.match(/\/spreadsheets\/d\/([^/]+)/)?.[1];
+  if(!sheetId)return rawUrl;
+  const gid=url.hash.match(/gid=([^&]+)/)?.[1]||url.searchParams.get('gid')||'0';
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${encodeURIComponent(gid)}`;
+}
+
+async function importPublicSheet(){
+  const err=document.getElementById('import_source_err');
+  if(err)err.textContent='';
+  const raw=(document.getElementById('public_sheet_url')?.value||'').trim();
+  if(!raw){if(err)err.textContent='⚠️ Vui lòng nhập link public sheet.';return}
+  try{
+    const url=publicSheetCsvUrl(raw);
+    const res=await fetch(url);
+    if(!res.ok)throw new Error(`Không tải được sheet (${res.status})`);
+    const text=await res.text();
+    const workbook=XLSX.read(text,{type:'string'});
+    importWorkbookToPreview(workbook);
+  }catch(e){
+    if(err)err.textContent='⚠️ Không import được public sheet. Hãy kiểm tra quyền public/link CSV. '+e.message;
+  }
 }
 
 /* 4. Lưu dữ liệu đã duyệt từ Excel vào cơ sở dữ liệu (Có logic gom nhóm Companion dưới Main liền trước) */
@@ -3637,7 +3768,7 @@ async function commitExcelImport() {
         id: uid(),
         eventId: eventId,
         guestCode: guestCode,
-        systemCode: item.systemCode,
+        systemCode: genSystemCode(),
         name: item.name,
         phone: item.phone,
         prmName: item.prmName,
@@ -3674,7 +3805,7 @@ async function commitExcelImport() {
           id: uid(),
           eventId: eventId,
           guestCode: guestCode,
-          systemCode: item.systemCode,
+          systemCode: genSystemCode(),
           name: item.name + " (Chính)",
           phone: item.phone,
           prmName: item.prmName,
@@ -3700,7 +3831,7 @@ async function commitExcelImport() {
   if (ok) {
     alert(`🎉 Đã import thành công ${createdGuests.length} khách mời từ Excel vào hệ thống!`);
   } else {
-    alert(`⚠️ Đã lưu ${createdGuests.length} khách trên thiết bị này nhưng CHƯA đồng bộ đầy đủ lên hệ thống trung tâm Supabase (có thể do lỗi mạng). Vui lòng bấm "Làm mới" để kiểm tra và đồng bộ lại trước khi rời sự kiện.`);
+    alert(`⚠️ Đã lưu ${createdGuests.length} khách trên thiết bị này nhưng CHƯA đồng bộ đầy đủ lên hệ thống trung tâm (có thể do lỗi mạng hoặc lỗi API). Vui lòng kiểm tra kết nối trước khi rời sự kiện.`);
   }
 }
 
@@ -3833,7 +3964,8 @@ window.dlCpTicket=dlCpTicket; window.printAll=printAll;
 window.tryUnlock=tryUnlock; window.startCI=startCI; window.startQrScanner=startQrScanner; window.confirmPhone=confirmPhone;
 window.doAdminCI=doAdminCI;
 window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=setRptEv;
-window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
+window.openImportExcel=openImportExcel; window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
+window.handleImportDrag=handleImportDrag; window.handleImportDrop=handleImportDrop; window.importPublicSheet=importPublicSheet;
 window.downloadExcelTemplate=downloadExcelTemplate; window.commitExcelImport=commitExcelImport;
 window.downloadAllQRsZip=downloadAllQRsZip;
 window.doCIUnlock=doCIUnlock; window.openCIUnlock=openCIUnlock; window.closeCIUnlock=closeCIUnlock;
