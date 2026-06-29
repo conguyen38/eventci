@@ -11,7 +11,7 @@ function getSql() {
     process.env.NEON_DATABASE_URL;
   if (!connectionString) {
     throw new Error('Missing Neon connection string. Add DATABASE_URL or POSTGRES_URL in Vercel environment variables.');
-  }
+    }
   if (!sqlClient) sqlClient = neon(connectionString);
   return sqlClient;
 }
@@ -20,7 +20,7 @@ export async function ensureSchema() {
   if (schemaReady) return schemaReady;
   schemaReady = (async () => {
     const sql = getSql();
-    await sql(`
+    await sql.query(`
       CREATE TABLE IF NOT EXISTS oh_events (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -32,7 +32,7 @@ export async function ensureSchema() {
         created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
       )
     `);
-    await sql(`
+    await sql.query(`
       CREATE TABLE IF NOT EXISTS oh_guests (
         id TEXT PRIMARY KEY,
         event_id TEXT REFERENCES oh_events(id) ON DELETE CASCADE,
@@ -55,16 +55,16 @@ export async function ensureSchema() {
         created_at BIGINT DEFAULT (EXTRACT(EPOCH FROM NOW()) * 1000)::BIGINT
       )
     `);
-    await sql(`CREATE INDEX IF NOT EXISTS idx_oh_guests_event_id ON oh_guests(event_id)`);
-    await sql(`CREATE INDEX IF NOT EXISTS idx_oh_guests_guest_code ON oh_guests(guest_code)`);
-    await sql(`CREATE INDEX IF NOT EXISTS idx_oh_events_created_at ON oh_events(created_at DESC)`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_oh_guests_event_id ON oh_guests(event_id)`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_oh_guests_guest_code ON oh_guests(guest_code)`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_oh_events_created_at ON oh_events(created_at DESC)`);
   })();
   return schemaReady;
 }
 
 export async function query(text, params = []) {
   await ensureSchema();
-  return getSql()(text, params);
+  return getSql().query(text, params);
 }
 
 export async function readJson(req) {
