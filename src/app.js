@@ -725,6 +725,8 @@ let _qrDetector = null;
 let _qrCanvas = null;
 let _qrTimer = null;
 let _qrBusy = false;
+let _qrStartPromise = null;
+let _qrActiveFacing = null;
 let _qrLastCode = '';
 let _qrLastAt = 0;
 let _cameraStatusResetT = null;
@@ -809,28 +811,50 @@ function syncCheckinColumnHeight(){
 function stopQrScanner(){
   if(_qrTimer){clearInterval(_qrTimer);_qrTimer=null}
   if(_qrStream){_qrStream.getTracks().forEach(track=>track.stop());_qrStream=null}
+  _qrStartPromise=null;
+  _qrActiveFacing=null;
   _qrBusy=false;
 }
-async function startQrScanner(){
+function currentCameraFacing(){
+  return S.ciCameraFacing==='user'?'user':'environment';
+}
+async function startQrScanner(opts={}){
   const video=document.getElementById('ci_video');
   if(!video||S.view!=='checkin'||!S.ciOk||S.ciState)return;
   if(!navigator.mediaDevices?.getUserMedia){
     setCameraStatus('Trình duyệt không hỗ trợ camera. Vui lòng nhập mã thủ công.','error');
     return;
   }
+  const facing=opts.facing||currentCameraFacing();
+  const force=!!opts.force;
+  if(_qrStartPromise&&!force)return _qrStartPromise;
+  if(_qrStream&&!force&&_qrActiveFacing===facing){
+    if(video.srcObject!==_qrStream)video.srcObject=_qrStream;
+    if(video.paused)await video.play().catch(()=>{});
+    if(!_qrTimer)_qrTimer=setInterval(scanQrFrame,450);
+    if(!document.getElementById('ci_camera_status')?.dataset.type)setCameraStatus('Đưa mã QR vào khung quét','ready');
+    return;
+  }
+  if(_qrStream&&(force||_qrActiveFacing!==facing)){
+    stopQrScanner();
+  }
   try{
     if(('BarcodeDetector' in window)&&!_qrDetector){
       try{_qrDetector=new BarcodeDetector({formats:['qr_code']})}catch(e){_qrDetector=null}
     }
-    if(!_qrStream){
-      _qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    }
-    if(video.srcObject!==_qrStream)video.srcObject=_qrStream;
-    await video.play();
-    setCameraStatus('Đưa mã QR vào khung quét','ready');
-    if(!_qrTimer)_qrTimer=setInterval(scanQrFrame,450);
+    _qrStartPromise=(async()=>{
+      _qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false});
+      _qrActiveFacing=facing;
+      if(video.srcObject!==_qrStream)video.srcObject=_qrStream;
+      await video.play();
+      setCameraStatus('Đưa mã QR vào khung quét','ready');
+      if(!_qrTimer)_qrTimer=setInterval(scanQrFrame,450);
+    })();
+    await _qrStartPromise;
   }catch(e){
     setCameraStatus('Không mở được camera. Kiểm tra quyền camera hoặc dùng nhập mã thủ công.','error');
+  }finally{
+    _qrStartPromise=null;
   }
 }
 async function scanQrFrame(){
@@ -987,6 +1011,7 @@ let S={
   ciSyncWarn:false,
   ciRecentSearch:'',
   ciMobileMode:'camera',
+  ciCameraFacing:'environment',
   pwVal:'',
   pwErr:'',
   newEvBtcRows:1,
@@ -2796,7 +2821,12 @@ function rCIIdleDesktop(){
               <div class="ci-panel-title">Camera quét QR</div>
               <div class="ci-panel-sub">Đưa mã QR vào khung chữ nhật ở giữa.</div>
             </div>
-            <span class="ci-live-dot"><span></span> Live</span>
+            <div class="ci-camera-actions">
+              <button type="button" class="ci-camera-switch" onclick="switchCICamera()" title="Đổi camera trước/sau" aria-label="Đổi camera trước/sau">
+                <span class="material-symbols-rounded mi" aria-hidden="true">flip_camera_ios</span>
+              </button>
+              <span class="ci-live-dot"><span></span> Live</span>
+            </div>
           </div>
           <div class="ci-camera-shell">
             <video id="ci_video" class="ci-video" autoplay muted playsinline></video>
@@ -2936,6 +2966,11 @@ function clearSrch(){S.search='';R();refocusInput('guest_search',0)}
 function clearEvSrch(){S.evSearch='';R();refocusInput('ev_search',0)}
 function clearCIRecentSearch(){S.ciRecentSearch='';R();refocusInput('ci_recent_search',0)}
 function setCIMobileMode(mode){S.ciMobileMode=mode==='manual'?'manual':'camera';R()}
+async function switchCICamera(){
+  S.ciCameraFacing=currentCameraFacing()==='environment'?'user':'environment';
+  setCameraStatus('Đang đổi camera...','ready');
+  await startQrScanner({facing:S.ciCameraFacing,force:true});
+}
 function setFil(v){S.filter=v;R()}
 function openM(m){S.modal=m;R()}
 function openAccount(){S.modal='admin_account';R()}
@@ -3972,7 +4007,7 @@ function closeCIUnlock(id){S.unlockedCIEvs[id]=false;R()}
 
 // Expose all functions to window scope (required for Vite module bundling)
 window.R=R; window.doLogin=doLogin; window.doLogout=doLogout; window.doRefresh=doRefresh; window.doUrlCI=doUrlCI; window.formatCIInput=formatCIInput;
-window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch; window.setEvSrch=setEvSrch; window.setCIRecentSearch=setCIRecentSearch; window.setCIMobileMode=setCIMobileMode;
+window.setTab=setTab; window.openGM=openGM; window.pickEv=pickEv; window.setSrch=setSrch; window.setEvSrch=setEvSrch; window.setCIRecentSearch=setCIRecentSearch; window.setCIMobileMode=setCIMobileMode; window.switchCICamera=switchCICamera;
 window.clearSrch=clearSrch; window.clearEvSrch=clearEvSrch; window.clearCIRecentSearch=clearCIRecentSearch; window.setFil=setFil; window.openM=openM; window.openAccount=openAccount; window.saveAdminPw=saveAdminPw; window.filterDD=filterDD; window.clearDDSearch=clearDDSearch;
 window.openAccountForm=openAccountForm; window.openAccountDel=openAccountDel; window.saveAccount=saveAccount; window.deleteAccount=deleteAccount;
 window.openGuestDetail=openGuestDetail; window.openCpDetail=openCpDetail; window.openEdit=openEdit; window.openDel=openDel;

@@ -229,6 +229,10 @@ button{cursor:pointer;font-size:15px}
 .ci-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .ci-panel-title{font-size:17px;font-weight:700;color:#071025}
 .ci-panel-sub{font-size:14px;font-weight:500;color:#7f8a9c;margin-top:3px}
+.ci-camera-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.ci-camera-switch{width:36px;height:36px;border-radius:10px;border:1px solid #dbe3ef;background:#fff;color:#185fa5;display:inline-flex;align-items:center;justify-content:center;transition:all .12s}
+.ci-camera-switch:hover{background:#eff6ff;border-color:#bfdbfe}
+.ci-camera-switch .mi{font-size:22px}
 .ci-live-dot{display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:#eff6ff;color:var(--primary-blue);font-size:14px;font-weight:700;padding:5px 10px;white-space:nowrap}
 .ci-live-dot span{width:8px;height:8px;border-radius:50%;background:var(--primary-blue);box-shadow:0 0 0 4px var(--primary-blue-ring)}
 .ci-camera-shell{position:relative;aspect-ratio:4/3;background:#0f172a;border-radius:12px;overflow:hidden;border:1px solid #dbe3ef}
@@ -392,6 +396,8 @@ button{cursor:pointer;font-size:15px}
   .ci-mobile-tab{height:42px;border:0;border-radius:8px;background:transparent;color:#64748b;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
   .ci-mobile-tab.on{background:#fff;color:var(--primary-blue);box-shadow:0 1px 4px rgba(15,23,42,.08)}
   .ci-mobile-tab .mi{font-size:20px}
+  .ci-section-head{align-items:center}
+  .ci-camera-switch{width:40px;height:40px}
   .ci-camera-card.ci-mobile-mode-camera .ci-pane-manual{display:none}
   .ci-camera-card.ci-mobile-mode-manual .ci-pane-camera{display:none}
   .ci-manual-inline{margin-top:0}
