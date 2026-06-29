@@ -53,10 +53,6 @@
   .btn.primary{background:var(--primary-blue);border-color:var(--primary-blue);color:#fff}
   .btn.primary:hover{background:var(--primary-blue-hover);border-color:var(--primary-blue-hover)}
   .updated{font-size:12px;font-weight:600;color:var(--muted)}
-  .live-pill{min-height:38px;padding:0 12px;border:1px solid #bfdbfe;border-radius:999px;background:#eff6ff;color:var(--primary-blue);font-size:13px;font-weight:800;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
-  .live-pill i{width:8px;height:8px;border-radius:50%;background:var(--primary-blue);box-shadow:0 0 0 4px var(--primary-blue-ring)}
-  .live-pill.off{border-color:#bfdbfe;background:#eff6ff;color:var(--primary-blue)}
-  .live-pill.off i{background:var(--primary-blue);box-shadow:0 0 0 4px var(--primary-blue-ring)}
 
   .state{text-align:center;padding:56px 20px;color:var(--muted);font-weight:600}
   .state .ico{font-size:40px;margin-bottom:10px}
@@ -122,8 +118,7 @@
     .brand{align-items:flex-start;flex-direction:column;gap:10px}
     .brand h1{font-size:20px}
     .report-controls{width:100%;text-align:left;justify-items:stretch}
-    .controls,select,.btn,.dash-dd,.live-pill{width:100%}
-    .live-pill{justify-content:center}
+    .controls,select,.btn,.dash-dd{width:100%}
     select{min-width:0}
     .grid-stats{grid-template-columns:1fr}
     .section{padding:16px}
@@ -153,7 +148,6 @@
           </button>
           <div class="dash-dd-menu" id="eventDDMenu"></div>
         </div>
-        <span class="live-pill" id="realtimeStatus"><i></i>Live</span>
       </div>
       <div class="updated" id="updatedAt"></div>
     </div>
@@ -296,7 +290,6 @@
 
 <script>
 const API_BASE = window.location.origin;
-const SYNC_INTERVAL_MS = 2500;
 const LOCAL_STORAGE_KEY = 'oh_ci_v5';
 
 const COLORS = {
@@ -327,7 +320,6 @@ let events = [];
 let guests = [];
 let charts = {};
 let unlockedEvs = {};
-let syncTimer = null;
 let syncBusy = false;
 let lastDataSignature = '';
 let missingRouteEventId = '';
@@ -468,14 +460,13 @@ function finishDataRender(sourceLabel){
   const signature = dataSignature();
   if(signature === lastDataSignature){
     refreshEventSelector();
-    setSyncStatus('Live', sourceLabel.includes('Neon'));
-    document.getElementById('updatedAt').textContent = `${sourceLabel}: ` + new Date().toLocaleString('vi-VN');
+    document.getElementById('updatedAt').textContent = 'Dữ liệu cập nhật: ' + new Date().toLocaleString('vi-VN');
     document.getElementById('loadingState').style.display='none';
     return;
   }
   lastDataSignature = signature;
   refreshEventSelector();
-  document.getElementById('updatedAt').textContent = `${sourceLabel}: ` + new Date().toLocaleString('vi-VN');
+  document.getElementById('updatedAt').textContent = 'Dữ liệu cập nhật: ' + new Date().toLocaleString('vi-VN');
   document.getElementById('loadingState').style.display='none';
   if(!events.length){
     document.getElementById('errorMsg').textContent = 'Chưa có sự kiện nào trong hệ thống';
@@ -483,19 +474,6 @@ function finishDataRender(sourceLabel){
     return;
   }
   render();
-}
-
-function setSyncStatus(text, ok=true){
-  const el = document.getElementById('realtimeStatus');
-  if(!el) return;
-  el.classList.toggle('off', !ok);
-  el.innerHTML = `<i></i>${escHtml(text)}`;
-}
-
-function startBackgroundSync(){
-  if(syncTimer) return;
-  setSyncStatus('Live');
-  syncTimer = setInterval(()=>loadData({silent:true}), SYNC_INTERVAL_MS);
 }
 
 async function loadData({silent=false}={}){
@@ -515,20 +493,16 @@ async function loadData({silent=false}={}){
     events = payload.events || [];
     guests = payload.guests || [];
 
-    setSyncStatus('Live');
-    finishDataRender('Đồng bộ Neon');
+    finishDataRender();
   }catch(e){
     if(loadLocalDashboardData()){
-      setSyncStatus('Live', false);
-      finishDataRender('Dữ liệu từ trang quản lý');
+      finishDataRender();
       return;
     }
     if(!silent){
       document.getElementById('loadingState').style.display='none';
       document.getElementById('errorMsg').textContent = 'Không thể tải dữ liệu — hãy chạy bằng Vercel dev/deploy để có /api/sync, hoặc mở trang quản lý trước để có dữ liệu local. (' + e.message + ')';
       document.getElementById('errorState').style.display='block';
-    }else{
-      setSyncStatus('Live', false);
     }
   }finally{
     syncBusy = false;
@@ -1065,7 +1039,6 @@ window.addEventListener('popstate', ()=>{
   render();
 });
 loadData();
-startBackgroundSync();
 </script>
 </body>
 </html>

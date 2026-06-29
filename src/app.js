@@ -2131,8 +2131,8 @@ function rTicketsM(){
       ${all.map((tk,idx)=>`
         <div class="ticket">
           <div class="tk-header">VÉ THAM DỰ SỰ KIỆN</div>
-          <div style="font-size:14px;color:#bbb;margin-bottom:6px">${ev?.name||''}</div>
-          <div style="font-size:14px;color:#bbb;margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+          <div class="tk-event name">${ev?.name||''}</div>
+          <div class="tk-event meta">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
           <div class="tk-name">${tk.name}</div>
           <span class="tk-role ${tk.type==='main'?'b-blue':'b-purple'}">${tk.type==='main'?'Khách mời chính':'Đi kèm: '+tk.parentName}</span>
           <div class="tk-qr" id="tqr_${idx}"></div>
@@ -2356,13 +2356,13 @@ function rCpTicketM(){
   return`<div class="mh">🎫 Vé người đi kèm</div>
     <div class="ticket" style="margin:8px 0">
       <div class="tk-header">VÉ THAM DỰ SỰ KIỆN</div>
-      <div style="font-size:14px;color:#bbb;margin-bottom:6px">${ev?.name||''}</div>
-      <div style="font-size:14px;color:#bbb;margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+      <div class="tk-event name">${ev?.name||''}</div>
+      <div class="tk-event meta">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
       <div class="tk-name">${cp.name}</div>
       <span class="tk-role b-purple">Đi kèm: ${g.name}</span>
       <div class="tk-qr" id="cp_tqr"></div>
       <div class="tk-code">${cp.code}</div>
-      <div class="foot">Vui lòng xuất trình vé tại cổng check-in<br>Vé chỉ có giá trị cho 01 người</div>
+      <div class="tk-foot">Vui lòng xuất trình vé tại cổng check-in<br>Vé chỉ có giá trị cho 01 người</div>
     </div>
     <div class="mf" style="justify-content:center">
       <button class="btn sm" onclick="dlCpTicket()">⬇️ Tải vé này</button>
@@ -3427,6 +3427,28 @@ function mkCpQR(){
   try{new QRCode(el,{text:qrUrl(cp.code),width:160,height:160,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}
   catch(e){el.innerHTML='<div style="font-size:14px;color:#aaa">QR error</div>'}}
 
+function ticketPrintStyles(multiple=false){
+  return `@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap');
+    @page{size:auto;margin:10mm}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Be Vietnam Pro',sans-serif;background:#f5f7fb;min-height:100vh;padding:20px;color:#071025}
+    .print-wrap{min-height:calc(100vh - 40px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+    .ticket{width:86mm;max-width:86mm;background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px 16px 14px;text-align:center;display:flex;flex-direction:column;align-items:center;page-break-inside:avoid;break-inside:avoid;box-shadow:0 1px 4px rgba(15,23,42,.04)}
+    ${multiple?'.ticket{margin:0 auto 8mm}.ticket:not(:last-child){page-break-after:always;break-after:page}':''}
+    .hd{width:100%;font-size:13px;font-weight:800;letter-spacing:2px;color:#a7adba;margin-bottom:8px;text-align:center}
+    .ev{width:100%;font-size:13px;font-weight:500;color:#98a4b6;line-height:1.35;text-align:center;overflow-wrap:anywhere}
+    .ev.meta{margin-bottom:11px}
+    .name{width:100%;font-size:20px;font-weight:800;color:#071025;line-height:1.25;margin-bottom:7px;text-align:center;overflow-wrap:anywhere}
+    .role{display:flex;align-items:center;justify-content:center;width:max-content;max-width:100%;margin:0 auto 13px;padding:3px 10px;border-radius:10px;background:#eff6ff;color:#185fa5;font-size:13px;font-weight:700;line-height:1.35;text-align:center;overflow-wrap:anywhere}
+    .qr-box{width:184px;height:184px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;padding:11px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
+    .qr-box canvas,.qr-box img{display:block!important;width:160px!important;height:160px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important}
+    .code{width:100%;font-size:18px;font-weight:800;letter-spacing:3px;color:#071025;line-height:1.3;margin:2px 0 12px;text-align:center;word-break:break-word}
+    .foot{width:100%;border-top:1px dashed #e5e7eb;padding-top:8px;font-size:13px;font-weight:600;color:#a7adba;line-height:1.65;text-align:center}
+    .dl-btn{margin-top:16px;padding:10px 22px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;color:#071025;font-size:14px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;font-weight:700}
+    .dl-btn:hover{background:#f4f7fb}
+    @media print{body{background:#fff;padding:0}.print-wrap{min-height:auto;display:block}.ticket{box-shadow:none;margin-left:auto;margin-right:auto}.dl-btn{display:none!important}}`;
+}
+
 function dlCpTicket(){
   const {gid,cpId}=S.cpTicket||{};
   const g=db.guests.find(x=>x.id===gid);
@@ -3435,26 +3457,19 @@ function dlCpTicket(){
   const ev=db.events.find(e=>e.id===g.eventId);
   const w=window.open('','_blank','width=440,height=560');
   w.document.write(`<!DOCTYPE html><html><head>
-    <style>*{box-sizing:border-box;margin:0;padding:0;font-family:'Be Vietnam Pro',sans-serif}body{font-family:'Be Vietnam Pro',sans-serif;background:#f5f7fb;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
-    .tk{background:#fff;border:2px solid #e8eaf0;border-radius:16px;padding:28px 24px 20px;width:320px;text-align:center}
-    .hd{font-size:14px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:10px}
-    .ev{font-size:14px;color:#bbb;margin-bottom:3px}.name{font-size:20px;font-weight:800;margin-bottom:4px}
-    .role{font-size:14px;font-weight:600;background:#F5F3FF;color:#6D28D9;padding:3px 10px;border-radius:10px;display:inline-block;margin-bottom:14px}
-    .code{font-family:'Be Vietnam Pro',sans-serif;font-size:18px;font-weight:700;letter-spacing:3px;margin:4px 0 12px}
-    .foot{font-size:14px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
-    canvas,img{display:block;margin:0 auto;padding:10px;border:1px solid #eee;border-radius:8px}
-    .btn{margin-top:16px;padding:9px 24px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;font-size:14px;cursor:pointer}
-    @media print{.btn{display:none}body{background:#fff}}</style></head><body>
-    <div class="tk"><div class="hd">VÉ THAM DỰ SỰ KIỆN</div>
+    <style>${ticketPrintStyles()}</style></head><body>
+    <div class="print-wrap">
+    <div class="ticket"><div class="hd">VÉ THAM DỰ SỰ KIỆN</div>
       <div class="ev">${ev?.name||''}</div>
-      <div class="ev" style="margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+      <div class="ev meta">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
       <div class="name">${cp.name}</div>
       <div class="role">Đi kèm: ${g.name}</div>
-      <div id="qr"></div>
+      <div class="qr-box" id="qr"></div>
       <div class="code">${cp.code}</div>
       <div class="foot">Vui lòng xuất trình vé tại cổng check-in<br>Vé chỉ có giá trị cho 01 người</div>
     </div>
-    <button class="btn" onclick="window.print()">🖨️ Lưu / In vé này</button>
+    <button class="dl-btn" onclick="window.print()">🖨️ Lưu / In vé này</button>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     <script>setTimeout(()=>new QRCode(document.getElementById('qr'),{text:'${BASE_URL}/?code='+encodeURIComponent('${cp.code}'),width:160,height:160,correctLevel:QRCode.CorrectLevel.M}),100)<\/script>
   </body></html>`);}
@@ -3525,25 +3540,13 @@ function dlTicket(idx,name,code,role){
   const ev=db.events.find(e=>e.id===g.eventId);
   const w=window.open('','_blank','width=440,height=580');
   w.document.write(`<!DOCTYPE html><html><head><style>
-    *{box-sizing:border-box;margin:0;padding:0;font-family:'Be Vietnam Pro',sans-serif}
-    body{font-family:'Be Vietnam Pro',sans-serif;background:#f5f7fb;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
-    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap');
-    .ticket{background:#fff;border:2px solid #e8eaf0;border-radius:16px;padding:28px 24px 20px;width:320px;text-align:center}
-    .hd{font-size:14px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:10px}
-    .ev{font-size:14px;color:#bbb;margin-bottom:3px}
-    .name{font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:4px}
-    .role{font-size:14px;font-weight:600;margin-bottom:14px;display:inline-block;padding:3px 10px;border-radius:10px;background:#EFF6FF;color:#185FA5}
-    .qr-box{display:inline-block;padding:10px;border:1px solid #eee;border-radius:10px;margin-bottom:8px}
-    .code{font-family:'Be Vietnam Pro',sans-serif;font-size:18px;font-weight:600;letter-spacing:3px;margin:4px 0 12px}
-    .foot{font-size:14px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
-    .dl-btn{margin-top:16px;padding:9px 24px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;font-size:14px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;font-weight:500}
-    .dl-btn:hover{background:#f4f7fb}
-    @media print{.dl-btn{display:none}body{background:#fff}}
+    ${ticketPrintStyles()}
   </style></head><body>
+    <div class="print-wrap">
     <div class="ticket" id="tk">
       <div class="hd">VÉ THAM DỰ SỰ KIỆN</div>
       <div class="ev">${ev?.name||''}</div>
-      <div class="ev" style="margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+      <div class="ev meta">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
       <div class="name">${name}</div>
       <div class="role">${role}</div>
       <div class="qr-box" id="qr_s"></div>
@@ -3551,6 +3554,7 @@ function dlTicket(idx,name,code,role){
       <div class="foot">Vui lòng xuất trình vé tại cổng check-in<br>Vé chỉ có giá trị cho 01 người</div>
     </div>
     <button class="dl-btn" onclick="window.print()">🖨️ Lưu / In vé này</button>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     <script>setTimeout(()=>{new QRCode(document.getElementById('qr_s'),{text:'${BASE_URL}/?code='+encodeURIComponent('${code}'),width:160,height:160,correctLevel:QRCode.CorrectLevel.M})},100)<\/script>
   </body></html>`)}
@@ -3562,28 +3566,20 @@ function printAll(){
     ...(g.companions||[]).map(c=>({name:c.name,code:c.code,role:'Đi kèm: '+g.name}))];
   const w=window.open('','_blank','width=560,height:700');
   w.document.write(`<!DOCTYPE html><html><head><style>
-    @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap');
-    *{box-sizing:border-box;margin:0;padding:0;font-family:'Be Vietnam Pro',sans-serif}body{font-family:'Be Vietnam Pro',sans-serif;padding:20px;background:#f5f7fb}
-    .ticket{background:#fff;border:2px solid #e8eaf0;border-radius:14px;padding:24px 20px 16px;text-align:center;margin-bottom:16px;page-break-inside:avoid}
-    .hd{font-size:14px;font-weight:700;letter-spacing:2px;color:#bbb;margin-bottom:8px}
-    .ev{font-size:14px;color:#bbb;margin-bottom:3px}
-    .name{font-size:20px;font-weight:800;color:#1a1a2e;margin-bottom:4px}
-    .role{font-size:14px;font-weight:600;margin-bottom:14px;display:inline-block;padding:3px 10px;border-radius:10px;background:#EFF6FF;color:#185FA5}
-    .code{font-family:'Be Vietnam Pro',sans-serif;font-size:18px;font-weight:600;letter-spacing:3px;margin:4px 0 12px}
-    .foot{font-size:14px;color:#ccc;border-top:1px dashed #eee;padding-top:8px;line-height:1.7}
-    canvas,img{display:block;margin:8px auto;width:160px;height:160px}
-    @media print{body{background:#fff}}
+    ${ticketPrintStyles(true)}
   </style></head><body>
+    <div class="print-wrap">
     ${all.map(tk=>`<div class="ticket">
       <div class="hd">VÉ THAM DỰ SỰ KIỆN</div>
       <div class="ev">${ev?.name||''}</div>
-      <div class="ev" style="margin-bottom:12px">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
+      <div class="ev meta">${fmtD(ev?.date)}${ev?.venue?' · '+ev.venue:''}</div>
       <div class="name">${tk.name}</div>
       <div class="role">${tk.role}</div>
-      <div id="pqr_${tk.code}" style="display:inline-block;padding:8px;border:1px solid #eee;border-radius:8px"></div>
+      <div class="qr-box" id="pqr_${tk.code}"></div>
       <div class="code">${tk.code}</div>
       <div class="foot">Vui lòng xuất trình vé tại cổng check-in<br>Vé chỉ có giá trị cho 01 người</div>
     </div>`).join('')}
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     <script>
       const _base='${BASE_URL}';
