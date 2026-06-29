@@ -3424,8 +3424,41 @@ function mkCpQR(){
   if(!cp)return;
   const el=document.getElementById('cp_tqr');if(!el)return;
   el.innerHTML='';
-  try{new QRCode(el,{text:qrUrl(cp.code),width:160,height:160,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}
+  try{renderTicketQR(el,qrUrl(cp.code))}
   catch(e){el.innerHTML='<div style="font-size:14px;color:#aaa">QR error</div>'}}
+
+function normalizeTicketQR(el){
+  if(!el)return;
+  const qr=el.querySelector('canvas')||el.querySelector('img')||el.querySelector('table')||el.querySelector('svg');
+  Array.from(el.children).forEach(child=>{
+    child.style.maxWidth='160px';
+    child.style.maxHeight='160px';
+    child.style.margin='0';
+    child.style.padding='0';
+    child.style.border='0';
+    child.style.transform='none';
+    if(qr&&child!==qr)child.style.display='none';
+  });
+  if(!qr)return;
+  qr.style.display='block';
+  qr.style.width='160px';
+  qr.style.height='160px';
+  qr.style.maxWidth='160px';
+  qr.style.maxHeight='160px';
+  qr.style.margin='0';
+  qr.style.padding='0';
+  qr.style.border='0';
+  qr.style.borderRadius='0';
+  qr.style.transform='none';
+}
+
+function renderTicketQR(el,text){
+  el.innerHTML='';
+  new QRCode(el,{text,width:160,height:160,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  normalizeTicketQR(el);
+  requestAnimationFrame(()=>normalizeTicketQR(el));
+  setTimeout(()=>normalizeTicketQR(el),80);
+}
 
 function ticketPrintStyles(multiple=false){
   return `@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800&display=swap');
@@ -3440,8 +3473,11 @@ function ticketPrintStyles(multiple=false){
     .ev.meta{margin-bottom:11px}
     .name{width:100%;font-size:20px;font-weight:800;color:#071025;line-height:1.25;margin-bottom:7px;text-align:center;overflow-wrap:anywhere}
     .role{display:flex;align-items:center;justify-content:center;width:max-content;max-width:100%;margin:0 auto 13px;padding:3px 10px;border-radius:10px;background:#eff6ff;color:#185fa5;font-size:13px;font-weight:700;line-height:1.35;text-align:center;overflow-wrap:anywhere}
-    .qr-box{width:184px;height:184px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;padding:11px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
-    .qr-box canvas,.qr-box img{display:block!important;width:160px!important;height:160px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important}
+    .qr-box{width:184px!important;height:184px!important;min-width:184px!important;max-width:184px!important;min-height:184px!important;max-height:184px!important;display:grid;place-items:center;margin:0 auto 10px;padding:11px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;line-height:0}
+    .qr-box>*{grid-area:1/1;max-width:160px!important;max-height:160px!important}
+    .qr-box canvas,.qr-box img,.qr-box table,.qr-box svg{display:block!important;width:160px!important;height:160px!important;max-width:160px!important;max-height:160px!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;transform:none!important;object-fit:contain!important}
+    .qr-box table{border-collapse:collapse!important;table-layout:fixed!important}
+    .qr-box table td{padding:0!important;border:0!important;line-height:0!important}
     .code{width:100%;font-size:18px;font-weight:800;letter-spacing:3px;color:#071025;line-height:1.3;margin:2px 0 12px;text-align:center;word-break:break-word}
     .foot{width:100%;border-top:1px dashed #e5e7eb;padding-top:8px;font-size:13px;font-weight:600;color:#a7adba;line-height:1.65;text-align:center}
     .dl-btn{margin-top:16px;padding:10px 22px;border:1.5px solid #dde4f0;border-radius:8px;background:#fff;color:#071025;font-size:14px;cursor:pointer;font-family:'Be Vietnam Pro',sans-serif;font-weight:700}
@@ -3530,7 +3566,7 @@ function mkQRs(){
   all.forEach((code,idx)=>{
     const el=document.getElementById('tqr_'+idx);
     if(!el)return;el.innerHTML='';
-    try{new QRCode(el,{text:qrUrl(code),width:160,height:160,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}
+    try{renderTicketQR(el,qrUrl(code))}
     catch(e){el.innerHTML='<div style="font-size:14px;color:#aaa">QR error</div>'}
   });
 }
