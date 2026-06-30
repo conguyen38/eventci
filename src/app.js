@@ -610,10 +610,20 @@ async function loadData(){
 
 /* isEvLocked — ngày > ngày event → khoá check-in / cancel / thêm-xoá khách / import.
    Sửa thông tin tĩnh (tên, SĐT, PRM, vùng, đơn vị, SIH, note) vẫn cho phép. */
+function todayDateKey(){
+  const d=new Date();
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+function isEventToday(ev){
+  return !!ev?.date&&ev.date===todayDateKey();
+}
+
 function isEvLocked(ev){
   if(!ev?.date)return false;
-  const today=new Date().toISOString().slice(0,10);
-  return today>ev.date;
+  return todayDateKey()>ev.date;
 }
 
 /* isWalkinAllowed — true khi hôm nay >= ngày tổ chức sự kiện (trong ngày + sau ngày).
@@ -621,8 +631,7 @@ function isEvLocked(ev){
    Walk-in vẫn khả dụng sau ngày event để hậu kiểm / bổ sung KH đến muộn. */
 function isWalkinAllowed(ev){
   if(!ev?.date)return false;
-  const today=new Date().toISOString().slice(0,10);
-  return today>=ev.date;
+  return todayDateKey()>=ev.date;
 }
 // Alias cũ giữ lại để không cần sửa nhiều chỗ
 function isWalkinDay(ev){ return isWalkinAllowed(ev); }
@@ -702,6 +711,10 @@ function shouldSkipAutoRefresh(){
   if(S.modal)return true;
   if(S.ciState?.step==='verify')return true; // BTC đang chờ nhập 4 số cuối SĐT, không re-render giữa chừng
   if(S.urlCIBusy)return true; // đang chờ xác nhận check-in từ server
+  if(S.view==='admin'&&S.tab==='report'){
+    const ev=getEvById(S.rptEv);
+    if(!isEventToday(ev))return true;
+  }
   const el=document.activeElement;
   if(!el)return false;
   const tag=el.tagName;
@@ -1010,6 +1023,7 @@ let S={
   ciState:null,
   ciSyncWarn:false,
   ciRecentSearch:'',
+  ciRecentCollapsed:false,
   ciMobileMode:'camera',
   ciCameraFacing:'environment',
   pwVal:'',
@@ -1295,7 +1309,10 @@ function rAdmin(){
       </aside>
       <section class="admin-panel">
         <header class="admin-header no-print">
-          <div>
+          <div class="admin-header-main">
+            <button class="mobile-menu-btn" onclick="openMobileMenu()" aria-label="Mở menu">
+              <span class="material-symbols-rounded mi" aria-hidden="true">menu</span>
+            </button>
             <div class="admin-title">${pageTitle}</div>
           </div>
           <div class="admin-header-actions">
@@ -1675,6 +1692,9 @@ function rGTab(){
 function rRTab(){
   const events=visibleEvents();
   if(!events.length)return'<div class="empty">Chưa có dữ liệu.</div>';
+  const reportEvent=events.find(e=>e.id===S.rptEv);
+  const reportLive=isEventToday(reportEvent);
+  const reportStatus=S.rptEv?`<span class="badge ${reportLive?'b-green':'b-gray'}">${reportLive?'Real-time':'Không auto'}</span>`:'';
   const evSel=`<select class="selx" style="min-width:220px" onchange="setRptEv(this.value)">
     <option value="">- Tất cả sự kiện -</option>
     ${events.map(e=>`<option value="${e.id}" ${S.rptEv===e.id?'selected':''}>${e.name}${isEvLocked(e)?' 🔐':''}</option>`).join('')}
@@ -1682,7 +1702,12 @@ function rRTab(){
   const overviewHtml=`
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-weight:700">📊 Tổng quan sự kiện</div></div>${evSel}
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-weight:700">📊 Tổng quan sự kiện</div></div>
+        <div class="report-tools">
+          ${reportStatus}
+          <button id="refresh_btn" class="btn sm" onclick="doRefresh()"><span class="material-symbols-rounded mi" aria-hidden="true">refresh</span>Làm mới</button>
+          ${evSel}
+        </div>
       </div>
       ${events.map(ev=>{const p=allPeople(ev.id);const r=p.t?Math.round(p.c/p.t*100):0;
         const locked=false;
@@ -1924,6 +1949,7 @@ function setRptEv(v){
    ============================================================ */
 function rModal(){
   const wrapModal=(inner,cls)=>`<div class="ov" onclick="closeM()"><div class="modal ${cls||''}" onclick="event.stopPropagation()">${inner}</div></div>`;
+  if(S.modal==='mobile_menu')return wrapModal(rMobileMenuM(),'mobile-menu');
   if(S.modal==='add_ev'||S.modal==='edit_ev')return wrapModal(rAddEvM(),'lg');
   if(S.modal==='add_g'||S.modal==='edit_g')return wrapModal(rAddGM(),'lg');
   if(S.modal==='tickets')return wrapModal(rTicketsM(),'lg');
@@ -1947,6 +1973,35 @@ function rModal(){
   if(S.modal==='account_form')return wrapModal(rAccountFormM(),'sm');
   if(S.modal==='account_del')return wrapModal(rAccountDelM(),'sm');
   return'';
+}
+
+function rMobileMenuM(){
+  const me=currentAccount();
+  const initial=(me?.name||me?.username||'A').trim().slice(0,1).toUpperCase();
+  const showPermissions=canManageAccounts();
+  return`<div class="mobile-menu-panel">
+    <div class="mobile-menu-brand">
+      <img class="side-logo-img" src="${assetUrl('images/logo-oh-footer.png')}" alt="OneHousing" />
+      <button class="mobile-menu-close" onclick="closeM()" aria-label="Đóng menu">
+        <span class="material-symbols-rounded mi" aria-hidden="true">close</span>
+      </button>
+    </div>
+    <div class="side-section-title">Quản lý</div>
+    <div class="mobile-menu-list">
+      <button class="side-tab ${S.tab==='events'?'on':''}" onclick="setTab('events')"><span class="material-symbols-rounded mi" aria-hidden="true">event</span><span>Sự kiện</span></button>
+      <button class="side-tab ${S.tab==='report'?'on':''}" onclick="setTab('report')"><span class="material-symbols-rounded mi" aria-hidden="true">bar_chart</span><span>Báo cáo</span></button>
+      ${showPermissions?`<button class="side-tab ${S.tab==='permissions'?'on':''}" onclick="setTab('permissions')"><span class="material-symbols-rounded mi" aria-hidden="true">admin_panel_settings</span><span>Phân quyền</span></button>`:''}
+    </div>
+    <div class="side-user mobile-menu-user">
+      <div class="side-avatar">${esc(initial)}</div>
+      <div>
+        <div class="side-user-name">${esc(me?.name||'Administrator')}</div>
+        <div class="side-user-role">${esc(roleLabel(me?.role))}</div>
+      </div>
+    </div>
+    <button class="side-link" onclick="openAccount()"><span class="material-symbols-rounded mi" aria-hidden="true">key</span><span>Đổi mật khẩu</span></button>
+    <button class="side-link" onclick="doLogout()"><span class="material-symbols-rounded mi" aria-hidden="true">logout</span><span>Đăng xuất</span></button>
+  </div>`;
 }
 
 function rAdminAccountM(){
@@ -2488,10 +2543,13 @@ function rImportSourceM(){
     </div>
     <div class="sec">Import từ public sheet</div>
     <div class="fg">
-      <label>Link Google Sheet / CSV public</label>
-      <input id="public_sheet_url" placeholder="Dán link Google Sheet public hoặc file CSV..." onkeydown="if(event.key==='Enter')importPublicSheet()"/>
+      <label>Link Google Sheet / CSV / Excel public</label>
+      <input id="public_sheet_url" placeholder="Dán link Google Sheet, CSV hoặc Excel public..." onkeydown="if(event.key==='Enter')importPublicSheet()"/>
     </div>
-    <div style="font-size:14px;color:#98a4b6;margin-top:-4px">Sheet cần các cột: Loại Khách, Họ và Tên, Số Điện Thoại, Tên PRM, Vùng TCB, Đơn vị, Tên SIH, Note.</div>
+    <div class="import-modal-actions">
+      <button class="btn" onclick="openGoogleSheetTemplate()"><span class="material-symbols-rounded mi" aria-hidden="true">table_view</span>Tải template Google Sheet</button>
+    </div>
+    <div style="font-size:14px;color:#98a4b6;margin-top:-4px">Sheet cần dòng 1 là header: class (chinh - di kem), name, phone, prm-name, tcb-region, tcb-branch, sih-name, note.</div>
     <div id="import_source_err" class="err"></div>
     <div class="mf">
       <button class="btn" onclick="closeM()">Huỷ</button>
@@ -2841,6 +2899,7 @@ function rCIIdleDesktop(){
     ? recent.filter(r=>normSearchText(`${r.name} ${r.code} ${r.by} ${r.tag}`).includes(recentNeedle))
     : recent;
   const mobileMode=S.ciMobileMode||'camera';
+  const recentCollapsed=!!S.ciRecentCollapsed;
   return`<div class="ci-screen ci-desktop">
     <div class="ci-head ci-topbar">
       <button class="btn ghost sm ci-back-btn" onclick="doLogout()" title="Đăng xuất">
@@ -2908,15 +2967,20 @@ function rCIIdleDesktop(){
       </section>
 
       <section class="ci-ops-card">
-        <div class="ci-recent-card">
+        <div class="ci-recent-card ${recentCollapsed?'collapsed':''}">
           <div class="ci-section-head">
             <div>
               <div class="ci-panel-title">Check-in mới nhất</div>
               <div class="ci-panel-sub">Tự cập nhật realtime, mới nhất ở trên cùng.</div>
             </div>
-            <span class="badge b-green">${visibleRecent.length}</span>
+            <div class="ci-recent-actions">
+              <span class="badge b-green">${visibleRecent.length}</span>
+              <button type="button" class="ci-collapse-btn" onclick="toggleCIRecent()" title="${recentCollapsed?'Mở rộng':'Thu gọn'}" aria-label="${recentCollapsed?'Mở rộng danh sách check-in':'Thu gọn danh sách check-in'}" aria-expanded="${recentCollapsed?'false':'true'}">
+                <span class="material-symbols-rounded mi" aria-hidden="true">${recentCollapsed?'expand_more':'expand_less'}</span>
+              </button>
+            </div>
           </div>
-          <div class="search-control ci-recent-search ${recentQuery?'has-value':''}">
+          ${recentCollapsed?'':`<div class="search-control ci-recent-search ${recentQuery?'has-value':''}">
             <span class="material-symbols-rounded mi search-leading" aria-hidden="true">search</span>
             <input id="ci_recent_search" class="search-input" placeholder="Tìm tên, mã, phụ trách..." value="${esc(recentQuery)}"
               oninput="setCIRecentSearch(this.value,this.selectionStart)">
@@ -2935,7 +2999,7 @@ function rCIIdleDesktop(){
           </div>`:`<div class="ci-empty">
             <span class="material-symbols-rounded mi" aria-hidden="true">history</span>
             <div>${recent.length?'Không tìm thấy check-in phù hợp':'Chưa có khách check-in'}</div>
-          </div>`}
+          </div>`}`}
         </div>
       </section>
     </div>
@@ -3002,7 +3066,7 @@ function rCIErr(){
 /* ============================================================
    ACTIONS
    ============================================================ */
-function setTab(t){S.tab=t;R()}
+function setTab(t){S.tab=t;if(S.modal==='mobile_menu')S.modal=null;R()}
 function openGM(eid){
   const ev=db.events.find(e=>e.id===eid);if(!ev)return;
   if(!canAccessEvent(eid)){alert('Bạn không có quyền xem sự kiện này.');return}
@@ -3018,6 +3082,7 @@ function setCIRecentSearch(v,pos){S.ciRecentSearch=v;R();refocusInput('ci_recent
 function clearSrch(){S.search='';R();refocusInput('guest_search',0)}
 function clearEvSrch(){S.evSearch='';R();refocusInput('ev_search',0)}
 function clearCIRecentSearch(){S.ciRecentSearch='';R();refocusInput('ci_recent_search',0)}
+function toggleCIRecent(){S.ciRecentCollapsed=!S.ciRecentCollapsed;R()}
 function setCIMobileMode(mode){S.ciMobileMode=mode==='manual'?'manual':'camera';R()}
 async function switchCICamera(){
   S.ciCameraFacing=currentCameraFacing()==='environment'?'user':'environment';
@@ -3026,6 +3091,7 @@ async function switchCICamera(){
 }
 function setFil(v){S.filter=v;R()}
 function openM(m){S.modal=m;R()}
+function openMobileMenu(){S.modal='mobile_menu';R()}
 function openReportAccess(eventId=null){
   const id=eventId||S.selEv;
   if(id)S.selEv=id;
@@ -3818,18 +3884,26 @@ async function saveWalkin(){
 
 /* 1. Tải file Mẫu Excel đúng cấu trúc quy định */
 function downloadExcelTemplate() {
-  const headers = [
-    ["Loại Khách (Gõ 'Main' hoặc 'Companion')", "Họ và Tên (*)", "Số Điện Thoại", "Tên PRM (Sales TCB)", "Vùng TCB", "Đơn vị (CN/PGD)", "Tên SIH (Sales OH)", "Note / Lưu ý"]
+  const rows=[
+    ['class (chinh - di kem)','name','phone','prm-name','tcb-region','tcb-branch','sih-name','note'],
+    ['Main','Nguyễn Văn A','0901234567','Lê PRM','Vùng 1','CN Sài Gòn','Trần SIH','Khách VIP bàn đầu'],
+    ['Companion','Nguyễn Văn B (Đi kèm A)','0907654321','','','','','Đi cùng xe ông A'],
+    ['Main','Phạm Thị C','0911223344','Nguyễn PRM','Vùng 2','CN Hà Nội','Vũ SIH','']
   ];
-  const sampleData = [
-    ["Main", "Nguyễn Văn A", "0901234567", "Lê PRM", "Vùng 1", "CN Sài Gòn", "Trần SIH", "Khách VIP bàn đầu"],
-    ["Companion", "Nguyễn Văn B (Đi kèm A)", "0907654321", "", "", "", "", "Đi cùng xe ông A"],
-    ["Main", "Phạm Thị C", "0911223344", "Nguyễn PRM", "Vùng 2", "CN Hà Nội", "Vũ SIH", ""]
-  ];
-  const ws = XLSX.utils.aoa_to_sheet(headers.concat(sampleData));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Template");
-  XLSX.writeFile(wb, "OneHousing_Template_ImportKhach.xlsx");
+  const csv=rows.map(row=>row.map(value=>`"${String(value).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download='OneHousing_Template_ImportKhach.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function openGoogleSheetTemplate() {
+  window.open('https://docs.google.com/spreadsheets/d/1Zjw8odo800D5BgG4Bj24IFvm6HZ0crlSaoUbG77wjyQ/edit?gid=121046475#gid=121046475', '_blank', 'noopener');
 }
 
 function openImportExcel(){
@@ -3842,21 +3916,65 @@ function triggerExcelImport() {
   document.getElementById('excel_file_input').click();
 }
 
+const IMPORT_COLUMN_ALIASES={
+  type:['class (chinh - di kem)','class (chính - đi kèm)','class','loai khach','loại khách'],
+  name:['name','ho va ten','họ và tên'],
+  phone:['phone','so dien thoai','số điện thoại'],
+  prmName:['prm-name','prm name','ten prm','tên prm'],
+  tcbRegion:['tcb-region','tcb region','vung tcb','vùng tcb'],
+  unit:['tcb-branch','tcb branch','don vi','đơn vị','branch'],
+  sihName:['sih-name','sih name','ten sih','tên sih'],
+  note:['note','ghi chu','ghi chú','luu y','lưu ý']
+};
+
+function normalizeImportHeader(value){
+  return String(value||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d')
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+
+function findImportColumn(headers,aliases,fallbackIndex){
+  const normalizedAliases=aliases.map(normalizeImportHeader);
+  const found=headers.findIndex(h=>normalizedAliases.includes(normalizeImportHeader(h)));
+  return found>=0?found:fallbackIndex;
+}
+
+function importCell(row,index){
+  return index>=0&&row?.[index]!=null?String(row[index]).trim():'';
+}
+
+function importGuestType(value){
+  const normalized=normalizeImportHeader(value);
+  return normalized==='companion'||normalized.includes('di kem')||normalized.includes('di cung')?'Companion':'Main';
+}
+
 function parseImportRows(rawRows){
   if(!rawRows||rawRows.length<=1)throw new Error('File/Sheet trống hoặc thiếu dữ liệu.');
+  const headers=rawRows[0]||[];
+  const columns={
+    type:findImportColumn(headers,IMPORT_COLUMN_ALIASES.type,0),
+    name:findImportColumn(headers,IMPORT_COLUMN_ALIASES.name,1),
+    phone:findImportColumn(headers,IMPORT_COLUMN_ALIASES.phone,2),
+    prmName:findImportColumn(headers,IMPORT_COLUMN_ALIASES.prmName,3),
+    tcbRegion:findImportColumn(headers,IMPORT_COLUMN_ALIASES.tcbRegion,4),
+    unit:findImportColumn(headers,IMPORT_COLUMN_ALIASES.unit,5),
+    sihName:findImportColumn(headers,IMPORT_COLUMN_ALIASES.sihName,6),
+    note:findImportColumn(headers,IMPORT_COLUMN_ALIASES.note,7)
+  };
   const parsedGuests=[];
   for(let i=1;i<rawRows.length;i++){
     const row=rawRows[i];
-    if(!row?.[1]||String(row[1]).trim()==='')continue;
+    const name=importCell(row,columns.name);
+    if(!name)continue;
     parsedGuests.push({
-      type:(String(row[0]||'').trim().toLowerCase()==='companion')?'Companion':'Main',
-      name:String(row[1]).trim(),
-      phone:row[2]?String(row[2]).trim():'',
-      prmName:row[3]?String(row[3]).trim():'',
-      tcbRegion:row[4]?String(row[4]).trim():'',
-      unit:row[5]?String(row[5]).trim():'',
-      sihName:row[6]?String(row[6]).trim():'',
-      note:row[7]?String(row[7]).trim():''
+      type:importGuestType(importCell(row,columns.type)),
+      name,
+      phone:importCell(row,columns.phone),
+      prmName:importCell(row,columns.prmName),
+      tcbRegion:importCell(row,columns.tcbRegion),
+      unit:importCell(row,columns.unit),
+      sihName:importCell(row,columns.sihName),
+      note:importCell(row,columns.note)
     });
   }
   if(parsedGuests.length===0)throw new Error('Không tìm thấy dữ liệu khách hàng hợp lệ.');
@@ -3911,10 +4029,16 @@ function handleImportDrop(event){
   handleImportFile(file);
 }
 
+function extractImportUrl(rawUrl){
+  const text=String(rawUrl||'').trim();
+  return text.match(/https?:\/\/[^\s)]+/)?.[0]||text;
+}
+
 function publicSheetCsvUrl(rawUrl){
-  const url=new URL(rawUrl);
+  const importUrl=extractImportUrl(rawUrl);
+  const url=new URL(importUrl);
   const sheetId=url.pathname.match(/\/spreadsheets\/d\/([^/]+)/)?.[1];
-  if(!sheetId)return rawUrl;
+  if(!sheetId)return importUrl;
   const gid=url.hash.match(/gid=([^&]+)/)?.[1]||url.searchParams.get('gid')||'0';
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${encodeURIComponent(gid)}`;
 }
@@ -3927,12 +4051,15 @@ async function importPublicSheet(){
   try{
     const url=publicSheetCsvUrl(raw);
     const res=await fetch(url);
-    if(!res.ok)throw new Error(`Không tải được sheet (${res.status})`);
-    const text=await res.text();
-    const workbook=XLSX.read(text,{type:'string'});
+    if(!res.ok)throw new Error(`Không tải được file/sheet (${res.status})`);
+    const contentType=res.headers.get('content-type')||'';
+    const isExcel=/\.xlsx?($|[?#])/i.test(url)||contentType.includes('spreadsheetml')||contentType.includes('excel');
+    const workbook=isExcel
+      ?XLSX.read(new Uint8Array(await res.arrayBuffer()),{type:'array'})
+      :XLSX.read(await res.text(),{type:'string'});
     importWorkbookToPreview(workbook);
   }catch(e){
-    if(err)err.textContent='⚠️ Không import được public sheet. Hãy kiểm tra quyền public/link CSV. '+e.message;
+    if(err)err.textContent='⚠️ Không import được file/sheet public. Hãy kiểm tra quyền public/link CSV/Excel. '+e.message;
   }
 }
 
@@ -4147,10 +4274,10 @@ window.mkQRs=mkQRs; window.mkCpQR=mkCpQR; window.dlTicket=dlTicket;
 window.dlCpTicket=dlCpTicket; window.printAll=printAll;
 window.tryUnlock=tryUnlock; window.startCI=startCI; window.startQrScanner=startQrScanner; window.confirmPhone=confirmPhone;
 window.doAdminCI=doAdminCI;
-window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=setRptEv;
-window.openImportExcel=openImportExcel; window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
+window.expCSV=expCSV; window.togCI=togCI; window.togRpt=togRpt; window.setRptEv=setRptEv; window.toggleCIRecent=toggleCIRecent;
+window.openImportExcel=openImportExcel; window.openMobileMenu=openMobileMenu; window.triggerExcelImport=triggerExcelImport; window.handleExcelImport=handleExcelImport;
 window.handleImportDrag=handleImportDrag; window.handleImportDrop=handleImportDrop; window.importPublicSheet=importPublicSheet;
-window.downloadExcelTemplate=downloadExcelTemplate; window.commitExcelImport=commitExcelImport;
+window.downloadExcelTemplate=downloadExcelTemplate; window.openGoogleSheetTemplate=openGoogleSheetTemplate; window.commitExcelImport=commitExcelImport;
 window.downloadAllQRsZip=downloadAllQRsZip;
 window.doCIUnlock=doCIUnlock; window.openCIUnlock=openCIUnlock; window.closeCIUnlock=closeCIUnlock;
 window.openWalkin=openWalkin; window.saveWalkin=saveWalkin;
