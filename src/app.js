@@ -1700,9 +1700,15 @@ function rRTab(){
     ${events.map(e=>`<option value="${e.id}" ${S.rptEv===e.id?'selected':''}>${e.name}${isEvLocked(e)?' 🔐':''}</option>`).join('')}
   </select>`;
   const overviewHtml=`
-    <div class="card" style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-weight:700">📊 Tổng quan sự kiện</div></div>
+    <div class="report-overview-card">
+      <div class="report-overview-head">
+        <div class="report-overview-title">
+          <span class="material-symbols-rounded mi" aria-hidden="true">bar_chart</span>
+          <div>
+            <div class="report-overview-title-text">Tổng quan sự kiện</div>
+            <div class="report-overview-sub">Theo dõi nhanh tiến độ check-in của các sự kiện.</div>
+          </div>
+        </div>
         <div class="report-tools">
           ${reportStatus}
           <button id="refresh_btn" class="btn sm" onclick="doRefresh()"><span class="material-symbols-rounded mi" aria-hidden="true">refresh</span>Làm mới</button>
@@ -1710,24 +1716,32 @@ function rRTab(){
         </div>
       </div>
       ${events.map(ev=>{const p=allPeople(ev.id);const r=p.t?Math.round(p.c/p.t*100):0;
-        const locked=false;
-        return`<div class="report-overview-row">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
-            <div><div style="font-weight:600;font-size:15px">${ev.name}${locked?' 🔒':''}</div>
-              <div style="font-size:14px;color:#aaa">${fmtD(ev.date)}${ev.team?' · '+ev.team:''}</div></div>
-            <div style="display:flex;gap:10px;align-items:center">
-              <div style="text-align:center"><div style="font-size:16px;font-weight:700">${p.t}</div><div style="font-size:14px;color:#aaa">Tổng</div></div>
-              <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#3B6D11">${p.c}</div><div style="font-size:14px;color:#aaa">✅ Đã vào</div></div>
-              <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#aaa">${p.p}</div><div style="font-size:14px;color:#aaa">⏳ Chưa</div></div>
-              <div style="text-align:center"><div style="font-size:16px;font-weight:700;color:#B91C1C">${p.x}</div><div style="font-size:14px;color:#aaa">🚫 Cancel</div></div>
-              <div style="width:60px">
-                <div class="pb"><div class="pb-fill" style="width:${r}%;background:#3B6D11"></div></div>
-                <div style="font-size:14px;text-align:center;color:#aaa;margin-top:2px">${r}%</div>
-              </div>
+        const selected=S.rptEv===ev.id;
+        return`<div class="report-overview-row ${selected?'on':''}">
+          <div class="report-event-main">
+            <div class="report-event-title">${esc(ev.name||'Sự kiện chưa đặt tên')}</div>
+            <div class="report-event-meta">
+              <span><span class="material-symbols-rounded mi" aria-hidden="true">calendar_month</span>${fmtD(ev.date)}</span>
+              ${ev.team?`<span><span class="material-symbols-rounded mi" aria-hidden="true">apartment</span>${esc(ev.team)}</span>`:''}
+              ${isEventToday(ev)?`<span class="report-live-pill"><span></span>Real-time</span>`:''}
+            </div>
+          </div>
+          <div class="report-event-side">
+            <div class="report-metrics">
+              <div class="report-metric total"><strong>${p.t}</strong><span><span class="material-symbols-rounded mi" aria-hidden="true">groups</span>Tổng</span></div>
+              <div class="report-metric checked"><strong>${p.c}</strong><span><span class="material-symbols-rounded mi" aria-hidden="true">check_circle</span>Đã vào</span></div>
+              <div class="report-metric pending"><strong>${p.p}</strong><span><span class="material-symbols-rounded mi" aria-hidden="true">hourglass_empty</span>Chưa</span></div>
+              <div class="report-metric cancelled"><strong>${p.x}</strong><span><span class="material-symbols-rounded mi" aria-hidden="true">block</span>Cancel</span></div>
+            </div>
+            <div class="report-progress-wrap">
+              <div class="report-progress"><div style="width:${r}%"></div></div>
+              <span>${r}%</span>
             </div>
           </div>
         </div>`}).join('')}
     </div>`;
+
+  return overviewHtml;
 
   if(!S.rptEv){return overviewHtml+`<div class="empty" style="padding:24px">☝️ Chọn sự kiện ở trên để xem báo cáo chi tiết</div>`;}
 
